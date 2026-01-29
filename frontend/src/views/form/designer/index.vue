@@ -7,6 +7,11 @@
           <a-button @click="handleLoad">Load</a-button>
           <a-button danger @click="handleReset">Reset</a-button>
         </a-space>
+        <a-space class="vform-designer-meta" size="large">
+          <span>formKey: {{ formKey }}</span>
+          <span>version: {{ latestVersion ?? '-' }}</span>
+          <span>last saved: {{ lastSavedTime || '-' }}</span>
+        </a-space>
       </div>
       <div class="vform-designer-body">
         <VFormDesigner ref="designerRef" />
@@ -20,10 +25,15 @@
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
   import { VFormDesigner } from 'vform3-builds';
+  import { getLatestSchema, saveSchema } from './designer.api';
   import 'vform3-builds/dist/designer.style.css';
 
+  const TRITIUM_FORM_KEY_DEV = 'dev';
   const STORAGE_KEY = 'TRITIUM_VFORM_SCHEMA_DEV';
   const designerRef = ref<any>(null);
+  const formKey = TRITIUM_FORM_KEY_DEV;
+  const latestVersion = ref<number | null>(null);
+  const lastSavedTime = ref<string | null>(null);
 
   const getDesignerApi = () => designerRef.value;
 
@@ -45,18 +55,27 @@
     return false;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const api = getDesignerApi();
     const schema = extractSchema(api);
     if (!schema) {
       message.error('Designer API not ready');
       return;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(schema));
-    message.success('Schema saved');
+    const schemaJson = JSON.stringify(schema);
+    try {
+      const res = await saveSchema({ formKey, schemaJson });
+      latestVersion.value = res?.version ?? latestVersion.value;
+      lastSavedTime.value = res?.savedTime ?? lastSavedTime.value;
+      localStorage.setItem(STORAGE_KEY, schemaJson);
+      message.success('Schema saved');
+    } catch (err) {
+      localStorage.setItem(STORAGE_KEY, schemaJson);
+      message.warning('Backend save failed, saved locally');
+    }
   };
 
-  const handleLoad = (silent = false) => {
+  const loadFromLocal = (silent = false) => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       if (!silent) message.warning('No schema saved');
@@ -71,10 +90,44 @@
     }
     const api = getDesignerApi();
     if (!applySchema(api, parsed)) {
-      message.error('Designer API not ready');
+      if (!silent) message.error('Designer API not ready');
       return;
     }
     if (!silent) message.success('Schema loaded');
+  };
+
+  const loadFromBackend = async (silent = false) => {
+    const res = await getLatestSchema({ formKey });
+    if (!res?.schemaJson) {
+      if (!silent) message.warning('No schema returned');
+      return;
+    }
+    let parsed: Record<string, any> | null = null;
+    try {
+      parsed = JSON.parse(res.schemaJson);
+    } catch (err) {
+      if (!silent) message.error('Schema JSON invalid');
+      return;
+    }
+    const api = getDesignerApi();
+    if (!applySchema(api, parsed)) {
+      if (!silent) message.error('Designer API not ready');
+      return;
+    }
+    latestVersion.value = res?.version ?? latestVersion.value;
+    lastSavedTime.value = res?.savedTime ?? lastSavedTime.value;
+    localStorage.setItem(STORAGE_KEY, res.schemaJson);
+    if (!silent) message.success('Schema loaded');
+  };
+
+  const handleLoad = async (silent = false) => {
+    try {
+      await loadFromBackend(silent);
+      return;
+    } catch (err) {
+      if (!silent) message.warning('Backend load failed, using local storage');
+    }
+    loadFromLocal(silent);
   };
 
   const handleReset = () => {
@@ -100,6 +153,16 @@
 
   .vform-designer-toolbar {
     margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .vform-designer-meta {
+    color: #6b7280;
+    font-size: 12px;
   }
 
   .vform-designer-body {
