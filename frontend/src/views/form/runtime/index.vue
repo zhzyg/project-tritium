@@ -163,7 +163,12 @@
       const res = await getLatestPublishedSchema({ formKey });
       if (!res) return;
       publishedTable.value = res.tableName ?? null;
-      const firstMeta = res.fieldMetas?.[0];
+      const metas = res.fieldMetas ?? [];
+      const stringMeta = metas.find((meta) => {
+        const type = (meta.dbType || '').toLowerCase();
+        return type.includes('char') || type.includes('text');
+      });
+      const firstMeta = stringMeta || metas[0];
       if (firstMeta?.fieldKey) {
         filterFieldKey.value = firstMeta.fieldKey;
         filterLabel.value = firstMeta.label || firstMeta.fieldKey;
