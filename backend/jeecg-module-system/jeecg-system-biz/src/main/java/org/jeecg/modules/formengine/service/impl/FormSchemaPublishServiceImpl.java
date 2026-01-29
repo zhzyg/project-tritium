@@ -5,6 +5,7 @@ import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.formengine.ddl.DdlColumnDefinition;
 import org.jeecg.modules.formengine.ddl.DdlExecutor;
 import org.jeecg.modules.formengine.ddl.DdlGenerator;
+import org.jeecg.modules.formengine.ddl.DdlIndexDefinition;
 import org.jeecg.modules.formengine.ddl.DdlTypeMapper;
 import org.jeecg.modules.formengine.ddl.FormKeySlugger;
 import org.jeecg.modules.formengine.ddl.FormSchemaField;
@@ -15,6 +16,8 @@ import org.jeecg.modules.formengine.service.IFormFieldMetaService;
 import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
 import org.jeecg.modules.formengine.service.IFormTableMetaService;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishResp;
+import org.jeecg.modules.formmeta.dto.FormSchemaFieldMetaResp;
+import org.jeecg.modules.formmeta.dto.FormSchemaPublishedResp;
 import org.jeecg.modules.formmeta.entity.FormSchema;
 import org.jeecg.modules.formmeta.service.IFormSchemaService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +58,14 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
             throw new IllegalStateException("schema not found");
         }
         Integer schemaVersion = latest.getVersion();
+        formTableMetaService.lambdaUpdate()
+            .eq(FormTableMeta::getFormKey, formKey)
+            .set(FormTableMeta::getStatus, 0)
+            .update();
+        formSchemaService.lambdaUpdate()
+            .eq(FormSchema::getFormKey, formKey)
+            .set(FormSchema::getStatus, 0)
+            .update();
         FormTableMeta existing = formTableMetaService.getByFormKeyAndVersion(formKey, schemaVersion);
         String tableName = existing == null ? FormKeySlugger.toTableName(formKey) : existing.getTableName();
         List<FormFieldMeta> fieldMetas;
@@ -75,19 +86,55 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
                 formFieldMetaService.saveBatch(fieldMetas);
             }
         } else {
+            formTableMetaService.updateById(new FormTableMeta().setId(existing.getId()).setStatus(1));
             fieldMetas = formFieldMetaService.listByFormKeyVersion(formKey, schemaVersion);
         }
 
         formSchemaService.updateById(new FormSchema().setId(latest.getId()).setStatus(1));
 
         List<DdlColumnDefinition> ddlColumns = buildDdlColumns(fieldMetas);
-        List<String> ddlApplied = ddlExecutor.ensureTable(tableName, ddlColumns);
+        List<String> ddlApplied = new ArrayList<>();
+        ddlApplied.addAll(ddlExecutor.ensureTable(tableName, ddlColumns));
+        ddlApplied.addAll(ddlExecutor.ensureIndexes(tableName, buildIndexes(fieldMetas)));
 
         FormSchemaPublishResp resp = new FormSchemaPublishResp();
         resp.setFormKey(formKey);
         resp.setVersion(schemaVersion);
         resp.setTableName(tableName);
         resp.setDdlApplied(ddlApplied);
+        return resp;
+    }
+
+    @Override
+    public FormSchemaPublishedResp getLatestPublished(String formKey) {
+        if (oConvertUtils.isEmpty(formKey)) {
+            return null;
+        }
+        FormTableMeta tableMeta = formTableMetaService.getLatestPublished(formKey);
+        if (tableMeta == null) {
+            return null;
+        }
+        List<FormFieldMeta> fieldMetas = formFieldMetaService.listByFormKeyVersion(formKey, tableMeta.getSchemaVersion());
+        FormSchemaPublishedResp resp = new FormSchemaPublishedResp();
+        resp.setFormKey(formKey);
+        resp.setVersion(tableMeta.getSchemaVersion());
+        resp.setTableName(tableMeta.getTableName());
+        if (fieldMetas != null) {
+            List<FormSchemaFieldMetaResp> metaResps = new ArrayList<>();
+            for (FormFieldMeta meta : fieldMetas) {
+                FormSchemaFieldMetaResp metaResp = new FormSchemaFieldMetaResp();
+                metaResp.setFieldKey(meta.getFieldKey());
+                metaResp.setLabel(meta.getLabel());
+                metaResp.setWidgetType(meta.getWidgetType());
+                metaResp.setDbColumn(meta.getDbColumn());
+                metaResp.setDbType(meta.getDbType());
+                metaResp.setDbLength(meta.getDbLength());
+                metaResp.setNullable(meta.getNullable());
+                metaResp.setSearchable(meta.getSearchable());
+                metaResps.add(metaResp);
+            }
+            resp.setFieldMetas(metaResps);
+        }
         return resp;
     }
 
@@ -110,6 +157,7 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
                 .setDbLength(type.getLength())
                 .setNullable(field.isRequired() ? 0 : 1)
                 .setDefaultValue(field.getDefaultValue())
+                .setSearchable(0)
                 .setStatus(1)
                 .setCreatedTime(new Date());
             metas.add(meta);
@@ -144,5 +192,33 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
             ddlColumns.add(column);
         }
         return ddlColumns;
+    }
+
+    private List<DdlIndexDefinition> buildIndexes(List<FormFieldMeta> fieldMetas) {
+        List<DdlIndexDefinition> indexes = new ArrayList<>();
+        indexes.add(new DdlIndexDefinition()
+            .setName("uk_record_id")
+            .setColumns(java.util.Collections.singletonList("record_id"))
+            .setUnique(true));
+        indexes.add(new DdlIndexDefinition()
+            .setName("idx_created_time")
+            .setColumns(java.util.Collections.singletonList("created_time"))
+            .setUnique(false));
+        indexes.add(new DdlIndexDefinition()
+            .setName("idx_schema_version")
+            .setColumns(java.util.Collections.singletonList("schema_version"))
+            .setUnique(false));
+        if (fieldMetas != null) {
+            for (FormFieldMeta meta : fieldMetas) {
+                if (meta.getSearchable() != null && meta.getSearchable() == 1) {
+                    String indexName = "idx_" + meta.getDbColumn();
+                    indexes.add(new DdlIndexDefinition()
+                        .setName(indexName)
+                        .setColumns(java.util.Collections.singletonList(meta.getDbColumn()))
+                        .setUnique(false));
+                }
+            }
+        }
+        return indexes;
     }
 }

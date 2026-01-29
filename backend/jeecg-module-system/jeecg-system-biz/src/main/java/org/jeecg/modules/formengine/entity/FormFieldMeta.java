@@ -61,6 +61,9 @@ public class FormFieldMeta {
     @ApiModelProperty("default value")
     private String defaultValue;
 
+    @ApiModelProperty("searchable")
+    private Integer searchable;
+
     @ApiModelProperty("status")
     private Integer status;
 

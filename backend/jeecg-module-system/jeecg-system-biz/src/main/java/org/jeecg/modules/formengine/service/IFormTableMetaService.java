@@ -7,4 +7,6 @@ public interface IFormTableMetaService extends IService<FormTableMeta> {
     FormTableMeta getByFormKeyAndVersion(String formKey, Integer schemaVersion);
 
     FormTableMeta getPublished(String formKey, Integer schemaVersion);
+
+    FormTableMeta getLatestPublished(String formKey);
 }

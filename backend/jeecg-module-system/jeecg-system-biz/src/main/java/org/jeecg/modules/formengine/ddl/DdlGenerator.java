@@ -54,6 +54,14 @@ public class DdlGenerator {
         return String.format("ALTER TABLE `%s` ADD COLUMN %s", tableName, columnSql(column));
     }
 
+    public static String createIndex(String tableName, DdlIndexDefinition index) {
+        String cols = index.getColumns().stream()
+            .map(col -> String.format("`%s`", col))
+            .collect(Collectors.joining(", "));
+        String unique = index.isUnique() ? "UNIQUE " : "";
+        return String.format("CREATE %sINDEX `%s` ON `%s` (%s)", unique, index.getName(), tableName, cols);
+    }
+
     public static DdlColumnDefinition toColumn(String name, DdlColumnDefinition base) {
         return new DdlColumnDefinition()
             .setName(name)

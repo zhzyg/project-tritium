@@ -8,6 +8,7 @@ import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
 import org.jeecg.modules.formmeta.dto.FormSchemaLatestResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishReq;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishResp;
+import org.jeecg.modules.formmeta.dto.FormSchemaPublishedResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaSaveReq;
 import org.jeecg.modules.formmeta.dto.FormSchemaSaveResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaVersionResp;
@@ -87,6 +88,18 @@ public class FormSchemaController {
             return resp;
         }).collect(Collectors.toList());
         return Result.ok(respList);
+    }
+
+    @GetMapping("/latestPublished")
+    public Result<FormSchemaPublishedResp> latestPublished(@RequestParam(name = "formKey") String formKey) {
+        if (oConvertUtils.isEmpty(formKey)) {
+            return Result.error("formKey is required");
+        }
+        FormSchemaPublishedResp resp = formSchemaPublishService.getLatestPublished(formKey);
+        if (resp == null) {
+            return Result.error(404, "published schema not found");
+        }
+        return Result.ok(resp);
     }
 
     @PostMapping("/publish")

@@ -12,3 +12,4 @@
 - 2026-01-29: Form schema MVP-1 (backend persistence + API + frontend swap to backend + regression verified)
 - 2026-01-29: Form Runtime Data Engine MVP-2 (form_record + submit/page/get + /form/runtime UI + regressions verified)
 - 2026-01-29: MVP-3A JSON->DDL publish (form_table_meta/form_field_meta + publish API + dual-write to tr_form_* + regressions verified)
+- 2026-01-29: MVP-3B runtime query engine (physical table query + latestPublished + filter whitelist + regression verified)

@@ -67,4 +67,33 @@ public class DdlExecutor {
         }
         return applied;
     }
+
+    public List<String> ensureIndexes(String tableName, List<DdlIndexDefinition> indexes) {
+        List<String> applied = new java.util.ArrayList<>();
+        if (indexes == null || indexes.isEmpty()) {
+            return applied;
+        }
+        for (DdlIndexDefinition index : indexes) {
+            if (index == null || index.getColumns() == null || index.getColumns().isEmpty()) {
+                continue;
+            }
+            if (indexExists(tableName, index.getName())) {
+                continue;
+            }
+            String ddl = DdlGenerator.createIndex(tableName, index);
+            execute(ddl);
+            applied.add(ddl);
+        }
+        return applied;
+    }
+
+    private boolean indexExists(String tableName, String indexName) {
+        Integer count = jdbcTemplate.queryForObject(
+            "select count(*) from information_schema.statistics where table_schema = ? and table_name = ? and index_name = ?",
+            Integer.class,
+            databaseName,
+            tableName,
+            indexName);
+        return count != null && count > 0;
+    }
 }

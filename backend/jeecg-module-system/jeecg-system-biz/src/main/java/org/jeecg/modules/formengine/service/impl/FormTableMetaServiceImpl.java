@@ -27,4 +27,14 @@ public class FormTableMetaServiceImpl extends ServiceImpl<FormTableMetaMapper, F
             .last("limit 1")
             .one();
     }
+
+    @Override
+    public FormTableMeta getLatestPublished(String formKey) {
+        return this.lambdaQuery()
+            .eq(FormTableMeta::getFormKey, formKey)
+            .eq(FormTableMeta::getStatus, 1)
+            .orderByDesc(FormTableMeta::getSchemaVersion)
+            .last("limit 1")
+            .one();
+    }
 }

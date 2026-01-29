@@ -13,6 +13,20 @@
         </a-space>
       </div>
 
+      <div class="vform-runtime-filters">
+        <a-space>
+          <a-input
+            v-model:value="filterValue"
+            :placeholder="`Search ${filterLabel}`"
+            allow-clear
+            style="min-width: 220px"
+            @pressEnter="fetchRecords"
+          />
+          <a-button @click="fetchRecords">Search</a-button>
+        </a-space>
+        <span class="vform-runtime-filter-meta">field: {{ filterFieldKey }}</span>
+      </div>
+
       <div class="vform-runtime-body">
         <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
       </div>
@@ -29,6 +43,9 @@
             <template v-if="column.key === 'dataJson'">
               <a-typography-paragraph :ellipsis="{ rows: 2 }" :content="record.dataJson" />
             </template>
+            <template v-else-if="column.key === 'field'">
+              <span>{{ record?.data?.[filterFieldKey] ?? '-' }}</span>
+            </template>
             <template v-else-if="column.key === 'actions'">
               <a-button size="small" @click="openJson(record)">View</a-button>
             </template>
@@ -44,12 +61,12 @@
 </template>
 
 <script lang="ts" setup>
-  import { onMounted, reactive, ref } from 'vue';
+  import { computed, onMounted, reactive, ref } from 'vue';
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { getLatestSchema, submitRecord, pageRecords } from './runtime.api';
+  import { getLatestSchema, getLatestPublishedSchema, submitRecord, pageRecords } from './runtime.api';
 
   const TRITIUM_FORM_KEY_DEV = 'dev';
   const formKey = TRITIUM_FORM_KEY_DEV;
@@ -60,6 +77,10 @@
 
   const schemaVersion = ref<number | null>(null);
   const schemaSavedTime = ref<string | null>(null);
+  const publishedTable = ref<string | null>(null);
+  const filterFieldKey = ref('name');
+  const filterLabel = ref('name');
+  const filterValue = ref('');
 
   const submitting = ref(false);
   const records = ref<any[]>([]);
@@ -68,14 +89,15 @@
   const jsonModalOpen = ref(false);
   const selectedJson = ref('');
 
-  const columns = [
+  const columns = computed(() => [
     { title: 'ID', dataIndex: 'id', key: 'id', width: 180, ellipsis: true },
     { title: 'Schema Version', dataIndex: 'schemaVersion', key: 'schemaVersion', width: 130 },
+    { title: filterLabel.value || 'Field', dataIndex: 'data', key: 'field', width: 140 },
     { title: 'Created By', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
     { title: 'Created Time', dataIndex: 'createdTime', key: 'createdTime', width: 180 },
     { title: 'Data JSON', dataIndex: 'dataJson', key: 'dataJson' },
     { title: 'Actions', key: 'actions', width: 90 },
-  ];
+  ]);
 
   const loadSchema = async () => {
     const res = await getLatestSchema({ formKey });
@@ -98,7 +120,15 @@
   };
 
   const fetchRecords = async () => {
-    const res: any = await pageRecords({ formKey, pageNo: pagination.current, pageSize: pagination.pageSize });
+    const params: Record<string, any> = {
+      formKey,
+      pageNo: pagination.current,
+      pageSize: pagination.pageSize,
+    };
+    if (filterValue.value) {
+      params[`q_${filterFieldKey.value}`] = filterValue.value;
+    }
+    const res: any = await pageRecords(params);
     records.value = res?.records ?? [];
     pagination.total = res?.total ?? 0;
   };
@@ -128,8 +158,24 @@
     jsonModalOpen.value = true;
   };
 
+  const loadPublishedMeta = async () => {
+    try {
+      const res = await getLatestPublishedSchema({ formKey });
+      if (!res) return;
+      publishedTable.value = res.tableName ?? null;
+      const firstMeta = res.fieldMetas?.[0];
+      if (firstMeta?.fieldKey) {
+        filterFieldKey.value = firstMeta.fieldKey;
+        filterLabel.value = firstMeta.label || firstMeta.fieldKey;
+      }
+    } catch (err) {
+      // ignore if no published schema yet
+    }
+  };
+
   onMounted(async () => {
     await loadSchema();
+    await loadPublishedMeta();
     await fetchRecords();
   });
 </script>
@@ -161,6 +207,19 @@
     padding: 12px;
     border: 1px solid #f0f0f0;
     border-radius: 6px;
+  }
+
+  .vform-runtime-filters {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .vform-runtime-filter-meta {
+    color: #9ca3af;
+    font-size: 12px;
   }
 
   .vform-runtime-records {

@@ -6,12 +6,16 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.Map;
 
 @Data
 @ApiModel(value = "FormRecordPageResp", description = "Form record page response")
 public class FormRecordPageResp {
     @ApiModelProperty("record id")
     private String id;
+
+    @ApiModelProperty("record id")
+    private String recordId;
 
     @ApiModelProperty("schema version")
     private Integer schemaVersion;
@@ -25,4 +29,7 @@ public class FormRecordPageResp {
 
     @ApiModelProperty("data json")
     private String dataJson;
+
+    @ApiModelProperty("field values")
+    private Map<String, Object> data;
 }

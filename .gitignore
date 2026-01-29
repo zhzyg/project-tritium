@@ -18,6 +18,9 @@ tmp/
 target/
 **/target/
 node_modules/
+artifacts/
+backend/*.out
+config/jeecg/
 
 # ===== IDE =====
 .vscode/
