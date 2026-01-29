@@ -10,3 +10,4 @@
 - 2026-01-29: Register /form/designer menu permission for BACK mode; Save/Load/Reset regression verified; no breaking runtime change
 # hook test 2026-01-29T08:13:37+00:00
 - 2026-01-29: Form schema MVP-1 (backend persistence + API + frontend swap to backend + regression verified)
+- 2026-01-29: Form Runtime Data Engine MVP-2 (form_record + submit/page/get + /form/runtime UI + regressions verified)

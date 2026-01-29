@@ -21,6 +21,14 @@ const formDesigner: AppRouteModule = {
         title: '表单设计器（VForm）',
       },
     },
+    {
+      path: 'runtime',
+      name: 'FormRuntime',
+      component: () => import('/@/views/form/runtime/index.vue'),
+      meta: {
+        title: '表单运行态（VForm）',
+      },
+    },
   ],
 };
 
