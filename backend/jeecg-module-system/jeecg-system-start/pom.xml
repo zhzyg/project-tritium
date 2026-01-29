@@ -18,6 +18,11 @@
             <artifactId>jeecg-system-biz</artifactId>
             <version>${jeecgboot.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.flowable</groupId>
+            <artifactId>flowable-spring-boot-starter-process</artifactId>
+            <version>6.8.0</version>
+        </dependency>
         <!-- DEMO 示例模块 -->
         <dependency>
             <groupId>org.jeecgframework.boot</groupId>
