@@ -1,9 +1,12 @@
 import 'uno.css';
 import '/@/design/index.less';
+import 'element-plus/dist/index.css';
 // 注册图标
 import 'virtual:svg-icons-register';
 import App from './App.vue';
 import { createApp } from 'vue';
+import ElementPlus from 'element-plus';
+import VForm3 from 'vform3-builds';
 import { initAppConfigStore } from '/@/logics/initAppConfig';
 import { setupErrorHandle } from '/@/logics/error-handle';
 import { router, setupRouter } from '/@/router';
@@ -25,6 +28,8 @@ if (import.meta.env.DEV) {
 async function bootstrap() {
   // 创建应用实例
   const app = createApp(App);
+  app.use(ElementPlus);
+  app.use(VForm3);
 
   // 多语言配置,异步情况:语言文件可以从服务器端获得
   await setupI18n(app);
