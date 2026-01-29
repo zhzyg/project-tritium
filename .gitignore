@@ -25,6 +25,7 @@ node_modules/
 
 # ===== OS =====
 .DS_Store
+
 # AI ctxpack outputs (generated)
 docs/ai/CTXPACK.latest.md
-.artifacts/ai/
+.artifacts/
