@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "backend": {
+    "url": "https://github.com/jeecgboot/JeecgBoot.git",
+    "ref": "v3.6.1",
+    "commit": "a406c7cd81c616f675641a4bf3439285ccd2854b"
+  },
+  "frontend": {
+    "url": "https://github.com/jeecgboot/jeecgboot-vue3.git",
+    "ref": "v3.6.1",
+    "commit": "3c0f15bb6e704547381089736f9bd9c81d6edf56"
+  }
+}
