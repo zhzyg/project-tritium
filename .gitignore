@@ -1,0 +1,27 @@
+# ===== secrets & certs =====
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+certs_upload/
+root/certs_upload/
+**/ssl/
+**/nginx/ssl/
+
+# ===== logs & runtime =====
+*.log
+logs/
+tmp/
+target/
+**/target/
+node_modules/
+
+# ===== IDE =====
+.vscode/
+.idea/
+
+# ===== OS =====
+.DS_Store
