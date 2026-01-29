@@ -7,4 +7,5 @@
 - 2026-01-29: Flowable MVP-0 starter + /flowable/ping + schema auto-update (new tables only)
 - 2026-01-29: Align dev MySQL/Redis settings with tritium containers for Flowable MVP-0
 - 2026-01-29: VForm MVP-0 designer route + localStorage schema (no persistence/DDL)
+- 2026-01-29: Register /form/designer menu permission for BACK mode; Save/Load/Reset regression verified; no breaking runtime change
 # hook test 2026-01-29T08:13:37+00:00
