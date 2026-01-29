@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.jeecg.modules.formruntime.entity.FormRecord;
 import org.jeecg.modules.formruntime.mapper.FormRecordMapper;
 import org.jeecg.modules.formruntime.service.IFormRecordService;
+import org.jeecg.modules.formengine.service.IFormPhysicalTableService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,6 +14,9 @@ import java.util.Date;
 
 @Service
 public class FormRecordServiceImpl extends ServiceImpl<FormRecordMapper, FormRecord> implements IFormRecordService {
+
+    @Autowired
+    private IFormPhysicalTableService formPhysicalTableService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -28,6 +33,7 @@ public class FormRecordServiceImpl extends ServiceImpl<FormRecordMapper, FormRec
         if (!saved) {
             throw new IllegalStateException("Failed to save form record");
         }
+        formPhysicalTableService.writeRecordIfPublished(formKey, schemaVersion, record.getId(), dataJson, createdBy, record.getCreatedTime());
         return record;
     }
 }

@@ -4,12 +4,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.jeecg.common.api.vo.Result;
 import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.util.oConvertUtils;
+import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
 import org.jeecg.modules.formmeta.dto.FormSchemaLatestResp;
+import org.jeecg.modules.formmeta.dto.FormSchemaPublishReq;
+import org.jeecg.modules.formmeta.dto.FormSchemaPublishResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaSaveReq;
 import org.jeecg.modules.formmeta.dto.FormSchemaSaveResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaVersionResp;
 import org.jeecg.modules.formmeta.entity.FormSchema;
 import org.jeecg.modules.formmeta.service.IFormSchemaService;
+import org.jeecg.modules.system.mapper.SysUserRoleMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +33,12 @@ public class FormSchemaController {
 
     @Autowired
     private IFormSchemaService formSchemaService;
+
+    @Autowired
+    private IFormSchemaPublishService formSchemaPublishService;
+
+    @Autowired
+    private SysUserRoleMapper sysUserRoleMapper;
 
     @PostMapping("/save")
     public Result<FormSchemaSaveResp> save(@RequestBody FormSchemaSaveReq req, HttpServletRequest request) {
@@ -77,5 +87,26 @@ public class FormSchemaController {
             return resp;
         }).collect(Collectors.toList());
         return Result.ok(respList);
+    }
+
+    @PostMapping("/publish")
+    public Result<FormSchemaPublishResp> publish(@RequestBody FormSchemaPublishReq req, HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getFormKey())) {
+            return Result.error("formKey is required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        if (!isAdmin(username)) {
+            return Result.error(403, "forbidden");
+        }
+        FormSchemaPublishResp resp = formSchemaPublishService.publish(req.getFormKey(), username);
+        return Result.ok(resp);
+    }
+
+    private boolean isAdmin(String username) {
+        if (oConvertUtils.isEmpty(username)) {
+            return false;
+        }
+        List<String> roles = sysUserRoleMapper.getRoleByUserName(username);
+        return roles != null && roles.contains("admin");
     }
 }

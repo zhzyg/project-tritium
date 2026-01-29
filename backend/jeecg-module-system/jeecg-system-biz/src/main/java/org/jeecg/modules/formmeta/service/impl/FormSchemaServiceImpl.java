@@ -44,6 +44,16 @@ public class FormSchemaServiceImpl extends ServiceImpl<FormSchemaMapper, FormSch
     }
 
     @Override
+    public FormSchema getLatestPublished(String formKey) {
+        return this.lambdaQuery()
+            .eq(FormSchema::getFormKey, formKey)
+            .eq(FormSchema::getStatus, 1)
+            .orderByDesc(FormSchema::getVersion)
+            .last("limit 1")
+            .one();
+    }
+
+    @Override
     public List<FormSchema> listVersions(String formKey) {
         return this.lambdaQuery()
             .select(FormSchema::getFormKey, FormSchema::getVersion, FormSchema::getStatus, FormSchema::getCreatedTime)

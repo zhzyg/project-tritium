@@ -4,12 +4,14 @@
       <div class="vform-designer-toolbar">
         <a-space>
           <a-button type="primary" @click="handleSave">Save</a-button>
+          <a-button @click="handlePublish">Publish</a-button>
           <a-button @click="handleLoad">Load</a-button>
           <a-button danger @click="handleReset">Reset</a-button>
         </a-space>
         <a-space class="vform-designer-meta" size="large">
           <span>formKey: {{ formKey }}</span>
           <span>version: {{ latestVersion ?? '-' }}</span>
+          <span>table: {{ lastPublishTable || '-' }}</span>
           <span>last saved: {{ lastSavedTime || '-' }}</span>
         </a-space>
       </div>
@@ -25,7 +27,7 @@
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
   import { VFormDesigner } from 'vform3-builds';
-  import { getLatestSchema, saveSchema } from './designer.api';
+  import { getLatestSchema, saveSchema, publishSchema } from './designer.api';
   import 'vform3-builds/dist/designer.style.css';
 
   const TRITIUM_FORM_KEY_DEV = 'dev';
@@ -34,6 +36,7 @@
   const formKey = TRITIUM_FORM_KEY_DEV;
   const latestVersion = ref<number | null>(null);
   const lastSavedTime = ref<string | null>(null);
+  const lastPublishTable = ref<string | null>(null);
 
   const getDesignerApi = () => designerRef.value;
 
@@ -128,6 +131,18 @@
       if (!silent) message.warning('Backend load failed, using local storage');
     }
     loadFromLocal(silent);
+  };
+
+  const handlePublish = async () => {
+    try {
+      const resp = await publishSchema({ formKey });
+      latestVersion.value = resp?.version ?? latestVersion.value;
+      lastPublishTable.value = resp?.tableName ?? lastPublishTable.value;
+      const ddlCount = resp?.ddlApplied?.length ?? 0;
+      message.success(`Published to ${resp?.tableName || 'table'} (ddl: ${ddlCount})`);
+    } catch (err) {
+      message.error('Publish failed');
+    }
   };
 
   const handleReset = () => {

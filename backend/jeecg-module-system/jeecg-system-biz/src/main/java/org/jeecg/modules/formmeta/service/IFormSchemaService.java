@@ -10,5 +10,7 @@ public interface IFormSchemaService extends IService<FormSchema> {
 
     FormSchema getLatest(String formKey);
 
+    FormSchema getLatestPublished(String formKey);
+
     List<FormSchema> listVersions(String formKey);
 }

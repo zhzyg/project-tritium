@@ -41,7 +41,10 @@ public class FormRecordController {
         if (req == null || oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getDataJson())) {
             return Result.error("formKey and dataJson are required");
         }
-        FormSchema latestSchema = formSchemaService.getLatest(req.getFormKey());
+        FormSchema latestSchema = formSchemaService.getLatestPublished(req.getFormKey());
+        if (latestSchema == null) {
+            latestSchema = formSchemaService.getLatest(req.getFormKey());
+        }
         if (latestSchema == null) {
             return Result.error(404, "schema not found");
         }
