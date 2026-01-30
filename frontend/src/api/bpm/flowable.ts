@@ -98,7 +98,7 @@ export interface TaskCompleteReq {
 }
 
 
-export const listTasks = (params: TaskQueryReq) =>
+export const listMyTasks = (params: TaskQueryReq) =>
   defHttp.post<TaskItem[]>({ url: Api.TaskList, params });
 
 export const claimTask = (params: TaskClaimReq) =>

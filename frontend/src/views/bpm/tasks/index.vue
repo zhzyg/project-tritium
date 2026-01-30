@@ -56,7 +56,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { listTasks, claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
+import { listMyTasks, claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
 
 // Simple interface matching the API
 interface TaskItem {
@@ -76,7 +76,7 @@ const varsData = ref<any>(null);
 const fetchTasks = async () => {
   loading.value = true;
   try {
-    const res = await listTasks({});
+    const res = await listMyTasks({});
     tableData.value = (res as any) || [];
   } catch (error) {
     console.error(error);
