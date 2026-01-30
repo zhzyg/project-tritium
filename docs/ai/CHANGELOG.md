@@ -1,3 +1,26 @@
+# Project Tritium AI Changelog (Operational)
+
+> Purpose: durable operational memory across interrupted chats / agent switches.
+> Rule: each entry must be actionable (what/why/scope/files/verify/rollback/next).
+> Avoid: pasting large code; link to paths + artifacts evidence instead.
+
+## Entry Template (copy/paste)
+- Date:
+- Goal / Why:
+- Scope: (frontend/backend/db/nginx/ops)
+- Key changes:
+  - Files:
+  - Config/Runtime:
+  - DB patches:
+- Verification (evidence paths):
+  - ai_guard: artifacts/.../ai_guard_pre.log, ai_guard_post.log
+  - regress: ops/... + artifacts/... logs
+  - curl/status: artifacts/... text files
+- Rollback:
+- Known issues / Next:
+
+---
+
 # CHANGELOG
 
 - 2026-01-30: MVP-3C runtime mutation engine (insert/update runtime to physical table + data_json audit) + regression script ops/regress_form_mutation_mvp3c.sh
@@ -24,3 +47,21 @@
 
 - ops: add deploy_frontend_static.sh + regress_frontend_static_deploy.sh (build→sync /var/www/oa→curl verify); artifacts under artifacts/frontend-deploy/ and artifacts/frontend-regress/
 - 2026-01-30: Fix OA auth proxy by mapping /jeecgboot/* to backend /jeecg-boot/* and add OPTIONS preflight handling in nginx; add ops/regress_ui_oa_smoke.sh; evidence: artifacts/auth_404_405_fix_20260130_101427/
+## 2026-01-30
+- Goal / Why: make changelog handoff-ready and record key deployment facts for OA ops continuity.
+- Scope: docs, nginx, ops
+- Key changes:
+  - Files:
+    - docs/ai/CHANGELOG.md
+  - Config/Runtime:
+    - Nginx serves static frontend from /var/www/oa (root in /etc/nginx/sites-available/oa.donaldzhu.com).
+    - /var/www/oa permissions: root:root 755.
+    - ai_guard admin env file exists at /root/.config/tritium/admin.env (600 perms; not committed).
+- Verification (evidence paths):
+  - ai_guard pre: artifacts/changelog_detail_20260130_103224/ai_guard_pre.log
+  - filesystem/nginx: artifacts/changelog_detail_20260130_103224/var_www_oa_ls.txt, artifacts/changelog_detail_20260130_103224/var_www_oa_perm.txt, artifacts/changelog_detail_20260130_103224/nginx_root_oa.txt, artifacts/changelog_detail_20260130_103224/admin_env_ls.txt, artifacts/changelog_detail_20260130_103224/admin_env_perm.txt
+- Rollback:
+  - Revert this changelog entry via git revert if needed.
+  - For runtime changes, restore prior nginx root and re-deploy static frontend as applicable.
+- Known issues / Next:
+  - Keep monitoring auth routes via ops/regress_ui_oa_smoke.sh and capture evidence in artifacts.
