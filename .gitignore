@@ -21,6 +21,7 @@ target/
 node_modules/
 artifacts/
 backend/*.out
+jeecg-system-start.out
 config/jeecg/
 backend/jeecg-module-system/jeecg-system-start/config/
 

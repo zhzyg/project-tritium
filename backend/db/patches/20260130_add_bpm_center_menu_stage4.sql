@@ -1,7 +1,7 @@
 -- Purpose: Add BPM Center menus (Stage4 MVP-0 UI)
 -- Rollback:
---   DELETE FROM sys_role_permission WHERE permission_id in ('9f1b2c3d4e5f60718293a4b5c6d7e8f1','9f1b2c3d4e5f60718293a4b5c6d7e8f2','9f1b2c3d4e5f60718293a4b5c6d7e8f3','9f1b2c3d4e5f60718293a4b5c6d7e8f4');
---   DELETE FROM sys_permission WHERE id in ('9f1b2c3d4e5f60718293a4b5c6d7e8f1','9f1b2c3d4e5f60718293a4b5c6d7e8f2','9f1b2c3d4e5f60718293a4b5c6d7e8f3','9f1b2c3d4e5f60718293a4b5c6d7e8f4');
+--   DELETE FROM sys_role_permission WHERE permission_id in ('9f1b2c3d4e5f60718293a4b5c6d7e8f1','9f1b2c3d4e5f60718293a4b5c6d7e8f2','9f1b2c3d4e5f60718293a4b5c6d7e8f3','9f1b2c3d4e5f60718293a4b5c6d7e8f4','9f1b2c3d4e5f60718293a4b5c6d7e8f5');
+--   DELETE FROM sys_permission WHERE id in ('9f1b2c3d4e5f60718293a4b5c6d7e8f1','9f1b2c3d4e5f60718293a4b5c6d7e8f2','9f1b2c3d4e5f60718293a4b5c6d7e8f3','9f1b2c3d4e5f60718293a4b5c6d7e8f4','9f1b2c3d4e5f60718293a4b5c6d7e8f5');
 
 INSERT INTO sys_permission (
   id,
@@ -164,6 +164,33 @@ INSERT INTO sys_permission (
     0,
     '1',
     0
+  ),
+  (
+    '9f1b2c3d4e5f60718293a4b5c6d7e8f5',
+    '9f1b2c3d4e5f60718293a4b5c6d7e8f1',
+    'My Tasks',
+    '/bpm/tasks',
+    'bpm/tasks/index',
+    1,
+    1,
+    NULL,
+    0,
+    4.00,
+    0,
+    NULL,
+    1,
+    0,
+    0,
+    0,
+    NULL,
+    'admin',
+    NOW(),
+    'admin',
+    NOW(),
+    0,
+    0,
+    '1',
+    0
   );
 
 INSERT INTO sys_role_permission (
@@ -202,6 +229,14 @@ INSERT INTO sys_role_permission (
     '9f1b2c3d4e5f60718293a4b5c6d7e904',
     'f6817f48af4fb3af11b9e8bf182f618b',
     '9f1b2c3d4e5f60718293a4b5c6d7e8f4',
+    NULL,
+    NOW(),
+    '127.0.0.1'
+  ),
+  (
+    '9f1b2c3d4e5f60718293a4b5c6d7e905',
+    'f6817f48af4fb3af11b9e8bf182f618b',
+    '9f1b2c3d4e5f60718293a4b5c6d7e8f5',
     NULL,
     NOW(),
     '127.0.0.1'

@@ -23,6 +23,28 @@
 
 # CHANGELOG
 
+## 2026-01-30 (Stage4 MVP-1 Gap Fix)
+- Goal / Why: Register BPM Center routes/menus for My Tasks in code + DB patch so MVP-1 UI is discoverable without duplicating backend APIs.
+- Scope: frontend, backend/db, docs
+- Key changes:
+  - Files:
+    - frontend/src/router/routes/modules/bpm.ts (new)
+    - frontend/src/router/menus/modules/bpm.ts (new)
+    - backend/db/patches/20260130_add_bpm_center_menu_stage4.sql (add My Tasks menu + role permission)
+    - docs/ai/CHANGELOG.md
+  - Config/Runtime: None.
+  - DB patches: backend/db/patches/20260130_add_bpm_center_menu_stage4.sql (adds /bpm/tasks menu entry).
+- Endpoints: Existing (unchanged) /bpm/task/my, /bpm/task/claim, /bpm/task/complete, /bpm/process/vars.
+- Verification (evidence paths):
+  - ai_guard: artifacts/impl_mvp1_20260130_161034/ai_guard_before.txt, artifacts/impl_mvp1_20260130_161034/ai_guard_after.txt
+  - regress: artifacts/impl_mvp1_20260130_161034/run_gate_ui_flowable_mvp1.txt
+  - regress (latest gate): artifacts/commit_mvp1_20260130_162254/run_gate_ui_flowable_mvp1.log
+  - evidence: artifacts/impl_mvp1_20260130_161034/
+- Rollback:
+  - Revert the files listed above and remove the My Tasks insert from the BPM menu SQL patch.
+- Known issues / Next:
+  - None.
+
 - 2026-01-30: MVP-3C runtime mutation engine (insert/update runtime to physical table + data_json audit) + regression script ops/regress_form_mutation_mvp3c.sh
 - 2026-01-30: MVP-3C regression PASS (ops/regress_form_mutation_mvp3c.sh) evidence: artifacts/form-mutation-mvp3c/regress_output_after_restart_20260130_020537.txt
 - 2026-01-30: Stage3 MVP-0 Flowable minimal integration (BPMN + /bpm APIs + ops/regress_flowable_mvp0.sh) PASS evidence: artifacts/flowable-mvp0/regress_output_20260130_021635.txt
