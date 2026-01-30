@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://tritium/flowable">
+  <process id="TRITIUM_DEMO_V0" name="Tritium Demo V0" isExecutable="true">
+    <startEvent id="startEvent" name="Start" />
+    <sequenceFlow id="flow1" sourceRef="startEvent" targetRef="userTask" />
+    <userTask id="userTask" name="Demo Task" flowable:assignee="${assignee}" />
+    <sequenceFlow id="flow2" sourceRef="userTask" targetRef="endEvent" />
+    <endEvent id="endEvent" name="End" />
+  </process>
+</definitions>
