@@ -120,3 +120,17 @@
 - Backend: Added `listTasks` endpoint to FlowableProcessController.
 - Frontend: Created MyTasks.vue (List, Claim, Complete).
 - Deployment: Rebuilt backend/frontend, updated Nginx proxy.
+
+## 2026-01-30 Stage 4 MVP-1: BPM Center My Tasks
+
+- **Backend**:
+  - `FlowableProcessController`: Added `listTasks`.
+  - Service: `FlowableProcessServiceImpl` supports task querying.
+- **Frontend**:
+  - **New Page**: `frontend/src/views/bpm/tasks/index.vue`
+  - **Tech Stack**: Vue 3 + Element Plus.
+  - **Features**: Task List, Claim, Complete, View Variables.
+- **Infrastructure**:
+  - Rebuilt frontend (Element Plus integration).
+  - Deployed to `/var/www/html`.
+  - Audited via `ops/run_gate.sh`.
