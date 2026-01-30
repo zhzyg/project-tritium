@@ -134,3 +134,17 @@
   - Rebuilt frontend (Element Plus integration).
   - Deployed to `/var/www/html`.
   - Audited via `ops/run_gate.sh`.
+
+## 2026-01-30 15:31:11 - Stage 4 MVP-1 Implementation (Completed)
+
+- **Why**: Implement "My Tasks" feature for BPM Center (Minimum Closed Loop: List -> Claim -> Complete).
+- **What**:
+  - **Frontend**: Created `frontend/src/views/bpm/tasks/index.vue` using Element Plus.
+  - **Backend**: Implemented/Exposed task management APIs.
+- **Endpoints**:
+  - `GET /jeecg-boot/bpm/task/my` (List tasks)
+  - `POST /jeecg-boot/bpm/task/claim` (Claim task)
+  - `POST /jeecg-boot/bpm/task/complete` (Complete task)
+  - `POST /jeecg-boot/bpm/process/vars` (View variables)
+- **Regress**: `ops/run_gate.sh ui-flowable-mvp1 ops/regress_ui_flowable_mvp1.sh`
+- **Evidence-Dir**: `artifacts/ui-flowable-mvp1_20260130_153022`
