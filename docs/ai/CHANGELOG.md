@@ -101,3 +101,4 @@
 - Known issues / Next: None.
 
 - 2026-01-30: Housekeeping commit: stage4 MVP-0 BPM center UI assets (bpm pages/api + regress scripts + db menu patch + .gitignore). Evidence: (see artifacts/stage4-mvp0-assets_*)
+- 2026-01-30: Fix ops/run_gate.sh to load secrets from /root/.config/tritium/admin.env (or AI_GUARD_ENV_FILE) and export ADMIN_PASS/AI_GUARD_ADMIN_PASS for regression scripts; updated ops/regress_ui_flowable_mvp0.sh to accept either var. Evidence: artifacts/ (next run).

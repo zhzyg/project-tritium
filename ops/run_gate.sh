@@ -16,6 +16,25 @@ REGRESS_SCRIPT="${2:-}"
 cd "$(dirname "$0")/.."
 REPO_ROOT="$(pwd)"
 
+# Load Environment Variables (Secrets)
+ENV_FILE="${AI_GUARD_ENV_FILE:-/root/.config/tritium/admin.env}"
+if [ -f "$ENV_FILE" ]; then
+    echo "--- Loading env from $ENV_FILE ---"
+    set -a
+    # shellcheck source=/dev/null
+    . "$ENV_FILE"
+    set +a
+else
+    echo "--- No env file found at $ENV_FILE (skipping load) ---"
+fi
+
+# Sync ADMIN_PASS and AI_GUARD_ADMIN_PASS
+if [ -z "${ADMIN_PASS:-}" ] && [ -n "${AI_GUARD_ADMIN_PASS:-}" ]; then
+    export ADMIN_PASS="$AI_GUARD_ADMIN_PASS"
+elif [ -n "${ADMIN_PASS:-}" ] && [ -z "${AI_GUARD_ADMIN_PASS:-}" ]; then
+    export AI_GUARD_ADMIN_PASS="$ADMIN_PASS"
+fi
+
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 ART_DIR="artifacts/${GATE_NAME}_${TIMESTAMP}"
 mkdir -p "$ART_DIR"
