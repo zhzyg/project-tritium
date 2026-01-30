@@ -23,3 +23,4 @@
 - 2026-01-29: MVP-3B runtime query engine (physical table query + latestPublished + filter whitelist + regression verified)
 
 - ops: add deploy_frontend_static.sh + regress_frontend_static_deploy.sh (build→sync /var/www/oa→curl verify); artifacts under artifacts/frontend-deploy/ and artifacts/frontend-regress/
+- 2026-01-30: Fix OA auth proxy by mapping /jeecgboot/* to backend /jeecg-boot/* and add OPTIONS preflight handling in nginx; add ops/regress_ui_oa_smoke.sh; evidence: artifacts/auth_404_405_fix_20260130_101427/
