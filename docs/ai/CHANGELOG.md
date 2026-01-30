@@ -65,3 +65,23 @@
   - For runtime changes, restore prior nginx root and re-deploy static frontend as applicable.
 - Known issues / Next:
   - Keep monitoring auth routes via ops/regress_ui_oa_smoke.sh and capture evidence in artifacts.
+
+## 2026-01-30 (TechDebt-1)
+- Goal / Why: Unify frontend API base to "/jeecg-boot" to eliminate 405 Method Not Allowed errors caused by "/jeecgboot" path mismatch and align with backend context.
+- Scope: frontend, ops
+- Key changes:
+  - Files:
+    - frontend/.env.production
+    - ops/regress_ui_oa_smoke.sh
+  - Config/Runtime:
+    - VITE_GLOB_API_URL set to "/jeecg-boot" (was "/jeecgboot").
+    - Regression script now enforces "/jeecg-boot" and checks for forbidden "/jeecgboot" in config.
+- Verification (evidence paths):
+  - ai_guard: artifacts/techdebt1/ai_guard_pre.log
+  - regress: ops/regress_ui_oa_smoke.sh (PASS expected)
+  - curl/status: _app.config.js check (PASS expected)
+- Rollback:
+  - Revert frontend/.env.production and ops/regress_ui_oa_smoke.sh.
+  - Re-run frontend build and deploy.
+- Known issues / Next:
+  - Monitor for any hardcoded /jeecgboot calls in legacy code (none found in config).

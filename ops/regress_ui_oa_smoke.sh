@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE_URL="${1:-https://oa.donaldzhu.com}"
-API_BASE="${API_BASE:-/jeecgboot}"
+API_BASE="${API_BASE:-/jeecg-boot}"
 
 fail=0
 
@@ -30,7 +30,21 @@ check_login_page() {
   fi
 }
 
+check_config_clean() {
+  local url="$1"
+  echo "checking config => ${url}"
+  # We expect NOT to find /jeecgboot in the config
+  if curl -sS "${url}" | grep -q "/jeecgboot"; then
+    echo "[FAIL] config contains forbidden '/jeecgboot'"
+    fail=1
+  else
+    echo "[PASS] config clean"
+  fi
+}
+
 check_login_page "${BASE_URL}/login"
+check_config_clean "${BASE_URL}/_app.config.js"
+
 check_code "captcha" "GET" "${BASE_URL}${API_BASE}/sys/randomImage/123456"
 check_code "login OPTIONS" "OPTIONS" "${BASE_URL}${API_BASE}/sys/login"
 check_code "login POST" "POST" "${BASE_URL}${API_BASE}/sys/login"
