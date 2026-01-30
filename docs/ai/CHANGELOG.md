@@ -99,3 +99,5 @@
 - Rollback:
   - Delete ops/run_gate.sh, revert docs.
 - Known issues / Next: None.
+
+- 2026-01-30: Housekeeping commit: stage4 MVP-0 BPM center UI assets (bpm pages/api + regress scripts + db menu patch + .gitignore). Evidence: (see artifacts/stage4-mvp0-assets_*)
