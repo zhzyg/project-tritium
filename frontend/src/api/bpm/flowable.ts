@@ -6,6 +6,10 @@ enum Api {
   BindSetDefault = '/bpm/bind/setDefault',
   StartByForm = '/bpm/process/startByForm',
   ProcessStatus = '/bpm/process/status',
+  TaskList = '/bpm/task/list',
+  TaskClaim = '/bpm/task/claim',
+  TaskComplete = '/bpm/task/complete',
+  ProcessVars = '/bpm/process/vars',
 }
 
 export interface ProcessDefItem {
@@ -67,3 +71,41 @@ export const startByForm = (params: StartByFormReq) => defHttp.post<StartByFormR
 
 export const getProcessStatus = (params: { processInstanceId: string }) =>
   defHttp.get<ProcessStatusResp>({ url: Api.ProcessStatus, params });
+
+
+export interface TaskQueryReq {
+  assignee?: string;
+  candidateGroup?: string;
+  processInstanceId?: string;
+}
+
+export interface TaskItem {
+  taskId: string;
+  name?: string;
+  assignee?: string;
+  createTime?: string;
+  processInstanceId?: string;
+  processDefinitionId?: string;
+}
+
+export interface TaskClaimReq {
+  taskId: string;
+}
+
+export interface TaskCompleteReq {
+  taskId: string;
+  variables?: Record<string, any>;
+}
+
+
+export const listTasks = (params: TaskQueryReq) =>
+  defHttp.post<TaskItem[]>({ url: Api.TaskList, params });
+
+export const claimTask = (params: TaskClaimReq) =>
+  defHttp.post({ url: Api.TaskClaim, params });
+
+export const completeTask = (params: TaskCompleteReq) =>
+  defHttp.post({ url: Api.TaskComplete, params });
+
+export const getProcessVars = (params: { processInstanceId: string }) =>
+  defHttp.post<Record<string, any>>({ url: Api.ProcessVars, params });

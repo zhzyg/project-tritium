@@ -190,4 +190,15 @@ public class FlowableProcessController {
             return Result.error(ex.getMessage());
         }
     }
+
+    @PostMapping("/task/list")
+    public Result<List<FlowableTaskResp>> listTasks(@RequestBody FlowableTaskQueryReq req, HttpServletRequest request) {
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            return Result.ok(flowableProcessService.queryTasks(req, username));
+        } catch (RuntimeException ex) {
+            log.warn("Flowable task query failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
 }

@@ -102,3 +102,16 @@
 
 - 2026-01-30: Housekeeping commit: stage4 MVP-0 BPM center UI assets (bpm pages/api + regress scripts + db menu patch + .gitignore). Evidence: (see artifacts/stage4-mvp0-assets_*)
 - 2026-01-30: Fix ops/run_gate.sh to load secrets from /root/.config/tritium/admin.env (or AI_GUARD_ENV_FILE) and export ADMIN_PASS/AI_GUARD_ADMIN_PASS for regression scripts; updated ops/regress_ui_flowable_mvp0.sh to accept either var. Evidence: artifacts/ (next run).
+
+## 2026-01-30 14:51:05 - Stage 4 MVP-1 Implementation
+
+- **Backend**:
+  - Added `listTasks` endpoint to `FlowableProcessController.java`.
+  - Recompiled and restarted `jeecg-system-start`.
+- **Frontend**:
+  - Created `src/views/bpm/task/MyTasks.vue` (List, Claim, Complete, View Vars).
+  - Updated `src/api/bpm/flowable.ts` with task APIs.
+  - Built and deployed static assets to `/var/www/html`.
+- **Infrastructure**:
+  - Configured Nginx proxy for `/jeecg-boot`.
+  - Executed `ops/run_gate.sh` for audit.
