@@ -6,6 +6,7 @@
 - 2026-01-30: Stage3 MVP-1 form data -> flowable variables auto mapping (start/complete + /bpm/process/vars + ops/regress_flowable_mvp1.sh) PASS evidence: artifacts/flowable-mvp1/regress_output_20260130_023141.txt
 - 2026-01-30: Stage3 MVP-2 approval gateway + claim + link table (TRITIUM_APPROVAL_V1 + /bpm/task/claim + /bpm/process/status + ops/regress_flowable_mvp2.sh) PASS evidence: artifacts/flowable-mvp2/regress_output_20260130_024637.txt
 - 2026-01-30: Stage3 MVP-3 RBAC candidate groups + task visibility/claim restrictions + ops/regress_flowable_mvp3.sh PASS evidence: artifacts/flowable-mvp3/regress_output_20260130_030142.txt
+- 2026-01-30: Stage3 MVP-4 registry + form bind + start-by-form (registry/bind APIs + ops/regress_flowable_mvp4.sh) PASS evidence: artifacts/flowable-mvp4/regress_output_20260130_031526.txt
 - 2026-01-29: Nginx + HTTPS for oa.donaldzhu.com, reverse proxy to 127.0.0.1:8080 and redirect / -> /jeecg-boot/
 - 2026-01-29: Add docs/ai/ROADMAP.md (governance doc; no runtime change)
 - 2026-01-29: Expand docs/ai/ROADMAP.md content (phases/scope/ADR/governance; no runtime change)

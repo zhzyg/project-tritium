@@ -14,11 +14,14 @@ import org.flowable.task.api.Task;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormReq;
+import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessStatusResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
+import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IFlowableVarMappingService;
 import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
@@ -81,6 +84,9 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
     @Autowired
     private ISysUserService sysUserService;
+
+    @Autowired
+    private IProcessRegistryService processRegistryService;
 
     @Autowired
     public FlowableProcessServiceImpl(DataSource dataSource) {
@@ -147,6 +153,48 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
         FlowableProcessStartResp resp = new FlowableProcessStartResp();
         resp.setProcessInstanceId(instance.getProcessInstanceId());
+        return resp;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FlowableProcessStartByFormResp startProcessByForm(FlowableProcessStartByFormReq req, String username) {
+        if (req == null || oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getRecordId())) {
+            throw new IllegalArgumentException("formKey and recordId are required");
+        }
+        String processKey = processRegistryService.resolveDefaultProcessKey(req.getFormKey());
+        if (oConvertUtils.isEmpty(processKey)) {
+            throw new IllegalStateException("no default process binding");
+        }
+        FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(req.getFormKey());
+        if (published == null) {
+            throw new IllegalStateException("published schema not found");
+        }
+        Map<String, Object> formData = fetchFormData(req.getFormKey(), published, req.getRecordId());
+        Map<String, Object> mappedVars = flowableVarMappingService.mapVariables(req.getFormKey(), published, formData, null);
+        String assignee = resolveAssignee(req.getAssignee(), username);
+        String initiator = oConvertUtils.isNotEmpty(username) ? username : assignee;
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("assignee", assignee);
+        variables.put("initiator", initiator);
+        variables.putAll(mappedVars);
+        if (PROCESS_APPROVAL_V1.equals(processKey)) {
+            ensureAmountVariable(variables, formData);
+        }
+        String businessKey = buildBusinessKey(req.getFormKey(), req.getRecordId(), published.getVersion());
+        ProcessInstance instance = runtimeService.startProcessInstanceByKey(processKey, businessKey, variables);
+        insertProcessLink(instance.getProcessInstanceId(),
+            processKey,
+            instance.getBusinessKey(),
+            req.getFormKey(),
+            req.getRecordId(),
+            published.getVersion(),
+            username);
+
+        FlowableProcessStartByFormResp resp = new FlowableProcessStartByFormResp();
+        resp.setProcessInstanceId(instance.getProcessInstanceId());
+        resp.setProcessKey(processKey);
+        resp.setBusinessKey(instance.getBusinessKey());
         return resp;
     }
 

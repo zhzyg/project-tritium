@@ -6,13 +6,19 @@ import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormReq;
+import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessStatusResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessVarsReq;
+import org.jeecg.modules.flowable.dto.FlowableProcessDefRegReq;
+import org.jeecg.modules.flowable.dto.FlowableProcessDefResp;
+import org.jeecg.modules.flowable.dto.FlowableFormBindReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
+import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,6 +38,51 @@ public class FlowableProcessController {
     @Autowired
     private IFlowableProcessService flowableProcessService;
 
+    @Autowired
+    private IProcessRegistryService processRegistryService;
+
+    @GetMapping("/defs/list")
+    public Result<List<FlowableProcessDefResp>> listDefs() {
+        try {
+            return Result.ok(processRegistryService.listDefs());
+        } catch (RuntimeException ex) {
+            log.warn("Flowable def list failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/defs/register")
+    public Result<Object> registerDef(@RequestBody FlowableProcessDefRegReq req,
+                                      HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getProcessKey())) {
+            return Result.error("processKey is required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            processRegistryService.registerDef(req, username);
+            return Result.ok("ok");
+        } catch (RuntimeException ex) {
+            log.warn("Flowable def register failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/bind/setDefault")
+    public Result<Object> setDefaultBind(@RequestBody FlowableFormBindReq req,
+                                         HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getProcessKey())) {
+            return Result.error("formKey and processKey are required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            processRegistryService.setDefaultBinding(req, username);
+            return Result.ok("ok");
+        } catch (RuntimeException ex) {
+            log.warn("Flowable bind failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
     @PostMapping("/process/start")
     public Result<FlowableProcessStartResp> startProcess(@RequestBody FlowableProcessStartReq req,
                                                          HttpServletRequest request) {
@@ -47,6 +98,20 @@ public class FlowableProcessController {
         }
     }
 
+    @PostMapping("/process/startByForm")
+    public Result<FlowableProcessStartByFormResp> startProcessByForm(@RequestBody FlowableProcessStartByFormReq req,
+                                                                     HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getRecordId())) {
+            return Result.error("formKey and recordId are required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            return Result.ok(flowableProcessService.startProcessByForm(req, username));
+        } catch (RuntimeException ex) {
+            log.warn("Flowable startByForm failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
     @PostMapping("/task/my")
     public Result<List<FlowableTaskResp>> myTasks(@RequestBody(required = false) FlowableTaskQueryReq req,
                                                   HttpServletRequest request) {

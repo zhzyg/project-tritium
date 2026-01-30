@@ -2,6 +2,8 @@ package org.jeecg.modules.flowable.service;
 
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormReq;
+import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessStatusResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
@@ -13,6 +15,8 @@ import java.util.Map;
 
 public interface IFlowableProcessService {
     FlowableProcessStartResp startProcess(FlowableProcessStartReq req, String username);
+
+    FlowableProcessStartByFormResp startProcessByForm(FlowableProcessStartByFormReq req, String username);
 
     List<FlowableTaskResp> queryTasks(FlowableTaskQueryReq req, String username);
 
