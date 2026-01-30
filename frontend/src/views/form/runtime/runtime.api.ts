@@ -4,6 +4,7 @@ enum Api {
   Latest = '/form/schema/latest',
   LatestPublished = '/form/schema/latestPublished',
   Submit = '/form/data/submit',
+  Insert = '/form/data/insert',
   Page = '/form/data/page',
   Get = '/form/data/get',
 }
@@ -25,6 +26,19 @@ export interface FormRecordSubmitResp {
   formKey: string;
   schemaVersion: number;
   savedTime?: string;
+}
+
+export interface FormRecordInsertReq {
+  formKey: string;
+  data: Record<string, any>;
+  recordId?: string;
+}
+
+export interface FormRecordInsertResp {
+  recordId: string;
+  formKey: string;
+  schemaVersion: number;
+  createdTime?: string;
 }
 
 export interface FormRecordPageResp {
@@ -63,6 +77,9 @@ export const getLatestPublishedSchema = (params: { formKey: string }) =>
 
 export const submitRecord = (params: FormRecordSubmitReq) =>
   defHttp.post<FormRecordSubmitResp>({ url: Api.Submit, params });
+
+export const insertRecord = (params: FormRecordInsertReq) =>
+  defHttp.post<FormRecordInsertResp>({ url: Api.Insert, params });
 
 export const pageRecords = (params: { formKey: string; pageNo: number; pageSize: number; sortBy?: string; sort?: string } & Record<string, any>) =>
   defHttp.get<{ records: FormRecordPageResp[]; total: number }>({ url: Api.Page, params });

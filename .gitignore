@@ -1,6 +1,7 @@
 # ===== secrets & certs =====
 .env
 .env.*
+.config/tritium/admin.env
 *.key
 *.pem
 *.pfx
@@ -21,6 +22,7 @@ node_modules/
 artifacts/
 backend/*.out
 config/jeecg/
+backend/jeecg-module-system/jeecg-system-start/config/
 
 # ===== IDE =====
 .vscode/
@@ -32,3 +34,6 @@ config/jeecg/
 # AI ctxpack outputs (generated)
 docs/ai/CTXPACK.latest.md
 .artifacts/
+.aider*
+.env
+.env
