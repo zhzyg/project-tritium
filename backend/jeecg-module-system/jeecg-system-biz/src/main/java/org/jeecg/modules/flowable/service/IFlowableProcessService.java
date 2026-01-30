@@ -7,6 +7,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 
 import java.util.List;
+import java.util.Map;
 
 public interface IFlowableProcessService {
     FlowableProcessStartResp startProcess(FlowableProcessStartReq req, String username);
@@ -14,4 +15,6 @@ public interface IFlowableProcessService {
     List<FlowableTaskResp> queryTasks(FlowableTaskQueryReq req, String username);
 
     void completeTask(FlowableTaskCompleteReq req, String username);
+
+    Map<String, Object> getProcessVariables(String processInstanceId);
 }

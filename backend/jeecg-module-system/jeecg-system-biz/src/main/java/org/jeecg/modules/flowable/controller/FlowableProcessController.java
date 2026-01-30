@@ -6,6 +6,7 @@ import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessVarsReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -66,6 +68,19 @@ public class FlowableProcessController {
             return Result.ok("ok");
         } catch (RuntimeException ex) {
             log.warn("Flowable task complete failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/process/vars")
+    public Result<Map<String, Object>> processVars(@RequestBody FlowableProcessVarsReq req) {
+        if (req == null || oConvertUtils.isEmpty(req.getProcessInstanceId())) {
+            return Result.error("processInstanceId is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getProcessVariables(req.getProcessInstanceId()));
+        } catch (RuntimeException ex) {
+            log.warn("Flowable vars query failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

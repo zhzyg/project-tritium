@@ -13,6 +13,12 @@ public class FlowableProcessStartReq {
     @ApiModelProperty("business key")
     private String businessKey;
 
+    @ApiModelProperty("form key")
+    private String formKey;
+
+    @ApiModelProperty("record id")
+    private String recordId;
+
     @ApiModelProperty("assignee (default admin)")
     private String assignee;
 }
