@@ -6,12 +6,15 @@ import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessStatusResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessVarsReq;
+import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -72,15 +75,44 @@ public class FlowableProcessController {
         }
     }
 
+    @PostMapping("/task/claim")
+    public Result<Object> claimTask(@RequestBody FlowableTaskClaimReq req,
+                                    HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getTaskId())) {
+            return Result.error("taskId is required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            flowableProcessService.claimTask(req, username);
+            return Result.ok("ok");
+        } catch (RuntimeException ex) {
+            log.warn("Flowable task claim failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
     @PostMapping("/process/vars")
     public Result<Map<String, Object>> processVars(@RequestBody FlowableProcessVarsReq req) {
         if (req == null || oConvertUtils.isEmpty(req.getProcessInstanceId())) {
             return Result.error("processInstanceId is required");
         }
         try {
-            return Result.ok(flowableProcessService.getProcessVariables(req.getProcessInstanceId()));
+            return Result.ok(flowableProcessService.getProcessVariables(req.getProcessInstanceId(), req.getFormKey()));
         } catch (RuntimeException ex) {
             log.warn("Flowable vars query failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/process/status")
+    public Result<FlowableProcessStatusResp> processStatus(String processInstanceId) {
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            return Result.error("processInstanceId is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getProcessStatus(processInstanceId));
+        } catch (RuntimeException ex) {
+            log.warn("Flowable status query failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

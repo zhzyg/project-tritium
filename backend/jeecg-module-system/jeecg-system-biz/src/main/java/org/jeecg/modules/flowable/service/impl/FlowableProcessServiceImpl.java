@@ -1,16 +1,21 @@
 package org.jeecg.modules.flowable.service.impl;
 
 import com.alibaba.fastjson.JSON;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.variable.api.history.HistoricVariableInstance;
+import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessStatusResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
@@ -26,9 +31,14 @@ import org.jeecg.modules.formruntime.service.IFormRecordMutationService;
 import org.jeecg.modules.formruntime.service.IFormRecordQueryService;
 import org.jeecg.modules.formruntime.service.IFormRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +47,10 @@ import java.util.Set;
 @Slf4j
 @Service
 public class FlowableProcessServiceImpl implements IFlowableProcessService {
+
+    private static final String PROCESS_APPROVAL_V1 = "TRITIUM_APPROVAL_V1";
+
+    private final JdbcTemplate jdbcTemplate;
 
     @Autowired
     private RuntimeService runtimeService;
@@ -62,19 +76,30 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
     @Autowired
     private IFlowableVarMappingService flowableVarMappingService;
 
+    @Autowired
+    public FlowableProcessServiceImpl(DataSource dataSource) {
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
+    }
+
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public FlowableProcessStartResp startProcess(FlowableProcessStartReq req, String username) {
         if (req == null || oConvertUtils.isEmpty(req.getProcessKey())) {
             throw new IllegalArgumentException("processKey is required");
         }
         String assignee = resolveAssignee(req.getAssignee(), username);
+        String initiator = oConvertUtils.isNotEmpty(username) ? username : assignee;
         Map<String, Object> variables = new HashMap<>();
         variables.put("assignee", assignee);
+        variables.put("initiator", initiator);
 
         String formKey = req.getFormKey();
         String recordId = req.getRecordId();
         String businessKey = req.getBusinessKey();
         FormSchemaPublishedResp published = null;
+        if (PROCESS_APPROVAL_V1.equals(req.getProcessKey()) && oConvertUtils.isEmpty(formKey)) {
+            throw new IllegalArgumentException("formKey is required for TRITIUM_APPROVAL_V1");
+        }
         if (oConvertUtils.isNotEmpty(formKey)) {
             if (oConvertUtils.isEmpty(recordId)) {
                 throw new IllegalArgumentException("recordId is required for form mapping");
@@ -86,6 +111,9 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             Map<String, Object> formData = fetchFormData(formKey, published, recordId);
             Map<String, Object> mappedVars = flowableVarMappingService.mapVariables(formKey, published, formData, null);
             variables.putAll(mappedVars);
+            if (PROCESS_APPROVAL_V1.equals(req.getProcessKey())) {
+                ensureAmountVariable(variables, formData);
+            }
             if (oConvertUtils.isEmpty(businessKey)) {
                 businessKey = buildBusinessKey(formKey, recordId, published.getVersion());
             }
@@ -99,6 +127,16 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                 variables);
         } else {
             instance = runtimeService.startProcessInstanceByKey(req.getProcessKey(), variables);
+        }
+
+        if (oConvertUtils.isNotEmpty(formKey) && oConvertUtils.isNotEmpty(recordId) && published != null) {
+            insertProcessLink(instance.getProcessInstanceId(),
+                req.getProcessKey(),
+                instance.getBusinessKey(),
+                formKey,
+                recordId,
+                published.getVersion(),
+                username);
         }
 
         FlowableProcessStartResp resp = new FlowableProcessStartResp();
@@ -116,12 +154,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             .list();
         List<FlowableTaskResp> respList = new ArrayList<>();
         for (Task task : tasks) {
-            FlowableTaskResp resp = new FlowableTaskResp();
-            resp.setTaskId(task.getId());
-            resp.setName(task.getName());
-            resp.setProcessInstanceId(task.getProcessInstanceId());
-            resp.setCreateTime(task.getCreateTime());
-            respList.add(resp);
+            respList.add(buildTaskResp(task));
         }
         return respList;
     }
@@ -135,10 +168,18 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         if (task == null) {
             throw new IllegalStateException("task not found");
         }
-        String expectedAssignee = oConvertUtils.isNotEmpty(req.getAssignee()) ? req.getAssignee() : username;
-        if (oConvertUtils.isNotEmpty(expectedAssignee)
-            && oConvertUtils.isNotEmpty(task.getAssignee())
-            && !expectedAssignee.equals(task.getAssignee())) {
+        String currentUser = oConvertUtils.isNotEmpty(username) ? username : req.getAssignee();
+        if (oConvertUtils.isEmpty(currentUser)) {
+            throw new IllegalArgumentException("assignee is required");
+        }
+        if (oConvertUtils.isEmpty(task.getAssignee())) {
+            List<String> candidateGroups = getCandidateGroups(task.getId());
+            if (!candidateGroups.isEmpty()) {
+                throw new IllegalStateException("task must be claimed before completion");
+            }
+            throw new IllegalStateException("task has no assignee");
+        }
+        if (!currentUser.equals(task.getAssignee())) {
             throw new IllegalArgumentException("assignee mismatch");
         }
 
@@ -168,7 +209,61 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
     }
 
     @Override
-    public Map<String, Object> getProcessVariables(String processInstanceId) {
+    public void claimTask(FlowableTaskClaimReq req, String username) {
+        if (req == null || oConvertUtils.isEmpty(req.getTaskId())) {
+            throw new IllegalArgumentException("taskId is required");
+        }
+        String userId = oConvertUtils.isNotEmpty(req.getUserId()) ? req.getUserId() : username;
+        if (oConvertUtils.isEmpty(userId)) {
+            throw new IllegalArgumentException("userId is required");
+        }
+        Task task = taskService.createTaskQuery().taskId(req.getTaskId()).singleResult();
+        if (task == null) {
+            throw new IllegalStateException("task not found");
+        }
+        if (oConvertUtils.isNotEmpty(task.getAssignee()) && !userId.equals(task.getAssignee())) {
+            throw new IllegalStateException("task already claimed");
+        }
+        taskService.claim(task.getId(), userId);
+    }
+
+    @Override
+    public FlowableProcessStatusResp getProcessStatus(String processInstanceId) {
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            throw new IllegalArgumentException("processInstanceId is required");
+        }
+        FlowableProcessStatusResp resp = new FlowableProcessStatusResp();
+        ProcessInstance instance = runtimeService.createProcessInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .singleResult();
+        if (instance != null) {
+            resp.setEnded(false);
+            resp.setBusinessKey(instance.getBusinessKey());
+            List<Task> tasks = taskService.createTaskQuery()
+                .processInstanceId(processInstanceId)
+                .orderByTaskCreateTime()
+                .asc()
+                .list();
+            List<FlowableTaskResp> taskResps = new ArrayList<>();
+            for (Task task : tasks) {
+                taskResps.add(buildTaskResp(task));
+            }
+            resp.setCurrentTasks(taskResps);
+            return resp;
+        }
+        resp.setEnded(true);
+        HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .singleResult();
+        if (historic != null) {
+            resp.setBusinessKey(historic.getBusinessKey());
+        }
+        resp.setCurrentTasks(new ArrayList<>());
+        return resp;
+    }
+
+    @Override
+    public Map<String, Object> getProcessVariables(String processInstanceId, String formKey) {
         Map<String, Object> variables = new HashMap<>();
         if (oConvertUtils.isEmpty(processInstanceId)) {
             return variables;
@@ -176,19 +271,151 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         ProcessInstance instance = runtimeService.createProcessInstanceQuery()
             .processInstanceId(processInstanceId)
             .singleResult();
+        String businessKey = null;
         if (instance != null) {
             variables.putAll(runtimeService.getVariables(processInstanceId));
-            return variables;
+            businessKey = instance.getBusinessKey();
+        } else {
+            List<HistoricVariableInstance> history = historyService.createHistoricVariableInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .list();
+            if (history != null) {
+                for (HistoricVariableInstance item : history) {
+                    variables.put(item.getVariableName(), item.getValue());
+                }
+            }
+            HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .singleResult();
+            if (historic != null) {
+                businessKey = historic.getBusinessKey();
+            }
         }
-        List<HistoricVariableInstance> history = historyService.createHistoricVariableInstanceQuery()
-            .processInstanceId(processInstanceId)
-            .list();
-        if (history != null) {
-            for (HistoricVariableInstance item : history) {
-                variables.put(item.getVariableName(), item.getValue());
+        String resolvedFormKey = resolveFormKey(formKey, businessKey);
+        if (oConvertUtils.isNotEmpty(resolvedFormKey)) {
+            FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(resolvedFormKey);
+            Set<String> whitelist = flowableVarMappingService.resolveVariableWhitelist(resolvedFormKey, published);
+            if (!whitelist.isEmpty()) {
+                Map<String, Object> filtered = new HashMap<>();
+                for (Map.Entry<String, Object> entry : variables.entrySet()) {
+                    if (whitelist.contains(entry.getKey())) {
+                        filtered.put(entry.getKey(), entry.getValue());
+                    }
+                }
+                return filtered;
             }
         }
         return variables;
+    }
+
+    private FlowableTaskResp buildTaskResp(Task task) {
+        FlowableTaskResp resp = new FlowableTaskResp();
+        resp.setTaskId(task.getId());
+        resp.setName(task.getName());
+        resp.setProcessInstanceId(task.getProcessInstanceId());
+        resp.setAssignee(task.getAssignee());
+        resp.setCandidateGroups(getCandidateGroups(task.getId()));
+        resp.setCreateTime(task.getCreateTime());
+        return resp;
+    }
+
+    private List<String> getCandidateGroups(String taskId) {
+        List<String> groups = new ArrayList<>();
+        if (oConvertUtils.isEmpty(taskId)) {
+            return groups;
+        }
+        try {
+            List<IdentityLink> links = taskService.getIdentityLinksForTask(taskId);
+            if (links != null) {
+                for (IdentityLink link : links) {
+                    if (link == null) {
+                        continue;
+                    }
+                    if ("candidate".equals(link.getType()) && oConvertUtils.isNotEmpty(link.getGroupId())) {
+                        groups.add(link.getGroupId());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("flowable candidate group query failed: {}", ex.getMessage());
+        }
+        return groups;
+    }
+
+    private void ensureAmountVariable(Map<String, Object> variables, Map<String, Object> formData) {
+        Object amountValue = variables.get("amount");
+        if (amountValue == null && formData != null) {
+            amountValue = formData.get("amount");
+        }
+        if (amountValue == null) {
+            throw new IllegalArgumentException("amount is required for TRITIUM_APPROVAL_V1");
+        }
+        BigDecimal amount = toBigDecimalStrict(amountValue);
+        if (amount == null) {
+            throw new IllegalArgumentException("amount must be a number");
+        }
+        variables.put("amount", amount);
+    }
+
+    private BigDecimal toBigDecimalStrict(Object value) {
+        if (value instanceof BigDecimal) {
+            return (BigDecimal) value;
+        }
+        if (value instanceof Number) {
+            return new BigDecimal(value.toString());
+        }
+        try {
+            String text = value.toString().trim();
+            if (text.isEmpty()) {
+                return null;
+            }
+            return new BigDecimal(text);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private void insertProcessLink(String processInstanceId,
+                                   String processDefinitionKey,
+                                   String businessKey,
+                                   String formKey,
+                                   String recordId,
+                                   Integer schemaVersion,
+                                   String createdBy) {
+        if (oConvertUtils.isEmpty(processInstanceId) || oConvertUtils.isEmpty(processDefinitionKey)
+            || oConvertUtils.isEmpty(formKey) || oConvertUtils.isEmpty(recordId)) {
+            throw new IllegalArgumentException("process link requires processInstanceId, formKey, recordId");
+        }
+        String id = IdWorker.getIdStr();
+        Date now = new Date();
+        int updated = jdbcTemplate.update(
+            "insert into tr_proc_instance_link (id, process_instance_id, process_definition_key, business_key, form_key, record_id, schema_version, created_time, created_by) values (?,?,?,?,?,?,?,?,?)",
+            id,
+            processInstanceId,
+            processDefinitionKey,
+            businessKey,
+            formKey,
+            recordId,
+            schemaVersion,
+            now,
+            createdBy);
+        if (updated < 1) {
+            throw new IllegalStateException("failed to insert process instance link");
+        }
+    }
+
+    private String resolveFormKey(String formKey, String businessKey) {
+        if (oConvertUtils.isNotEmpty(formKey)) {
+            return formKey;
+        }
+        if (oConvertUtils.isEmpty(businessKey)) {
+            return null;
+        }
+        String[] parts = businessKey.split(":");
+        if (parts.length >= 2 && "form".equalsIgnoreCase(parts[0])) {
+            return parts[1];
+        }
+        return null;
     }
 
     private Map<String, Object> fetchFormData(String formKey, FormSchemaPublishedResp published, String recordId) {

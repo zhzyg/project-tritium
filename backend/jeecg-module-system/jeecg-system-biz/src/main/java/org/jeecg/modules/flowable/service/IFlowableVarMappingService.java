@@ -10,4 +10,8 @@ public interface IFlowableVarMappingService {
                                      FormSchemaPublishedResp published,
                                      Map<String, Object> data,
                                      Set<String> restrictFields);
+
+    String resolveVariableName(String formKey, String fieldKey);
+
+    Set<String> resolveVariableWhitelist(String formKey, FormSchemaPublishedResp published);
 }

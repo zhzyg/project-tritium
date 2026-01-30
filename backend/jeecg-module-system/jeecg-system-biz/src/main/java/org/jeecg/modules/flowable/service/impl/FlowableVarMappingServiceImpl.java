@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,6 +63,45 @@ public class FlowableVarMappingServiceImpl implements IFlowableVarMappingService
             variables.put(varName, value);
         }
         return variables;
+    }
+
+    @Override
+    public String resolveVariableName(String formKey, String fieldKey) {
+        if (oConvertUtils.isEmpty(fieldKey)) {
+            return fieldKey;
+        }
+        Map<String, MappingRule> rules = loadRules(formKey);
+        MappingRule rule = rules.get(fieldKey);
+        if (rule != null && oConvertUtils.isNotEmpty(rule.varName)) {
+            return rule.varName;
+        }
+        return fieldKey;
+    }
+
+    @Override
+    public Set<String> resolveVariableWhitelist(String formKey, FormSchemaPublishedResp published) {
+        Set<String> whitelist = new HashSet<>();
+        Map<String, MappingRule> rules = loadRules(formKey);
+        if (!rules.isEmpty()) {
+            for (MappingRule rule : rules.values()) {
+                if (rule == null) {
+                    continue;
+                }
+                String varName = oConvertUtils.isNotEmpty(rule.varName) ? rule.varName : rule.fieldKey;
+                if (oConvertUtils.isNotEmpty(varName)) {
+                    whitelist.add(varName);
+                }
+            }
+            return whitelist;
+        }
+        if (published != null && published.getFieldMetas() != null) {
+            for (FormSchemaFieldMetaResp meta : published.getFieldMetas()) {
+                if (meta != null && oConvertUtils.isNotEmpty(meta.getFieldKey())) {
+                    whitelist.add(meta.getFieldKey());
+                }
+            }
+        }
+        return whitelist;
     }
 
     private Map<String, MappingRule> loadRules(String formKey) {

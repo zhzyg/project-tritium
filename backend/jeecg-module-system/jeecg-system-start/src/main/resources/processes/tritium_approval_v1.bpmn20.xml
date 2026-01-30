@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://tritium/flowable">
+  <process id="TRITIUM_APPROVAL_V1" name="Tritium Approval V1" isExecutable="true">
+    <startEvent id="startEvent" name="Start" />
+    <sequenceFlow id="flow_start_apply" sourceRef="startEvent" targetRef="applyTask" />
+
+    <userTask id="applyTask" name="Apply" flowable:assignee="${initiator}" />
+    <sequenceFlow id="flow_apply_gateway" sourceRef="applyTask" targetRef="amountGateway" />
+
+    <exclusiveGateway id="amountGateway" name="Amount Gateway" default="flow_finance" />
+
+    <sequenceFlow id="flow_manager" sourceRef="amountGateway" targetRef="managerApproval">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${amount > 10000}]]></conditionExpression>
+    </sequenceFlow>
+    <userTask id="managerApproval" name="Manager Approval" flowable:candidateGroups="MANAGER" />
+    <sequenceFlow id="flow_manager_end" sourceRef="managerApproval" targetRef="endEvent" />
+
+    <sequenceFlow id="flow_finance" sourceRef="amountGateway" targetRef="financeCheck" />
+    <userTask id="financeCheck" name="Finance Check" flowable:candidateGroups="FINANCE" />
+    <sequenceFlow id="flow_finance_end" sourceRef="financeCheck" targetRef="endEvent" />
+
+    <endEvent id="endEvent" name="End" />
+  </process>
+</definitions>

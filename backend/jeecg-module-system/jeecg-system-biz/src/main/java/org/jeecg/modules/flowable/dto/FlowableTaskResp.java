@@ -6,6 +6,7 @@ import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @ApiModel(value = "FlowableTaskResp", description = "Flowable task response")
@@ -18,6 +19,12 @@ public class FlowableTaskResp {
 
     @ApiModelProperty("process instance id")
     private String processInstanceId;
+
+    @ApiModelProperty("assignee")
+    private String assignee;
+
+    @ApiModelProperty("candidate groups")
+    private List<String> candidateGroups;
 
     @JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
     @ApiModelProperty("create time")

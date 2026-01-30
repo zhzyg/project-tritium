@@ -9,4 +9,7 @@ import lombok.Data;
 public class FlowableProcessVarsReq {
     @ApiModelProperty(value = "process instance id", required = true)
     private String processInstanceId;
+
+    @ApiModelProperty("form key (optional, for variable whitelist)")
+    private String formKey;
 }
