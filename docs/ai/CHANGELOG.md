@@ -23,6 +23,23 @@
 
 # CHANGELOG
 
+## 2026-01-30 (Stage4 MVP-1 Semantic Gate)
+- Goal / Why: Add semantic regression for My Tasks (UI route reachability + auth 401/200 + endpoint existence).
+- Scope: ops, docs
+- Key changes:
+  - Files:
+    - ops/regress_ui_flowable_mvp1_semantic.sh (new)
+    - docs/ai/CHANGELOG.md
+  - Config/Runtime: None.
+- Verification (evidence paths):
+  - ai_guard: artifacts/semantic_mvp1_20260130_164446/ai_guard_before.txt, artifacts/semantic_mvp1_20260130_164446/ai_guard_after.txt
+  - gate: artifacts/semantic_mvp1_20260130_164446/run_gate_ui_flowable_mvp1_semantic.log
+  - gate artifacts: artifacts/ui-flowable-mvp1-semantic_20260130_165020
+- Rollback:
+  - Remove ops/regress_ui_flowable_mvp1_semantic.sh and revert this entry.
+- Known issues / Next:
+  - None.
+
 ## 2026-01-30 (Stage4 MVP-1 Gap Fix)
 - Goal / Why: Register BPM Center routes/menus for My Tasks in code + DB patch so MVP-1 UI is discoverable without duplicating backend APIs.
 - Scope: frontend, backend/db, docs
