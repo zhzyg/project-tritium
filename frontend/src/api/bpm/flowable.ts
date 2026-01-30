@@ -6,7 +6,7 @@ enum Api {
   BindSetDefault = '/bpm/bind/setDefault',
   StartByForm = '/bpm/process/startByForm',
   ProcessStatus = '/bpm/process/status',
-  TaskList = '/bpm/task/list',
+  TaskMy = '/bpm/task/my',
   TaskClaim = '/bpm/task/claim',
   TaskComplete = '/bpm/task/complete',
   ProcessVars = '/bpm/process/vars',
@@ -99,7 +99,7 @@ export interface TaskCompleteReq {
 
 
 export const listMyTasks = (params: TaskQueryReq) =>
-  defHttp.post<TaskItem[]>({ url: Api.TaskList, params });
+  defHttp.get<TaskItem[]>({ url: Api.TaskMy, params });
 
 export const claimTask = (params: TaskClaimReq) =>
   defHttp.post({ url: Api.TaskClaim, params });

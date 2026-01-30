@@ -191,8 +191,8 @@ public class FlowableProcessController {
         }
     }
 
-    @PostMapping("/task/list")
-    public Result<List<FlowableTaskResp>> listTasks(@RequestBody FlowableTaskQueryReq req, HttpServletRequest request) {
+    @GetMapping("/task/my")
+    public Result<List<FlowableTaskResp>> listTasks(FlowableTaskQueryReq req, HttpServletRequest request) {
         String username = JwtUtil.getUserNameByToken(request);
         try {
             return Result.ok(flowableProcessService.queryTasks(req, username));
