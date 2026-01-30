@@ -28,5 +28,7 @@
 - [ ] Keep changes minimal; if touching infra/nginx/db configs, explain why in `docs/ai/CHANGELOG.md`.
 
 ## After change (mandatory)
-- [ ] Re-run `./ops/ai_guard.sh` (it includes preflight + verify).
+- [ ] Run gate: `bash ops/run_gate.sh <name> <regress>`
+  - Example: `bash ops/run_gate.sh ui-fix ops/regress_ui_oa_smoke.sh`
+  - Checks: AI Guard (pre/post), Regression, Git Safety (secrets/configs).
 - [ ] If verify fails: revert immediately, restore last known-good, record in CHANGELOG.

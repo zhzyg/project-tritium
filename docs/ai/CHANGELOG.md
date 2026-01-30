@@ -85,3 +85,17 @@
   - Re-run frontend build and deploy.
 - Known issues / Next:
   - Monitor for any hardcoded /jeecgboot calls in legacy code (none found in config).
+
+## 2026-01-30 (Ops-Gate)
+- Goal / Why: reduce interruptions/agent switching; standardize evidence chain.
+- Scope: ops, docs
+- Key changes:
+  - Files:
+    - ops/run_gate.sh (new)
+    - docs/ai/CHECKLIST.md
+  - Config/Runtime: None.
+- Verification (evidence paths):
+  - Self-verification: `bash ops/run_gate.sh self-test` (skips regress, runs guards).
+- Rollback:
+  - Delete ops/run_gate.sh, revert docs.
+- Known issues / Next: None.
