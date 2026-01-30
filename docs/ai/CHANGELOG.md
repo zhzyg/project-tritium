@@ -115,3 +115,8 @@
 - **Infrastructure**:
   - Configured Nginx proxy for `/jeecg-boot`.
   - Executed `ops/run_gate.sh` for audit.
+
+## 2026-01-30 Stage 4 MVP-1: BPM Center My Tasks
+- Backend: Added `listTasks` endpoint to FlowableProcessController.
+- Frontend: Created MyTasks.vue (List, Claim, Complete).
+- Deployment: Rebuilt backend/frontend, updated Nginx proxy.
