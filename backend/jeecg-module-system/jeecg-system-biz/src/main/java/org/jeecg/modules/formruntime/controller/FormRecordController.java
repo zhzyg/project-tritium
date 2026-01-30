@@ -12,9 +12,12 @@ import org.jeecg.modules.formmeta.service.IFormSchemaService;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishedResp;
 import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
 import org.jeecg.modules.formruntime.dto.FormRecordPageResp;
+import org.jeecg.modules.formruntime.dto.FormRecordMutationReq;
+import org.jeecg.modules.formruntime.dto.FormRecordMutationResp;
 import org.jeecg.modules.formruntime.dto.FormRecordSubmitReq;
 import org.jeecg.modules.formruntime.dto.FormRecordSubmitResp;
 import org.jeecg.modules.formruntime.entity.FormRecord;
+import org.jeecg.modules.formruntime.service.IFormRecordMutationService;
 import org.jeecg.modules.formruntime.service.IFormRecordQueryService;
 import org.jeecg.modules.formruntime.service.IFormRecordService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +49,9 @@ public class FormRecordController {
     private IFormRecordQueryService formRecordQueryService;
 
     @Autowired
+    private IFormRecordMutationService formRecordMutationService;
+
+    @Autowired
     private IFormSchemaPublishService formSchemaPublishService;
 
     @PostMapping("/submit")
@@ -68,6 +74,34 @@ public class FormRecordController {
         resp.setSchemaVersion(record.getSchemaVersion());
         resp.setSavedTime(record.getCreatedTime());
         return Result.ok(resp);
+    }
+
+    @PostMapping("/insert")
+    public Result<FormRecordMutationResp> insert(@RequestBody FormRecordMutationReq req, HttpServletRequest request) {
+        if (req == null) {
+            return Result.error("request body is required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            return Result.ok(formRecordMutationService.insert(req, username));
+        } catch (RuntimeException ex) {
+            log.warn("Runtime insert failed: {}", ex.getMessage());
+            return Result.error(resolveMutationCode(ex.getMessage()), ex.getMessage());
+        }
+    }
+
+    @PostMapping("/update")
+    public Result<FormRecordMutationResp> update(@RequestBody FormRecordMutationReq req, HttpServletRequest request) {
+        if (req == null) {
+            return Result.error("request body is required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            return Result.ok(formRecordMutationService.update(req, username));
+        } catch (RuntimeException ex) {
+            log.warn("Runtime update failed: {}", ex.getMessage());
+            return Result.error(resolveMutationCode(ex.getMessage()), ex.getMessage());
+        }
     }
 
     @GetMapping("/page")
@@ -178,5 +212,19 @@ public class FormRecordController {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private int resolveMutationCode(String message) {
+        if (message == null) {
+            return 400;
+        }
+        String lower = message.toLowerCase();
+        if (lower.contains("not found")) {
+            return 404;
+        }
+        if (lower.contains("already exists")) {
+            return 409;
+        }
+        return 400;
     }
 }

@@ -1,5 +1,6 @@
 # CHANGELOG
 
+- 2026-01-30: MVP-3C runtime mutation engine (insert/update runtime to physical table + data_json audit) + regression script ops/regress_form_mutation_mvp3c.sh
 - 2026-01-29: Nginx + HTTPS for oa.donaldzhu.com, reverse proxy to 127.0.0.1:8080 and redirect / -> /jeecg-boot/
 - 2026-01-29: Add docs/ai/ROADMAP.md (governance doc; no runtime change)
 - 2026-01-29: Expand docs/ai/ROADMAP.md content (phases/scope/ADR/governance; no runtime change)
