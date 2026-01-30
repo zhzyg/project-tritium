@@ -53,6 +53,9 @@ public class FlowableProcessController {
         String username = JwtUtil.getUserNameByToken(request);
         try {
             return Result.ok(flowableProcessService.queryTasks(req, username));
+        } catch (SecurityException ex) {
+            log.warn("Flowable task query forbidden: {}", ex.getMessage());
+            return Result.error(403, ex.getMessage());
         } catch (RuntimeException ex) {
             log.warn("Flowable task query failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
@@ -69,6 +72,9 @@ public class FlowableProcessController {
         try {
             flowableProcessService.completeTask(req, username);
             return Result.ok("ok");
+        } catch (SecurityException ex) {
+            log.warn("Flowable task complete forbidden: {}", ex.getMessage());
+            return Result.error(403, ex.getMessage());
         } catch (RuntimeException ex) {
             log.warn("Flowable task complete failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
@@ -85,6 +91,9 @@ public class FlowableProcessController {
         try {
             flowableProcessService.claimTask(req, username);
             return Result.ok("ok");
+        } catch (SecurityException ex) {
+            log.warn("Flowable task claim forbidden: {}", ex.getMessage());
+            return Result.error(403, ex.getMessage());
         } catch (RuntimeException ex) {
             log.warn("Flowable task claim failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());

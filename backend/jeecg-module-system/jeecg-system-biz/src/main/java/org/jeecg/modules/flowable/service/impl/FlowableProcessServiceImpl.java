@@ -30,6 +30,7 @@ import org.jeecg.modules.formruntime.entity.FormRecord;
 import org.jeecg.modules.formruntime.service.IFormRecordMutationService;
 import org.jeecg.modules.formruntime.service.IFormRecordQueryService;
 import org.jeecg.modules.formruntime.service.IFormRecordService;
+import org.jeecg.modules.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,8 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -75,6 +78,9 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
     @Autowired
     private IFlowableVarMappingService flowableVarMappingService;
+
+    @Autowired
+    private ISysUserService sysUserService;
 
     @Autowired
     public FlowableProcessServiceImpl(DataSource dataSource) {
@@ -146,17 +152,31 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
     @Override
     public List<FlowableTaskResp> queryTasks(FlowableTaskQueryReq req, String username) {
-        String assignee = resolveAssignee(req == null ? null : req.getAssignee(), username);
-        List<Task> tasks = taskService.createTaskQuery()
-            .taskAssignee(assignee)
+        String currentUser = resolveCurrentUser(req == null ? null : req.getAssignee(), username);
+        Map<String, FlowableTaskResp> merged = new LinkedHashMap<>();
+
+        List<Task> assigneeTasks = taskService.createTaskQuery()
+            .taskAssignee(currentUser)
             .orderByTaskCreateTime()
             .desc()
             .list();
-        List<FlowableTaskResp> respList = new ArrayList<>();
-        for (Task task : tasks) {
-            respList.add(buildTaskResp(task));
+        for (Task task : assigneeTasks) {
+            merged.put(task.getId(), buildTaskResp(task));
         }
-        return respList;
+
+        Set<String> roleCodes = resolveRoleCodes(currentUser);
+        if (!roleCodes.isEmpty()) {
+            List<Task> candidateTasks = taskService.createTaskQuery()
+                .taskCandidateGroupIn(new ArrayList<>(roleCodes))
+                .taskUnassigned()
+                .orderByTaskCreateTime()
+                .desc()
+                .list();
+            for (Task task : candidateTasks) {
+                merged.putIfAbsent(task.getId(), buildTaskResp(task));
+            }
+        }
+        return new ArrayList<>(merged.values());
     }
 
     @Override
@@ -175,12 +195,12 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         if (oConvertUtils.isEmpty(task.getAssignee())) {
             List<String> candidateGroups = getCandidateGroups(task.getId());
             if (!candidateGroups.isEmpty()) {
-                throw new IllegalStateException("task must be claimed before completion");
+                throw new SecurityException("task must be claimed before completion");
             }
             throw new IllegalStateException("task has no assignee");
         }
         if (!currentUser.equals(task.getAssignee())) {
-            throw new IllegalArgumentException("assignee mismatch");
+            throw new SecurityException("assignee mismatch");
         }
 
         String processInstanceId = task.getProcessInstanceId();
@@ -213,18 +233,30 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         if (req == null || oConvertUtils.isEmpty(req.getTaskId())) {
             throw new IllegalArgumentException("taskId is required");
         }
-        String userId = oConvertUtils.isNotEmpty(req.getUserId()) ? req.getUserId() : username;
-        if (oConvertUtils.isEmpty(userId)) {
+        String currentUser = resolveCurrentUser(req.getUserId(), username);
+        if (oConvertUtils.isEmpty(currentUser)) {
             throw new IllegalArgumentException("userId is required");
         }
         Task task = taskService.createTaskQuery().taskId(req.getTaskId()).singleResult();
         if (task == null) {
             throw new IllegalStateException("task not found");
         }
-        if (oConvertUtils.isNotEmpty(task.getAssignee()) && !userId.equals(task.getAssignee())) {
+        if (oConvertUtils.isNotEmpty(task.getAssignee())) {
             throw new IllegalStateException("task already claimed");
         }
-        taskService.claim(task.getId(), userId);
+        Set<String> roleCodes = resolveRoleCodes(currentUser);
+        if (roleCodes.isEmpty()) {
+            throw new SecurityException("forbidden");
+        }
+        Task candidateTask = taskService.createTaskQuery()
+            .taskId(task.getId())
+            .taskCandidateGroupIn(new ArrayList<>(roleCodes))
+            .taskUnassigned()
+            .singleResult();
+        if (candidateTask == null) {
+            throw new SecurityException("forbidden");
+        }
+        taskService.claim(task.getId(), currentUser);
     }
 
     @Override
@@ -460,6 +492,29 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
     private String buildBusinessKey(String formKey, String recordId, Integer schemaVersion) {
         String version = schemaVersion == null ? "" : "v" + schemaVersion;
         return String.format("form:%s:record:%s:%s", formKey, recordId, version);
+    }
+
+    private String resolveCurrentUser(String requestedUser, String tokenUser) {
+        if (oConvertUtils.isNotEmpty(tokenUser)) {
+            if (oConvertUtils.isNotEmpty(requestedUser) && !tokenUser.equals(requestedUser)) {
+                throw new SecurityException("forbidden");
+            }
+            return tokenUser;
+        }
+        return requestedUser;
+    }
+
+    private Set<String> resolveRoleCodes(String username) {
+        if (oConvertUtils.isEmpty(username)) {
+            return new HashSet<>();
+        }
+        try {
+            Set<String> roles = sysUserService.getUserRolesSet(username);
+            return roles == null ? new HashSet<>() : roles;
+        } catch (Exception ex) {
+            log.warn("resolve role codes failed: {}", ex.getMessage());
+            return new HashSet<>();
+        }
     }
 
     private String resolveAssignee(String assignee, String username) {
