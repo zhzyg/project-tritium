@@ -24,6 +24,7 @@
 # CHANGELOG
 
 - 2026-01-31: Stage4 MVP-2A open form from tasks (GET /bpm/task/context + Open Form button + ops/regress_ui_flowable_mvp2a.sh existence check); gate PASS evidence: artifacts/ui-flowable-mvp2a_20260131_040946/
+- 2026-01-31: I18N Chinese localization for BPM/VForm menus (UI + DB Patch); verify script ops/regress_ui_menu_i18n_cn.sh PASS evidence: artifacts/ui-menu-i18n-cn_20260131_111042/
 - 2026-01-31: ops harden frontend_check to prevent OOM (default NODE_OPTIONS=--max-old-space-size=3072; build log capture); gate PASS evidence: artifacts/gate-frontend-oom-hardening_20260131_035258/
 
 ## 2026-01-30 (Stage4 MVP-1 Semantic Gate)

@@ -9,7 +9,7 @@ const bpm: AppRouteModule = {
   redirect: '/bpm/tasks',
   meta: {
     orderNo: 800,
-    title: 'BPM Center',
+    title: '审批中心',
   },
   children: [
     {
@@ -17,7 +17,7 @@ const bpm: AppRouteModule = {
       name: 'BpmDefs',
       component: () => import('/@/views/bpm/defs/index.vue'),
       meta: {
-        title: 'Process Definitions',
+        title: '流程定义',
       },
     },
     {
@@ -25,7 +25,7 @@ const bpm: AppRouteModule = {
       name: 'BpmBind',
       component: () => import('/@/views/bpm/bind/index.vue'),
       meta: {
-        title: 'Form Bindings',
+        title: '表单绑定',
       },
     },
     {
@@ -33,7 +33,7 @@ const bpm: AppRouteModule = {
       name: 'BpmStart',
       component: () => import('/@/views/bpm/start/index.vue'),
       meta: {
-        title: 'Start From Form',
+        title: '按表单发起',
       },
     },
     {
@@ -41,7 +41,7 @@ const bpm: AppRouteModule = {
       name: 'BpmTasks',
       component: () => import('/@/views/bpm/tasks/index.vue'),
       meta: {
-        title: 'My Tasks',
+        title: '我的待办',
       },
     },
   ],

@@ -3,23 +3,23 @@ import type { MenuModule } from '/@/router/types';
 const bpmMenu: MenuModule = {
   orderNo: 800,
   menu: {
-    name: 'BPM Center',
+    name: '审批中心',
     path: '/bpm',
     children: [
       {
-        name: 'Process Definitions',
+        name: '流程定义',
         path: 'defs',
       },
       {
-        name: 'Form Bindings',
+        name: '表单绑定',
         path: 'bind',
       },
       {
-        name: 'Start From Form',
+        name: '按表单发起',
         path: 'start',
       },
       {
-        name: 'My Tasks',
+        name: '我的待办',
         path: 'tasks',
       },
     ],
