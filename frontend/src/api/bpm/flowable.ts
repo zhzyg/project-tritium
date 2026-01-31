@@ -10,6 +10,7 @@ enum Api {
   TaskClaim = '/bpm/task/claim',
   TaskComplete = '/bpm/task/complete',
   ProcessVars = '/bpm/process/vars',
+  TaskContext = '/bpm/task/context',
 }
 
 export interface ProcessDefItem {
@@ -109,3 +110,14 @@ export const completeTask = (params: TaskCompleteReq) =>
 
 export const getProcessVars = (params: { processInstanceId: string }) =>
   defHttp.post<Record<string, any>>({ url: Api.ProcessVars, params });
+
+export interface TaskContextResp {
+  taskId: string;
+  processInstanceId: string;
+  recordId: string;
+  formKey?: string;
+  schemaVersion?: number;
+}
+
+export const getTaskContext = (params: { taskId: string }) =>
+  defHttp.get<TaskContextResp>({ url: Api.TaskContext, params });

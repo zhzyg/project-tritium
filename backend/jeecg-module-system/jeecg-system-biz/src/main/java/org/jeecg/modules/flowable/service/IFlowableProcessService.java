@@ -9,6 +9,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 
 import java.util.List;
 import java.util.Map;
@@ -27,4 +28,6 @@ public interface IFlowableProcessService {
     FlowableProcessStatusResp getProcessStatus(String processInstanceId);
 
     Map<String, Object> getProcessVariables(String processInstanceId, String formKey);
+
+    FlowableTaskContextResp getTaskContext(String taskId);
 }

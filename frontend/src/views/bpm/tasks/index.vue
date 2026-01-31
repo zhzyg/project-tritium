@@ -33,8 +33,14 @@
             >
               Complete
             </el-button>
-            <el-button 
-              size="small" 
+            <el-button
+              size="small"
+              @click="handleOpenForm(scope.row)"
+            >
+              Open Form
+            </el-button>
+            <el-button
+              size="small"
               @click="handleVars(scope.row)"
             >
               Vars
@@ -55,8 +61,9 @@
 
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { listMyTasks, claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
+import { listMyTasks, claimTask, completeTask, getProcessVars, getTaskContext } from '/@/api/bpm/flowable';
 
 // Simple interface matching the API
 interface TaskItem {
@@ -67,6 +74,7 @@ interface TaskItem {
   assignee?: string;
 }
 
+const router = useRouter();
 const loading = ref(false);
 const tableData = ref<TaskItem[]>([]);
 const varsVisible = ref(false);
@@ -106,6 +114,26 @@ const handleComplete = async (row: TaskItem) => {
   } catch (error) {
     console.error(error);
     ElMessage.error('Complete failed');
+  }
+};
+
+const handleOpenForm = async (row: TaskItem) => {
+  try {
+    const res = await getTaskContext({ taskId: row.taskId });
+    if (res && res.recordId) {
+      router.push({
+        name: 'FormRuntime',
+        query: {
+          formKey: res.formKey,
+          recordId: res.recordId,
+        },
+      });
+    } else {
+      ElMessage.error('No record bound to this task');
+    }
+  } catch (error: any) {
+    console.error(error);
+    ElMessage.error(error?.message || 'Failed to open form');
   }
 };
 

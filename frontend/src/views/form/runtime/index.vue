@@ -62,14 +62,16 @@
 
 <script lang="ts" setup>
   import { computed, onMounted, reactive, ref } from 'vue';
+  import { useRoute } from 'vue-router';
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { getLatestSchema, getLatestPublishedSchema, submitRecord, pageRecords } from './runtime.api';
+  import { getLatestSchema, getLatestPublishedSchema, submitRecord, pageRecords, getRecord } from './runtime.api';
 
+  const route = useRoute();
   const TRITIUM_FORM_KEY_DEV = 'dev';
-  const formKey = TRITIUM_FORM_KEY_DEV;
+  const formKey = ref(TRITIUM_FORM_KEY_DEV);
   const renderRef = ref<any>(null);
   const formJson = ref<Record<string, any>>({ widgetList: [], formConfig: {} });
   const formData = reactive<Record<string, any>>({});
@@ -100,7 +102,7 @@
   ]);
 
   const loadSchema = async () => {
-    const res = await getLatestSchema({ formKey });
+    const res = await getLatestSchema({ formKey: formKey.value });
     if (!res?.schemaJson) {
       message.warning('No schema found');
       return;
@@ -121,7 +123,7 @@
 
   const fetchRecords = async () => {
     const params: Record<string, any> = {
-      formKey,
+      formKey: formKey.value,
       pageNo: pagination.current,
       pageSize: pagination.pageSize,
     };
@@ -143,7 +145,7 @@
     try {
       const data = await api.getFormData();
       const dataJson = JSON.stringify(data || {});
-      const res = await submitRecord({ formKey, dataJson });
+      const res = await submitRecord({ formKey: formKey.value, dataJson });
       message.success(`Saved ${res?.recordId || ''}`.trim());
       await fetchRecords();
     } catch (err: any) {
@@ -160,7 +162,7 @@
 
   const loadPublishedMeta = async () => {
     try {
-      const res = await getLatestPublishedSchema({ formKey });
+      const res = await getLatestPublishedSchema({ formKey: formKey.value });
       if (!res) return;
       publishedTable.value = res.tableName ?? null;
       const metas = res.fieldMetas ?? [];
@@ -179,8 +181,28 @@
   };
 
   onMounted(async () => {
+    if (route.query.formKey) {
+      formKey.value = route.query.formKey as string;
+    }
     await loadSchema();
     await loadPublishedMeta();
+
+    if (route.query.recordId) {
+      try {
+        const rec = await getRecord({ id: route.query.recordId as string });
+        if (rec && rec.dataJson) {
+          const data = JSON.parse(rec.dataJson);
+          Object.assign(formData, data);
+          // Wait for renderer
+          if (renderRef.value && renderRef.value.setFormData) {
+             renderRef.value.setFormData(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load record', err);
+      }
+    }
+
     await fetchRecords();
   });
 </script>

@@ -21,6 +21,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IFlowableVarMappingService;
@@ -386,6 +387,50 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             }
         }
         return variables;
+    }
+
+    @Override
+    public FlowableTaskContextResp getTaskContext(String taskId) {
+        if (oConvertUtils.isEmpty(taskId)) {
+            throw new IllegalArgumentException("taskId is required");
+        }
+        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) {
+            throw new IllegalStateException("task not found");
+        }
+        String processInstanceId = task.getProcessInstanceId();
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            throw new IllegalStateException("task has no process instance");
+        }
+
+        FlowableTaskContextResp resp = new FlowableTaskContextResp();
+        resp.setTaskId(taskId);
+        resp.setProcessInstanceId(processInstanceId);
+
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "select record_id, form_key, schema_version from tr_proc_instance_link where process_instance_id = ? order by created_time desc limit 1",
+                processInstanceId
+            );
+            if (!rows.isEmpty()) {
+                Map<String, Object> row = rows.get(0);
+                resp.setRecordId((String) row.get("record_id"));
+                resp.setFormKey((String) row.get("form_key"));
+                Object ver = row.get("schema_version");
+                if (ver instanceof Integer) {
+                    resp.setSchemaVersion((Integer) ver);
+                } else if (ver != null) {
+                    resp.setSchemaVersion(Integer.parseInt(ver.toString()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("failed to query task context: {}", e.getMessage());
+        }
+
+        if (oConvertUtils.isEmpty(resp.getRecordId())) {
+            throw new IllegalStateException("process instance not linked to any form record");
+        }
+        return resp;
     }
 
     private FlowableTaskResp buildTaskResp(Task task) {
