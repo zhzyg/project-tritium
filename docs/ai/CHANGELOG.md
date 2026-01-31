@@ -23,6 +23,8 @@
 
 # CHANGELOG
 
+- 2026-01-31: ops harden frontend_check to prevent OOM (default NODE_OPTIONS=--max-old-space-size=3072; build log capture); gate PASS evidence: artifacts/gate-frontend-oom-hardening_20260131_035258/
+
 ## 2026-01-30 (Stage4 MVP-1 Semantic Gate)
 - Goal / Why: Add semantic regression for My Tasks (UI route reachability + auth 401/200 + endpoint existence).
 - Scope: ops, docs
