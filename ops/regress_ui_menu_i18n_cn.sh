@@ -36,7 +36,7 @@ curl -s -H "X-Access-Token: $TOKEN" "${BASE_URL}/sys/permission/getUserPermissio
 
 # Check for Chinese strings
 FAIL=0
-for STR in "审批中心" "流程定义" "表单绑定" "按表单发起" "我的待办" "表单设计器"; do
+for STR in "审批中心" "流程定义" "表单绑定" "按表单发起" "我的待办" "表单设计器" "表单运行"; do
     if grep -q "$STR" "$PERMS_FILE"; then
         echo "PASS: Found '$STR'"
     else
