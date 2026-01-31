@@ -274,7 +274,38 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             }
         }
 
-        taskService.complete(task.getId());
+        Map<String, Object> taskVars = req.getVariables();
+        if (taskVars == null) {
+            taskVars = new HashMap<>();
+        }
+        
+        if (taskVars.isEmpty()) {
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "select record_id, form_key from tr_proc_instance_link where process_instance_id = ? order by created_time desc limit 1",
+                    processInstanceId
+                );
+                if (!rows.isEmpty()) {
+                    Map<String, Object> row = rows.get(0);
+                    String recordId = (String) row.get("record_id");
+                    String formKey = (String) row.get("form_key");
+                    
+                    FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(formKey);
+                    if (published != null) {
+                         Map<String, Object> formData = fetchFormData(formKey, published, recordId);
+                         for (String key : new String[]{"amount", "vendor", "reason", "status"}) {
+                             if (formData.containsKey(key)) {
+                                 taskVars.put(key, formData.get(key));
+                             }
+                         }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Auto-fetch variables failed: {}", e.getMessage());
+            }
+        }
+
+        taskService.complete(task.getId(), taskVars);
     }
 
     @Override

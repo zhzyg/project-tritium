@@ -23,4 +23,7 @@ public class FlowableTaskCompleteReq {
 
     @ApiModelProperty("assignee (optional validation)")
     private String assignee;
+
+    @ApiModelProperty("process variables")
+    private Map<String, Object> variables;
 }

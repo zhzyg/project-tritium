@@ -110,6 +110,8 @@ const handleComplete = async (row: TaskItem) => {
     // Minimal MVP: no variables passed
     await completeTask({ taskId: row.taskId, variables: {} });
     ElMessage.success('Completed successfully');
+    // Refresh vars to show writeback result
+    await handleVars(row);
     fetchTasks();
   } catch (error) {
     console.error(error);
