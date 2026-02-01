@@ -25,13 +25,21 @@
             >
               Claim
             </el-button>
-            <el-button 
-              type="success" 
-              size="small" 
+            <el-button
+              type="success"
+              size="small"
               v-else
-              @click="handleComplete(scope.row)"
+              @click="handleApprove(scope.row)"
             >
-              Complete
+              Approve
+            </el-button>
+            <el-button
+              type="danger"
+              size="small"
+              v-if="scope.row.assignee"
+              @click="handleReject(scope.row)"
+            >
+              Reject
             </el-button>
             <el-button
               size="small"
@@ -62,7 +70,7 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { listMyTasks, claimTask, completeTask, getProcessVars, getTaskContext } from '/@/api/bpm/flowable';
 
 // Simple interface matching the API
@@ -105,17 +113,42 @@ const handleClaim = async (row: TaskItem) => {
   }
 };
 
-const handleComplete = async (row: TaskItem) => {
+const handleApprove = async (row: TaskItem) => {
   try {
-    // Minimal MVP: no variables passed
-    await completeTask({ taskId: row.taskId, variables: {} });
-    ElMessage.success('Completed successfully');
-    // Refresh vars to show writeback result
+    await completeTask({
+      taskId: row.taskId,
+      variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() }
+    });
+    ElMessage.success('Approved successfully');
     await handleVars(row);
     fetchTasks();
   } catch (error) {
     console.error(error);
-    ElMessage.error('Complete failed');
+    ElMessage.error('Approve failed');
+  }
+};
+
+const handleReject = async (row: TaskItem) => {
+  try {
+    const { value } = await ElMessageBox.prompt('Please input reject reason', 'Reject', {
+      confirmButtonText: 'OK',
+      cancelButtonText: 'Cancel',
+      inputPattern: /\S+/,
+      inputErrorMessage: 'Reason is required',
+    });
+    
+    await completeTask({
+      taskId: row.taskId,
+      variables: { status: 'REJECTED', reason: value, updatedAt: new Date().toISOString() }
+    });
+    ElMessage.success('Rejected successfully');
+    await handleVars(row);
+    fetchTasks();
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error(error);
+      ElMessage.error('Reject failed');
+    }
   }
 };
 
