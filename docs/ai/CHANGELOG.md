@@ -29,6 +29,7 @@
 - 2026-01-31: Stage4 MVP-2B Auto-writeback variables on task complete (Backend logic + Frontend refresh); gate PASS evidence: artifacts/flowable-mvp2b_20260131_125931/
 - 2026-01-31: Stage4 MVP-2C Approve/Reject buttons (Frontend UI) + Variables persistence (Backend enhancement); gate PASS evidence: artifacts/flowable-mvp2c_20260201_010754/
 - 2026-01-31: Stage4 MVP-2D Task Approval Page (/bpm/approve) with Read-only Form + Approve/Reject actions; gate PASS evidence: artifacts/ui-flowable-mvp2d_20260201_013840/
+- 2026-01-31: Stage4 MVP-3 Approval Timeline / Process Trace (Backend API + UI); gate PASS evidence: artifacts/ui-flowable-mvp3-trace_20260201_022848/
 - 2026-01-31: ops harden frontend_check to prevent OOM (default NODE_OPTIONS=--max-old-space-size=3072; build log capture); gate PASS evidence: artifacts/gate-frontend-oom-hardening_20260131_035258/
 
 ## 2026-01-30 (Stage4 MVP-1 Semantic Gate)

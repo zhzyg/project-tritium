@@ -8,10 +8,12 @@ import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.variable.api.history.HistoricVariableInstance;
+import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.jeecg.common.util.oConvertUtils;
+import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartByFormReq;
@@ -305,6 +307,10 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             }
         }
 
+        if (oConvertUtils.isNotEmpty(processInstanceId) && !taskVars.isEmpty()) {
+            runtimeService.setVariables(processInstanceId, taskVars);
+        }
+        log.info("Completing task {} with vars: {}", task.getId(), taskVars);
         taskService.complete(task.getId(), taskVars);
     }
 
@@ -396,6 +402,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                     variables.put(item.getVariableName(), item.getValue());
                 }
             }
+            log.info("getProcessVars raw: {}", variables);
             HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
                 .processInstanceId(processInstanceId)
                 .singleResult();
@@ -410,7 +417,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             if (!whitelist.isEmpty()) {
                 Map<String, Object> filtered = new HashMap<>();
                 for (Map.Entry<String, Object> entry : variables.entrySet()) {
-                    if (whitelist.contains(entry.getKey())) {
+                    if (whitelist.contains(entry.getKey()) || "status".equals(entry.getKey()) || "reason".equals(entry.getKey())) {
                         filtered.put(entry.getKey(), entry.getValue());
                     }
                 }
@@ -462,6 +469,33 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             throw new IllegalStateException("process instance not linked to any form record");
         }
         return resp;
+    }
+
+    @Override
+    public List<FlowableProcessTraceResp> getProcessTrace(String processInstanceId) {
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            return new ArrayList<>();
+        }
+        List<HistoricActivityInstance> activities = historyService.createHistoricActivityInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .orderByHistoricActivityInstanceStartTime()
+            .asc()
+            .list();
+
+        List<FlowableProcessTraceResp> trace = new ArrayList<>();
+        for (HistoricActivityInstance act : activities) {
+            if ("sequenceFlow".equals(act.getActivityType())) {
+                continue;
+            }
+            FlowableProcessTraceResp item = new FlowableProcessTraceResp();
+            item.setTime(act.getStartTime());
+            item.setType(act.getActivityType().toUpperCase());
+            item.setTaskId(act.getTaskId());
+            item.setTaskName(act.getActivityName());
+            item.setAssignee(act.getAssignee());
+            trace.add(item);
+        }
+        return trace;
     }
 
     private FlowableTaskResp buildTaskResp(Task task) {

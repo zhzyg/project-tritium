@@ -13,6 +13,16 @@
         <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
       </div>
 
+      <div class="trace-container" v-if="traceData.length" style="padding: 16px; background: #fff; margin-top: 16px;">
+        <h3>Process Trace</h3>
+        <a-timeline style="margin-top: 16px;">
+          <a-timeline-item v-for="(item, index) in traceData" :key="index" :color="item.type === 'END' ? 'green' : 'blue'">
+            <p>{{ item.time }} - {{ item.taskName || item.type }}</p>
+            <p v-if="item.assignee" style="color: #999; font-size: 12px;">Assignee: {{ item.assignee }}</p>
+          </a-timeline-item>
+        </a-timeline>
+      </div>
+
       <el-dialog v-model="varsVisible" title="Process Variables" width="50%">
         <pre>{{ JSON.stringify(varsData, null, 2) }}</pre>
         <template #footer>
@@ -30,7 +40,7 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { getTaskContext, completeTask, getProcessVars } from '/@/api/bpm/flowable';
+  import { getTaskContext, completeTask, getProcessVars, getProcessTrace } from '/@/api/bpm/flowable';
   import { getLatestSchema, getRecord } from '../../form/runtime/runtime.api';
 
   const route = useRoute();
@@ -48,6 +58,7 @@
   
   const varsVisible = ref(false);
   const varsData = ref<any>(null);
+  const traceData = ref<any[]>([]);
 
   const loadTask = async () => {
       taskId.value = route.query.taskId as string;
@@ -86,6 +97,8 @@
           if (renderRef.value?.disableForm) {
                renderRef.value.disableForm();
           }
+          
+          loadTrace();
 
       } catch (e: any) {
           console.error(e);
@@ -101,6 +114,7 @@
           });
           ElMessage.success('Approved');
           showVars();
+          loadTrace();
       } catch(e) { console.error(e); ElMessage.error('Failed'); }
   };
   
@@ -116,9 +130,18 @@
         });
         ElMessage.success('Rejected');
         showVars();
+        loadTrace();
       } catch(e: any) { if(e !== 'cancel') ElMessage.error('Failed'); }
   };
   
+  const loadTrace = async () => {
+      if (!procInstId.value) return;
+      try {
+          const res = await getProcessTrace({ procInstId: procInstId.value });
+          traceData.value = res || [];
+      } catch(e) { console.error(e); }
+  };
+
   const showVars = async () => {
       if (!procInstId.value) return;
       const res = await getProcessVars({ processInstanceId: procInstId.value });

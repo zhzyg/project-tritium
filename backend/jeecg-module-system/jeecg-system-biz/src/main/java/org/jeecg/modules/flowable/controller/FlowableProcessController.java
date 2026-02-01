@@ -18,6 +18,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
+import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -212,6 +213,19 @@ public class FlowableProcessController {
             return Result.ok(flowableProcessService.queryTasks(req, username));
         } catch (RuntimeException ex) {
             log.warn("Flowable task query failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/process/trace")
+    public Result<List<FlowableProcessTraceResp>> processTrace(String procInstId) {
+        if (oConvertUtils.isEmpty(procInstId)) {
+            return Result.error("procInstId is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getProcessTrace(procInstId));
+        } catch (Exception ex) {
+            log.warn("getProcessTrace failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

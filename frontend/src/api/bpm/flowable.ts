@@ -121,3 +121,15 @@ export interface TaskContextResp {
 
 export const getTaskContext = (params: { taskId: string }) =>
   defHttp.get<TaskContextResp>({ url: Api.TaskContext, params });
+
+export interface ProcessTraceItem {
+  time: string;
+  type: string;
+  taskId?: string;
+  taskName?: string;
+  assignee?: string;
+  comment?: string;
+}
+
+export const getProcessTrace = (params: { procInstId: string }) =>
+  defHttp.get<ProcessTraceItem[]>({ url: '/bpm/process/trace', params });
