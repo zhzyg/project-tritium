@@ -44,6 +44,15 @@ const bpm: AppRouteModule = {
         title: '我的待办',
       },
     },
+    {
+      path: 'approve',
+      name: 'BpmApprove',
+      component: () => import('/@/views/bpm/approve/index.vue'),
+      meta: {
+        title: '审批处理',
+        hideMenu: true,
+      },
+    },
   ],
 };
 

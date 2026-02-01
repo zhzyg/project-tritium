@@ -152,24 +152,11 @@ const handleReject = async (row: TaskItem) => {
   }
 };
 
-const handleOpenForm = async (row: TaskItem) => {
-  try {
-    const res = await getTaskContext({ taskId: row.taskId });
-    if (res && res.recordId) {
-      router.push({
-        name: 'FormRuntime',
-        query: {
-          formKey: res.formKey,
-          recordId: res.recordId,
-        },
-      });
-    } else {
-      ElMessage.error('No record bound to this task');
-    }
-  } catch (error: any) {
-    console.error(error);
-    ElMessage.error(error?.message || 'Failed to open form');
-  }
+const handleOpenForm = (row: TaskItem) => {
+  router.push({
+    path: '/bpm/approve',
+    query: { taskId: row.taskId }
+  });
 };
 
 const handleVars = async (row: TaskItem) => {
