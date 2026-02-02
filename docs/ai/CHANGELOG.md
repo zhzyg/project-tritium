@@ -119,3 +119,5 @@
 - 2026-01-31: Stage4 MVP-2D Task Approval Page (/bpm/approve) with Read-only Form + Approve/Reject actions; gate PASS evidence: artifacts/ui-flowable-mvp2d_20260201_013840/
 - 2026-01-31: Stage4 MVP-3 Approval Timeline / Process Trace (Backend API + UI); gate PASS evidence: artifacts/ui-flowable-mvp3-trace_20260201_022848/
 - 2026-01-31: ops harden frontend_check to prevent OOM (default NODE_OPTIONS=--max-old-space-size=3072; build log capture); gate PASS evidence: artifacts/gate-frontend-oom-hardening_20260131_035258/
+
+- 2026-02-02: fix MVP-5D my-started menu patch idempotent + role binding; regress: ops/regress_ui_bpm_mvp5d_menu.sh; evidence: artifacts/ui-bpm-mvp5d-menu-fix_20260202_142048
