@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4">
+  <div class="p-4" data-testid="bpm-tasks-page">
     <el-card>
       <template #header>
         <div class="flex justify-between items-center">

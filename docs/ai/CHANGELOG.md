@@ -135,11 +135,14 @@
   - Strengthened `ops/repro_bpm_my.mjs` with robust DOM assertions and detailed error capturing.
   - Parameterized `ops/repro_bpm_my.mjs` to support any ROUTE and MARKER_TEXT/SELECTOR.
   - Added `ops/repro_bpm_suite.sh` to run regression tests for `/bpm/my`, `/bpm/tasks`, and `/bpm/done`.
+  - Added stable `data-testid` markers (`bpm-my-page`, `bpm-tasks-page`, `bpm-done-page`) to BPM pages.
+  - Updated `ops/repro_bpm_suite.sh` to prioritize `data-testid` selectors for higher stability.
 - Verification (evidence paths):
   - repro script: ops/repro_bpm_my.mjs (parameterized)
-  - repro suite: ops/repro_bpm_suite.sh (covers my/todo/done)
+  - repro suite: ops/repro_bpm_suite.sh (covers my/todo/done with data-testid)
   - prod-verify: Production build successful; verified static serve.
   - guard: `ops/check_case_paths.sh` successfully integrated into `ai_guard`.
 - Rollback:
   - Revert directory rename and route change.
   - Remove new ops scripts and references.
+  - Remove `data-testid` attributes from Vue components.
