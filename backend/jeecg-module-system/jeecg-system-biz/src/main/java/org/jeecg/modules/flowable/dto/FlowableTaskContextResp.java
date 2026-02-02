@@ -13,6 +13,12 @@ public class FlowableTaskContextResp {
     @ApiModelProperty("process instance id")
     private String processInstanceId;
 
+    @ApiModelProperty("task name")
+    private String taskName;
+
+    @ApiModelProperty("process name")
+    private String processName;
+
     @ApiModelProperty("record id")
     private String recordId;
 
@@ -21,4 +27,14 @@ public class FlowableTaskContextResp {
 
     @ApiModelProperty("schema version")
     private Integer schemaVersion;
+
+    @ApiModelProperty("assignee")
+    private String assignee;
+
+    @ApiModelProperty("candidate groups")
+    private java.util.List<String> candidateGroups;
+
+    @com.fasterxml.jackson.annotation.JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
+    @ApiModelProperty("create time")
+    private java.util.Date createTime;
 }

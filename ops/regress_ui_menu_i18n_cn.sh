@@ -11,10 +11,17 @@ echo "=== Menu I18N Regression Test ==="
 KEY="i18n_test_${RANDOM}"
 curl -s "${BASE_URL}/sys/randomImage/${KEY}" > /dev/null
 sleep 2
-CAPTCHA=$(grep --text "checkCode =" "$LOG_FILE" | tail -n 1 | sed -E 's/.*checkCode = ([A-Za-z0-9]+).*/\1/')
+
+CAPTCHA_LINE=$(journalctl -u tritium-backend.service -n 50 --no-pager | grep --text "checkCode =" | tail -n 1 || true)
+if [ -z "$CAPTCHA_LINE" ]; then
+    # Fallback to LOG_FILE if journalctl returns empty (e.g. not running as service)
+    CAPTCHA_LINE=$(grep --text "checkCode =" "$LOG_FILE" | tail -n 1 || true)
+fi
+
+CAPTCHA=$(echo "$CAPTCHA_LINE" | sed -E 's/.*checkCode = ([A-Za-z0-9]+).*/\1/')
 
 if [ -z "$CAPTCHA" ]; then
-    echo "Failed to get captcha"
+    echo "Failed to get captcha from logs"
     exit 1
 fi
 

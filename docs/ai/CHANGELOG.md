@@ -23,6 +23,25 @@
 
 # CHANGELOG
 
+- 2026-02-02: Stage4 MVP-5A Task Header & Visibility (Task Header, `assignee`, `candidateGroups`, Claim button)
+- Goal / Why: Enhance task visibility in `/bpm/tasks` and `/bpm/approve`.
+- Scope: frontend, backend
+- Key changes:
+  - Files:
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/flowable/dto/FlowableTaskContextResp.java
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/flowable/service/impl/FlowableProcessServiceImpl.java
+    - frontend/src/views/bpm/tasks/index.vue
+    - frontend/src/views/bpm/approve/index.vue
+    - frontend/src/api/bpm/flowable.ts
+    - ops/regress_flowable_mvp5a_task_detail.sh
+- Verification (evidence paths):
+  - gate: artifacts/flowable-mvp5a_20260202_010621
+  - regress: artifacts/flowable-mvp5a_20260202_010621/regress.log
+- Rollback:
+  - Revert the changes to the files listed above.
+- Known issues / Next:
+  - Browser verification was not possible due to the execution environment (`--no-sandbox` flag is required for root).
+
 - 2026-01-31: Stage4 MVP-2A open form from tasks (GET /bpm/task/context + Open Form button + ops/regress_ui_flowable_mvp2a.sh existence check); gate PASS evidence: artifacts/ui-flowable-mvp2a_20260131_040946/
 - 2026-01-31: I18N Chinese localization for BPM/VForm menus (UI + DB Patch); verify script ops/regress_ui_menu_i18n_cn.sh PASS evidence: artifacts/ui-menu-i18n-cn_20260131_111042/
 - 2026-01-31: Fix missing translation "Form Runtime" -> "表单运行" (DB Patch); gate PASS evidence: artifacts/ui-menu-i18n-cn-fix_20260131_114401/

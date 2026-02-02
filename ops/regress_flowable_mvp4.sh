@@ -65,8 +65,16 @@ get_token() {
   local password="$2"
   local check_key="${CHECK_KEY_PREFIX}_${RANDOM}"
   curl -s "${BASE_URL}/sys/randomImage/${check_key}" > /dev/null
+  sleep 3
   local captcha_line
-  captcha_line=$(rg --text "checkCode =" "$LOG_FILE" | tail -n 1 || true)
+  captcha_line=$(journalctl -u tritium-backend.service -n 50 --no-pager | grep --text "checkCode =" | tail -n 1 || true)
+  if [ -z "$captcha_line" ]; then
+     # fallback to LOG_FILE if set
+     if [ -n "${LOG_FILE:-}" ] && [ -f "$LOG_FILE" ]; then
+       captcha_line=$(grep --text "checkCode =" "$LOG_FILE" | tail -n 1 || true)
+     fi
+  fi
+
   local captcha
   captcha=$(echo "$captcha_line" | sed -E 's/.*checkCode = ([A-Za-z0-9]+).*/\1/')
   if [ -z "$captcha" ] || [ "$captcha" = "$captcha_line" ]; then

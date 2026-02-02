@@ -4,14 +4,17 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import lombok.extern.slf4j.Slf4j;
 import org.flowable.engine.HistoryService;
+import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
+import org.flowable.engine.task.Comment;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessStartReq;
@@ -63,6 +66,9 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
     @Autowired
     private RuntimeService runtimeService;
+
+    @Autowired
+    private RepositoryService repositoryService;
 
     @Autowired
     private TaskService taskService;
@@ -276,6 +282,18 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             }
         }
 
+        Map<String, Object> reqVars = req.getVariables();
+        if (reqVars != null && reqVars.containsKey("reason")) {
+            String reason = (String) reqVars.get("reason");
+            String status = (String) reqVars.get("status");
+            String comment = (status != null ? status + ": " : "") + reason;
+            try {
+                taskService.addComment(task.getId(), task.getProcessInstanceId(), comment);
+            } catch (Exception e) {
+                log.warn("Failed to add comment: {}", e.getMessage());
+            }
+        }
+
         Map<String, Object> taskVars = req.getVariables();
         if (taskVars == null) {
             taskVars = new HashMap<>();
@@ -444,6 +462,18 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         FlowableTaskContextResp resp = new FlowableTaskContextResp();
         resp.setTaskId(taskId);
         resp.setProcessInstanceId(processInstanceId);
+        resp.setTaskName(task.getName());
+        resp.setAssignee(task.getAssignee());
+        resp.setCreateTime(task.getCreateTime());
+        resp.setCandidateGroups(getCandidateGroups(task.getId()));
+        if (oConvertUtils.isNotEmpty(task.getProcessDefinitionId())) {
+            ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(task.getProcessDefinitionId())
+                .singleResult();
+            if (pd != null) {
+                resp.setProcessName(pd.getName());
+            }
+        }
 
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
@@ -493,6 +523,17 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             item.setTaskId(act.getTaskId());
             item.setTaskName(act.getActivityName());
             item.setAssignee(act.getAssignee());
+            
+            if (oConvertUtils.isNotEmpty(act.getTaskId())) {
+                try {
+                    List<Comment> comments = taskService.getTaskComments(act.getTaskId());
+                    if (comments != null && !comments.isEmpty()) {
+                        item.setComment(comments.get(comments.size() - 1).getFullMessage());
+                    }
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
             trace.add(item);
         }
         return trace;
@@ -503,6 +544,15 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         resp.setTaskId(task.getId());
         resp.setName(task.getName());
         resp.setProcessInstanceId(task.getProcessInstanceId());
+        resp.setProcessDefinitionId(task.getProcessDefinitionId());
+        if (oConvertUtils.isNotEmpty(task.getProcessDefinitionId())) {
+            ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(task.getProcessDefinitionId())
+                .singleResult();
+            if (pd != null) {
+                resp.setProcessName(pd.getName());
+            }
+        }
         resp.setAssignee(task.getAssignee());
         resp.setCandidateGroups(getCandidateGroups(task.getId()));
         resp.setCreateTime(task.getCreateTime());

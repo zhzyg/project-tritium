@@ -25,9 +25,9 @@ public class FlowableProcessTraceResp {
     @ApiModelProperty("assignee")
     private String assignee;
 
-    @ApiModelProperty("comment")
-    private String comment;
-    
     @ApiModelProperty("variables delta")
     private Map<String, Object> variablesDelta;
+
+    @ApiModelProperty("comment")
+    private String comment;
 }

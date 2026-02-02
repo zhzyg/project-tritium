@@ -10,17 +10,28 @@
       
       <el-table :data="tableData" v-loading="loading" style="width: 100%" border stripe>
         <el-table-column prop="taskId" label="Task ID" width="220" />
-        <el-table-column prop="name" label="Name" width="180" />
+        <el-table-column prop="processName" label="Process Name" width="180" />
+        <el-table-column prop="name" label="Task Name" width="180" />
         <el-table-column prop="processInstanceId" label="Proc Inst ID" width="220" />
         <el-table-column prop="createTime" label="Create Time" width="180" />
         <el-table-column prop="assignee" label="Assignee" width="150" />
+        <el-table-column prop="candidateGroups" label="Candidate Groups" width="200">
+          <template #default="scope">
+            <el-tag v-for="group in scope.row.candidateGroups" :key="group" style="margin-right: 5px;">{{ group }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="Status" width="100">
+          <template #default="scope">
+            <el-tag :type="scope.row.assignee ? 'success' : 'warning'">{{ scope.row.assignee ? 'Claimed' : 'Unclaimed' }}</el-tag>
+          </template>
+        </el-table-column>
         
         <el-table-column label="Actions" width="280" fixed="right">
           <template #default="scope">
-            <el-button 
-              type="primary" 
-              size="small" 
-              v-if="!scope.row.assignee" 
+            <el-button
+              type="primary"
+              size="small"
+              v-if="!scope.row.assignee"
               @click="handleClaim(scope.row)"
             >
               Claim
@@ -77,9 +88,11 @@ import { listMyTasks, claimTask, completeTask, getProcessVars, getTaskContext } 
 interface TaskItem {
   taskId: string;
   name: string;
+  processName?: string;
   processInstanceId: string;
   createTime: string;
   assignee?: string;
+  candidateGroups?: string[];
 }
 
 const router = useRouter();

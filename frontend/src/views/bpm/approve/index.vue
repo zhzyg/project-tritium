@@ -1,10 +1,27 @@
 <template>
-  <PageWrapper title="Task Approval" contentFullHeight>
+  <PageWrapper :title="pageTitle" contentFullHeight>
     <div class="approve-page">
+     <div class="task-header">
+       <a-descriptions bordered>
+         <a-descriptions-item label="Task Name">{{ taskName }}</a-descriptions-item>
+         <a-descriptions-item label="Task ID">{{ taskId }}</a-descriptions-item>
+         <a-descriptions-item label="Create Time">{{ createTime }}</a-descriptions-item>
+         <a-descriptions-item label="Assignee">
+           <a-tag :color="assignee ? 'green' : 'orange'">{{ assignee || 'Unclaimed' }}</a-tag>
+         </a-descriptions-item>
+         <a-descriptions-item label="Candidate Groups" :span="2">
+           <a-tag v-for="group in candidateGroups" :key="group" color="blue">{{ group }}</a-tag>
+         </a-descriptions-item>
+       </a-descriptions>
+     </div>
       <div class="toolbar">
         <a-space>
-          <a-button type="primary" @click="handleApprove">Approve</a-button>
-          <a-button type="danger" @click="handleReject">Reject</a-button>
+          <a-button type="primary" @click="handleApprove" :disabled="!assignee">Approve</a-button>
+          <a-button type="danger" @click="handleReject" :disabled="!assignee">Reject</a-button>
+          <a-button type="primary" v-if="!assignee" @click="handleClaim">Claim</a-button>
+           <a-tooltip title="MVP-5B">
+             <a-button disabled>Assign/Transfer</a-button>
+           </a-tooltip>
           <a-button @click="goBack">Back</a-button>
         </a-space>
       </div>
@@ -19,6 +36,7 @@
           <a-timeline-item v-for="(item, index) in traceData" :key="index" :color="item.type === 'END' ? 'green' : 'blue'">
             <p>{{ item.time }} - {{ item.taskName || item.type }}</p>
             <p v-if="item.assignee" style="color: #999; font-size: 12px;">Assignee: {{ item.assignee }}</p>
+            <p v-if="item.comment" style="color: #666; font-style: italic; margin-top: 4px;">{{ item.comment }}</p>
           </a-timeline-item>
         </a-timeline>
       </div>
@@ -34,13 +52,13 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, onMounted, reactive } from 'vue';
+  import { ref, onMounted, reactive, computed } from 'vue';
   import { useRoute, useRouter } from 'vue-router';
   import { ElMessage, ElMessageBox } from 'element-plus';
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { getTaskContext, completeTask, getProcessVars, getProcessTrace } from '/@/api/bpm/flowable';
+  import { getTaskContext, completeTask, getProcessVars, getProcessTrace, claimTask } from '/@/api/bpm/flowable';
   import { getLatestSchema, getRecord } from '../../form/runtime/runtime.api';
 
   const route = useRoute();
@@ -50,6 +68,18 @@
   const recordId = ref('');
   const formKey = ref('');
   const procInstId = ref('');
+  const taskName = ref('');
+  const processName = ref('');
+ const assignee = ref('');
+ const createTime = ref('');
+ const candidateGroups = ref<string[]>([]);
+
+  const pageTitle = computed(() => {
+    if (processName.value && taskName.value) {
+      return `${processName.value} - ${taskName.value}`;
+    }
+    return 'Task Approval';
+  });
   
   const renderRef = ref<any>(null);
   const formJson = ref<Record<string, any>>({ widgetList: [], formConfig: {} });
@@ -76,6 +106,11 @@
           recordId.value = ctx.recordId;
           formKey.value = ctx.formKey || '';
           procInstId.value = ctx.processInstanceId;
+          taskName.value = ctx.taskName || '';
+          processName.value = ctx.processName || '';
+         assignee.value = ctx.assignee || '';
+         createTime.value = ctx.createTime || '';
+         candidateGroups.value = ctx.candidateGroups || [];
           
           const schemaRes = await getLatestSchema({ formKey: formKey.value });
           if (schemaRes?.schemaJson) {
@@ -106,11 +141,21 @@
       }
   };
 
+  const handleClaim = async () => {
+   try {
+     await claimTask({ taskId: taskId.value });
+     ElMessage.success('Claimed successfully');
+     loadTask();
+   } catch (error) {
+     console.error(error);
+     ElMessage.error('Claim failed');
+   }
+ };
   const handleApprove = async () => {
       try {
-          await completeTask({ 
-              taskId: taskId.value, 
-              variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() } 
+          await completeTask({
+              taskId: taskId.value,
+              variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() }
           });
           ElMessage.success('Approved');
           showVars();

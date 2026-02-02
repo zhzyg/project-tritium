@@ -20,6 +20,12 @@ public class FlowableTaskResp {
     @ApiModelProperty("process instance id")
     private String processInstanceId;
 
+    @ApiModelProperty("process definition id")
+    private String processDefinitionId;
+
+    @ApiModelProperty("process name")
+    private String processName;
+
     @ApiModelProperty("assignee")
     private String assignee;
 

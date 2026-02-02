@@ -83,6 +83,7 @@ export interface TaskQueryReq {
 export interface TaskItem {
   taskId: string;
   name?: string;
+  processName?: string;
   assignee?: string;
   createTime?: string;
   processInstanceId?: string;
@@ -117,6 +118,11 @@ export interface TaskContextResp {
   recordId: string;
   formKey?: string;
   schemaVersion?: number;
+  taskName?: string;
+  processName?: string;
+  assignee?: string;
+  createTime?: string;
+  candidateGroups?: string[];
 }
 
 export const getTaskContext = (params: { taskId: string }) =>
