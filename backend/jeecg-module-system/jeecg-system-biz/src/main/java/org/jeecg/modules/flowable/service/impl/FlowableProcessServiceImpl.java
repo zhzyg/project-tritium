@@ -27,6 +27,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IFlowableVarMappingService;
@@ -283,10 +284,14 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         }
 
         Map<String, Object> reqVars = req.getVariables();
-        if (reqVars != null && reqVars.containsKey("reason")) {
+        String comment = req.getComment();
+        if (oConvertUtils.isEmpty(comment) && reqVars != null && reqVars.containsKey("reason")) {
             String reason = (String) reqVars.get("reason");
             String status = (String) reqVars.get("status");
-            String comment = (status != null ? status + ": " : "") + reason;
+            comment = (status != null ? status + ": " : "") + reason;
+        }
+
+        if (oConvertUtils.isNotEmpty(comment)) {
             try {
                 taskService.addComment(task.getId(), task.getProcessInstanceId(), comment);
             } catch (Exception e) {
@@ -733,5 +738,23 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             return username;
         }
         return "admin";
+    }
+
+    @Override
+    public List<FlowableTaskCommentResp> getTaskComments(String taskId) {
+        if (oConvertUtils.isEmpty(taskId)) {
+            return new ArrayList<>();
+        }
+        List<Comment> comments = taskService.getTaskComments(taskId);
+        List<FlowableTaskCommentResp> resp = new ArrayList<>();
+        for (Comment comment : comments) {
+            FlowableTaskCommentResp item = new FlowableTaskCommentResp();
+            item.setId(comment.getId());
+            item.setUserId(comment.getUserId());
+            item.setTime(comment.getTime());
+            item.setMessage(comment.getFullMessage());
+            resp.add(item);
+        }
+        return resp;
     }
 }

@@ -19,6 +19,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -226,6 +227,19 @@ public class FlowableProcessController {
             return Result.ok(flowableProcessService.getProcessTrace(procInstId));
         } catch (Exception ex) {
             log.warn("getProcessTrace failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/task/comments")
+    public Result<List<FlowableTaskCommentResp>> getTaskComments(String taskId) {
+        if (oConvertUtils.isEmpty(taskId)) {
+            return Result.error("taskId is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getTaskComments(taskId));
+        } catch (Exception ex) {
+            log.warn("getTaskComments failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

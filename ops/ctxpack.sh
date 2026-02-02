@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ===== config =====
-MAX_BYTES="${MAX_BYTES:-220000}"     # ~55k tokens (roughly bytes/4). Tune later.
+MAX_BYTES="${MAX_BYTES:-320000}"     # ~80k tokens (roughly bytes/4). Tune later.
 OUT_DIR="${OUT_DIR:-.artifacts/ai}"
 TS="$(date +%Y%m%d_%H%M%S)"
 OUT="${OUT_DIR}/ctxpack_${TS}.md"

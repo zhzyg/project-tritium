@@ -37,6 +37,7 @@ fi
 
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 ART_DIR="artifacts/${GATE_NAME}_${TIMESTAMP}"
+export EVIDENCE_DIR="$ART_DIR"
 mkdir -p "$ART_DIR"
 
 echo "=== Gate Runner: ${GATE_NAME} ==="

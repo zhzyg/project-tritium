@@ -1,0 +1,3 @@
+Browser verification failed: locator.fill: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('form.ant-form').filter({ has: locator('button:has-text("登录")') }).locator('input[placeholder*="账号"], input[placeholder*="用户名"], input[placeholder*="Username"]')

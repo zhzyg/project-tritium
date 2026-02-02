@@ -30,6 +30,17 @@
         <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
       </div>
 
+      <div class="comments-container" style="padding: 16px; background: #fff; margin-top: 16px;">
+          <h3>审批意见</h3>
+          <a-input v-model:value="comment" placeholder="请输入审批意见" type="textarea" :rows="4" />
+         <a-timeline style="margin-top: 16px;">
+           <a-timeline-item v-for="item in commentsData" :key="item.id">
+             <p>{{ item.time }} - {{ item.userId }}</p>
+             <p style="color: #666; font-style: italic; margin-top: 4px;">{{ item.message }}</p>
+           </a-timeline-item>
+         </a-timeline>
+       </div>
+
       <div class="trace-container" v-if="traceData.length" style="padding: 16px; background: #fff; margin-top: 16px;">
         <h3>Process Trace</h3>
         <a-timeline style="margin-top: 16px;">
@@ -58,7 +69,7 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { getTaskContext, completeTask, getProcessVars, getProcessTrace, claimTask } from '/@/api/bpm/flowable';
+  import { getTaskContext, completeTask, getProcessVars, getProcessTrace, getTaskComments, claimTask } from '/@/api/bpm/flowable';
   import { getLatestSchema, getRecord } from '../../form/runtime/runtime.api';
 
   const route = useRoute();
@@ -89,6 +100,8 @@
   const varsVisible = ref(false);
   const varsData = ref<any>(null);
   const traceData = ref<any[]>([]);
+  const commentsData = ref<any[]>([]);
+  const comment = ref('');
 
   const loadTask = async () => {
       taskId.value = route.query.taskId as string;
@@ -134,6 +147,7 @@
           }
           
           loadTrace();
+          loadComments();
 
       } catch (e: any) {
           console.error(e);
@@ -153,13 +167,15 @@
  };
   const handleApprove = async () => {
       try {
-          await completeTask({
-              taskId: taskId.value,
-              variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() }
+          await completeTask({ 
+              taskId: taskId.value, 
+              comment: comment.value,
+              variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() } 
           });
           ElMessage.success('Approved');
           showVars();
           loadTrace();
+          loadComments();
       } catch(e) { console.error(e); ElMessage.error('Failed'); }
   };
   
@@ -171,11 +187,13 @@
         });
         await completeTask({ 
              taskId: taskId.value, 
+             comment: value,
              variables: { status: 'REJECTED', reason: value, updatedAt: new Date().toISOString() } 
         });
         ElMessage.success('Rejected');
         showVars();
         loadTrace();
+        loadComments();
       } catch(e: any) { if(e !== 'cancel') ElMessage.error('Failed'); }
   };
   
@@ -186,6 +204,14 @@
           traceData.value = res || [];
       } catch(e) { console.error(e); }
   };
+
+   const loadComments = async () => {
+       if (!taskId.value) return;
+       try {
+           const res = await getTaskComments({ taskId: taskId.value });
+           commentsData.value = res || [];
+       } catch(e) { console.error(e); }
+   };
 
   const showVars = async () => {
       if (!procInstId.value) return;

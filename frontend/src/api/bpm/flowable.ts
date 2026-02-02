@@ -11,6 +11,7 @@ enum Api {
   TaskComplete = '/bpm/task/complete',
   ProcessVars = '/bpm/process/vars',
   TaskContext = '/bpm/task/context',
+  TaskComments = '/bpm/task/comments',
 }
 
 export interface ProcessDefItem {
@@ -97,6 +98,7 @@ export interface TaskClaimReq {
 export interface TaskCompleteReq {
   taskId: string;
   variables?: Record<string, any>;
+  comment?: string;
 }
 
 
@@ -139,3 +141,13 @@ export interface ProcessTraceItem {
 
 export const getProcessTrace = (params: { procInstId: string }) =>
   defHttp.get<ProcessTraceItem[]>({ url: '/bpm/process/trace', params });
+
+export interface TaskCommentItem {
+   id: string;
+   userId: string;
+   time: string;
+   message: string;
+}
+
+export const getTaskComments = (params: { taskId: string }) =>
+   defHttp.get<TaskCommentItem[]>({ url: Api.TaskComments, params });

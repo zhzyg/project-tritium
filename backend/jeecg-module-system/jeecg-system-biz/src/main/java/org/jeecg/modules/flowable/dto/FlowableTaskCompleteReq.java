@@ -26,4 +26,7 @@ public class FlowableTaskCompleteReq {
 
     @ApiModelProperty("process variables")
     private Map<String, Object> variables;
+
+    @ApiModelProperty("comment")
+    private String comment;
 }

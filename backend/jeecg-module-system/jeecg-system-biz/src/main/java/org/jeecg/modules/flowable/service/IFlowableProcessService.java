@@ -26,6 +26,8 @@ public interface IFlowableProcessService {
 
     void claimTask(FlowableTaskClaimReq req, String username);
 
+    List<org.jeecg.modules.flowable.dto.FlowableTaskCommentResp> getTaskComments(String taskId);
+
     FlowableProcessStatusResp getProcessStatus(String processInstanceId);
 
     Map<String, Object> getProcessVariables(String processInstanceId, String formKey);
