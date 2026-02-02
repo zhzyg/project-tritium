@@ -59,7 +59,7 @@ const bpm: AppRouteModule = {
     {
       path: 'my',
       name: 'bpm-my',
-      component: () => import('/@/views/bpm/my/index.vue'),
+      component: () => import('/@/views/bpm/MyInitiated/index.vue'),
       meta: { title: '我发起的' },
     },
     {

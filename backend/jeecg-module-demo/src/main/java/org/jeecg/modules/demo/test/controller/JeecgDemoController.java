@@ -486,4 +486,12 @@ public class JeecgDemoController extends JeecgController<JeecgDemo, IJeecgDemoSe
         return Mono.just("测试");
     }
 
+    @GetMapping(value = "/clear-permission-cache")
+    public Result<?> clearPermissionCache() {
+        redisUtil.del("login:user:info:" + "admin");
+        redisUtil.del("login:user:roles:" + "admin");
+        redisUtil.del("login:user:perms:" + "admin");
+        return Result.OK("Cache cleared");
+    }
+
 }

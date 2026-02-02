@@ -123,3 +123,17 @@
 - 2026-02-02: fix MVP-5D my-started menu patch idempotent + role binding; regress: ops/regress_ui_bpm_mvp5d_menu.sh; evidence: artifacts/ui-bpm-mvp5d-menu-fix_20260202_142048
 
 - 2026-02-02: fix MVP-5D 'White Screen' on /bpm/my; rewrite component to be robust, fix potential import/runtime errors; verify backend API access in regression.
+
+- 2026-02-02: fix(mvp-5d): resolve /bpm/my white screen
+- Goal / Why: Fix the white screen issue on the "My Initiated" page (`/bpm/my`).
+- Scope: frontend
+- Key changes:
+  - Renamed directory `frontend/src/views/bpm/my` to `frontend/src/views/bpm/MyInitiated` to resolve potential case-sensitivity import issues.
+  - Updated route definition in `frontend/src/router/routes/modules/bpm.ts`.
+- Verification (evidence paths):
+  - repro script: ops/repro_bpm_my.mjs
+  - repro artifacts: .artifacts/repro-bpm-my/ (console logs and screenshot)
+  - post-check: ai_guard post-check passed (frontend build successful).
+- Rollback:
+  - Rename directory back to `my`.
+  - Revert `frontend/src/router/routes/modules/bpm.ts`.
