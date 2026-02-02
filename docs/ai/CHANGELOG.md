@@ -121,3 +121,5 @@
 - 2026-01-31: ops harden frontend_check to prevent OOM (default NODE_OPTIONS=--max-old-space-size=3072; build log capture); gate PASS evidence: artifacts/gate-frontend-oom-hardening_20260131_035258/
 
 - 2026-02-02: fix MVP-5D my-started menu patch idempotent + role binding; regress: ops/regress_ui_bpm_mvp5d_menu.sh; evidence: artifacts/ui-bpm-mvp5d-menu-fix_20260202_142048
+
+- 2026-02-02: fix MVP-5D 'White Screen' on /bpm/my; rewrite component to be robust, fix potential import/runtime errors; verify backend API access in regression.
