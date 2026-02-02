@@ -85,4 +85,10 @@ if [ -x ops/check_case_paths.sh ]; then
   ./ops/check_case_paths.sh
 fi
 
+# 6) Optional BPM Regression Suite (requires active server)
+if [ "${AI_GUARD_RUN_REPRO_SUITE:-0}" == "1" ] && [ -x ops/repro_bpm_suite.sh ]; then
+  echo "[ai-guard] bpm repro suite"
+  ./ops/repro_bpm_suite.sh
+fi
+
 echo "[ai-guard] OK"

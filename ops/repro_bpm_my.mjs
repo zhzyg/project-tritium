@@ -3,9 +3,15 @@ import fs from 'fs';
 import path from 'path';
 
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3100';
+const ROUTE = process.env.ROUTE || '/bpm/my';
+const MARKER_TEXT = process.env.MARKER_TEXT || '';
+const MARKER_SELECTOR = process.env.MARKER_SELECTOR || '.el-table, .el-card__header';
+
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = '123456'; 
-const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-my');
+const ARTIFACTS_BASE = path.resolve('.artifacts/repro-bpm-suite');
+const ROUTE_SLUG = ROUTE.replace(/\//g, '_').replace(/^_/, '');
+const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
 (async () => {
   if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -40,56 +46,56 @@ const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-my');
 
   let success = false;
   try {
-    console.log(`Navigating to Login at ${BASE_URL}...`);
-    await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle' });
+    console.log(`[${ROUTE}] Navigating to Login at ${BASE_URL}...`);
+    await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle', timeout: 15000 });
 
-    console.log('Checking for login fields...');
-    const userField = page.locator('input[placeholder*="账号"], .ant-input[type="text"], input#username');
-    const passField = page.locator('input[placeholder*="密码"], .ant-input[type="password"], input#password');
+    const userField = page.locator('input[placeholder*="账号"], .ant-input[type="text"], input#username').first();
+    await userField.waitFor({ state: 'visible', timeout: 5000 });
+    await userField.fill(ADMIN_USER);
+    await page.locator('input[placeholder*="密码"], .ant-input[type="password"], input#password').first().fill(ADMIN_PASS);
     
-    await userField.first().waitFor({ state: 'visible', timeout: 5000 });
-    await userField.first().fill(ADMIN_USER);
-    await passField.first().fill(ADMIN_PASS);
-    
-    const captcha = page.locator('input[placeholder*="验证码"], input#captcha');
-    if (await captcha.count() > 0 && await captcha.isVisible()) {
+    const captcha = page.locator('input[placeholder="验证码"]:visible, input#captcha:visible').first();
+    if (await captcha.count() > 0) {
       await captcha.fill('1234');
     }
 
-    console.log('Clicking login button...');
-    const loginBtn = page.locator('button.ant-btn-primary, button[type="submit"], .login-button');
-    await loginBtn.first().click();
-    
+    await page.click('button.ant-btn-primary:visible, button[type="submit"]:visible, .login-button:visible');
     await page.waitForURL(url => !url.href.includes('/login'), { timeout: 10000 }).catch(() => {});
 
-    console.log(`Navigating to /bpm/my...`);
-    await page.goto(`${BASE_URL}/bpm/my`, { waitUntil: 'networkidle' });
+    console.log(`[${ROUTE}] Navigating to ${ROUTE}...`);
+    await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 15000 });
 
-    // Strong assertion: Wait for "我发起的流程" text OR .el-table
-    const successMarker = page.locator('span:has-text("我发起的流程"), .el-table, .el-card__header');
-    await successMarker.waitFor({ state: 'visible', timeout: 10000 });
+    // Strong assertion
+    let successMarker;
+    if (MARKER_TEXT) {
+      successMarker = page.locator(`span:has-text("${MARKER_TEXT}"), div:has-text("${MARKER_TEXT}"), :text("${MARKER_TEXT}")`);
+    } else {
+      successMarker = page.locator(MARKER_SELECTOR);
+    }
     
-    console.log('SUCCESS: Render verified (marker found).');
+    await successMarker.first().waitFor({ state: 'visible', timeout: 10000 });
+    
+    console.log(`[${ROUTE}] SUCCESS: Render verified.`);
     success = true;
 
   } catch (e) {
-    console.log(`FAILURE: Assertion failed or timeout. ${e.message}`);
+    console.log(`[${ROUTE}] FAILURE: ${e.message}`);
     logStream.write(`[SCRIPT_ERROR] ${e.message}\n`);
   } finally {
-    const title = await page.title().catch(() => 'N/A');
-    const currentUrl = page.url();
-    console.log(`Final URL: ${currentUrl}`);
-    console.log(`Final Page Title: ${title}`);
-    
-    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'screenshot.png'), fullPage: true });
-    console.log('Screenshot saved.');
+    try {
+      const title = await page.title().catch(() => 'N/A');
+      const currentUrl = page.url();
+      logStream.write(`Final URL: ${currentUrl}\nFinal Page Title: ${title}\n`);
+      await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'screenshot.png'), fullPage: true, timeout: 5000 }).catch(() => {});
+    } catch (ssErr) {}
 
-    console.log('\n--- ERROR SUMMARY ---');
-    if (errors.length) console.log(`Page Errors (${errors.length}):\n  ${errors.slice(0, 3).join('\n  ')}`);
-    if (consoleErrors.length) console.log(`Console Errors (${consoleErrors.length}):\n  ${consoleErrors.slice(0, 5).join('\n  ')}`);
-    if (failedRequests.length) console.log(`Failed Requests (${failedRequests.length}):\n  ${failedRequests.slice(0, 5).join('\n  ')}`);
-    if (!errors.length && !consoleErrors.length && !failedRequests.length) console.log('No obvious frontend errors captured.');
-    console.log('----------------------\n');
+    if (!success) {
+      console.log(`[${ROUTE}] --- ERROR SUMMARY ---`);
+      if (errors.length) console.log(`  Page Errors (${errors.length}): ${errors[0]}`);
+      if (consoleErrors.length) console.log(`  Console Errors (${consoleErrors.length}): ${consoleErrors[0]}`);
+      if (failedRequests.length) console.log(`  Failed Requests (${failedRequests.length}): ${failedRequests[0]}`);
+      console.log('----------------------');
+    }
 
     logStream.end();
     await browser.close();

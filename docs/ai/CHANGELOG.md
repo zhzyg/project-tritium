@@ -132,12 +132,14 @@
   - Updated route definition in `frontend/src/router/routes/modules/bpm.ts`.
   - Added `ops/check_case_paths.sh` to prevent future regressions of old paths or case-sensitivity issues.
   - Integrated `ops/check_case_paths.sh` into `ops/ai_guard.sh`.
-  - Strengthened `ops/repro_bpm_my.mjs` with robust DOM assertions and detailed error capturing (console/page errors/failed requests).
+  - Strengthened `ops/repro_bpm_my.mjs` with robust DOM assertions and detailed error capturing.
+  - Parameterized `ops/repro_bpm_my.mjs` to support any ROUTE and MARKER_TEXT/SELECTOR.
+  - Added `ops/repro_bpm_suite.sh` to run regression tests for `/bpm/my`, `/bpm/tasks`, and `/bpm/done`.
 - Verification (evidence paths):
-  - repro script: ops/repro_bpm_my.mjs (upgraded with marker detection)
-  - repro artifacts: .artifacts/repro-bpm-my/ (console logs and screenshot)
-  - prod-verify: Production build successful (`pnpm run build`); verified static serve via `serve -s frontend/dist`.
+  - repro script: ops/repro_bpm_my.mjs (parameterized)
+  - repro suite: ops/repro_bpm_suite.sh (covers my/todo/done)
+  - prod-verify: Production build successful; verified static serve.
   - guard: `ops/check_case_paths.sh` successfully integrated into `ai_guard`.
 - Rollback:
   - Revert directory rename and route change.
-  - Remove `ops/check_case_paths.sh` and its reference in `ops/ai_guard.sh`.
+  - Remove new ops scripts and references.
