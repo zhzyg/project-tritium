@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Use Dev Server port
-const BASE_URL = 'http://127.0.0.1:3100';
+const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3100';
 const ADMIN_USER = 'admin';
 const ADMIN_PASS = '123456'; // Mock password
 const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-my');

@@ -126,14 +126,17 @@
 
 - 2026-02-02: fix(mvp-5d): resolve /bpm/my white screen
 - Goal / Why: Fix the white screen issue on the "My Initiated" page (`/bpm/my`).
-- Scope: frontend
+- Scope: frontend, ops
 - Key changes:
   - Renamed directory `frontend/src/views/bpm/my` to `frontend/src/views/bpm/MyInitiated` to resolve potential case-sensitivity import issues.
   - Updated route definition in `frontend/src/router/routes/modules/bpm.ts`.
+  - Added `ops/check_case_paths.sh` to prevent future regressions of old paths or case-sensitivity issues.
+  - Integrated `ops/check_case_paths.sh` into `ops/ai_guard.sh`.
 - Verification (evidence paths):
   - repro script: ops/repro_bpm_my.mjs
   - repro artifacts: .artifacts/repro-bpm-my/ (console logs and screenshot)
-  - post-check: ai_guard post-check passed (frontend build successful).
+  - prod-verify: Production build successful (`pnpm run build`); verified static serve via `serve -s frontend/dist`.
+  - guard: `ops/check_case_paths.sh` successfully integrated into `ai_guard`.
 - Rollback:
-  - Rename directory back to `my`.
-  - Revert `frontend/src/router/routes/modules/bpm.ts`.
+  - Revert directory rename and route change.
+  - Remove `ops/check_case_paths.sh` and its reference in `ops/ai_guard.sh`.

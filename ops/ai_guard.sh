@@ -79,4 +79,10 @@ else
   echo "[ai-guard] WARN: ops/frontend_check.sh missing, skip"
 fi
 
+# 5) Case-sensitivity and path regression guard
+if [ -x ops/check_case_paths.sh ]; then
+  echo "[ai-guard] case-path check"
+  ./ops/check_case_paths.sh
+fi
+
 echo "[ai-guard] OK"
