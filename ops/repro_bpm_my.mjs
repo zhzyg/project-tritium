@@ -2,83 +2,97 @@ import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
 
-// Use Dev Server port
 const BASE_URL = process.env.BASE_URL || 'http://127.0.0.1:3100';
 const ADMIN_USER = 'admin';
-const ADMIN_PASS = '123456'; // Mock password
+const ADMIN_PASS = '123456'; 
 const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-my');
 
 (async () => {
   if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
-  fs.writeFileSync(path.join(ARTIFACTS_DIR, 'console.log'), '');
-  const logStream = fs.createWriteStream(path.join(ARTIFACTS_DIR, 'console.log'), { flags: 'a' });
-  
-  const browser = await chromium.launch();
+  const logFile = path.join(ARTIFACTS_DIR, 'console.log');
+  fs.writeFileSync(logFile, '');
+  const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+  const errors = [];
+  const consoleErrors = [];
+  const failedRequests = [];
+
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   const page = await browser.newPage();
 
   page.on('console', msg => {
-    logStream.write(`[CONSOLE] ${msg.type()}: ${msg.text()}\n`);
-    if (msg.type() === 'error') {
-        console.log(`[CONSOLE ERROR] ${msg.text()}`);
-    }
+    const text = msg.text();
+    logStream.write(`[CONSOLE] ${msg.type()}: ${text}\n`);
+    if (msg.type() === 'error') consoleErrors.push(text);
   });
   page.on('pageerror', err => {
-      logStream.write(`[PAGEERROR] ${err.message}\n`);
-      console.log(`[PAGE ERROR] ${err.message}`);
+    logStream.write(`[PAGEERROR] ${err.message}\n`);
+    errors.push(err.message);
   });
   page.on('requestfailed', req => {
-      // Ignore analytics
-      if (!req.url().includes('baidu.com')) {
-        logStream.write(`[REQUESTFAILED] ${req.url()} ${req.failure()?.errorText}\n`);
-      }
+    const url = req.url();
+    const errText = req.failure()?.errorText;
+    logStream.write(`[REQUESTFAILED] ${url} ${errText}\n`);
+    if (!url.includes('baidu.com')) {
+      failedRequests.push(`${url} -> ${errText}`);
+    }
   });
 
+  let success = false;
   try {
     console.log(`Navigating to Login at ${BASE_URL}...`);
     await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle' });
 
-    await page.waitForSelector('input[placeholder*="账号"]', { state: 'visible', timeout: 5000 });
+    console.log('Checking for login fields...');
+    const userField = page.locator('input[placeholder*="账号"], .ant-input[type="text"], input#username');
+    const passField = page.locator('input[placeholder*="密码"], .ant-input[type="password"], input#password');
     
-    // Fill credentials
-    const userField = page.locator('input[placeholder*="账号"]:visible, input[placeholder*="Username"]:visible');
-    const passField = page.locator('input[placeholder*="密码"]:visible, input[placeholder*="Password"]:visible');
-    const captchaField = page.locator('input[placeholder*="验证码"]:visible, input[placeholder*="Captcha"]:visible');
+    await userField.first().waitFor({ state: 'visible', timeout: 5000 });
+    await userField.first().fill(ADMIN_USER);
+    await passField.first().fill(ADMIN_PASS);
     
-    await userField.fill(ADMIN_USER);
-    await passField.fill(ADMIN_PASS);
-    
-    // Mock login accepts any captcha
-    if (await captchaField.count() > 0) {
-        await captchaField.fill('1234');
+    const captcha = page.locator('input[placeholder*="验证码"], input#captcha');
+    if (await captcha.count() > 0 && await captcha.isVisible()) {
+      await captcha.fill('1234');
     }
 
-    const loginBtn = page.locator('button.ant-btn-primary:visible');
-    await loginBtn.click();
-    await page.waitForTimeout(3000); 
+    console.log('Clicking login button...');
+    const loginBtn = page.locator('button.ant-btn-primary, button[type="submit"], .login-button');
+    await loginBtn.first().click();
+    
+    await page.waitForURL(url => !url.href.includes('/login'), { timeout: 10000 }).catch(() => {});
 
-    console.log(`Navigating to ${BASE_URL}/bpm/my...`);
+    console.log(`Navigating to /bpm/my...`);
     await page.goto(`${BASE_URL}/bpm/my`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(3000);
 
-    const title = await page.title();
-    console.log(`Page Title: ${title}`);
+    // Strong assertion: Wait for "我发起的流程" text OR .el-table
+    const successMarker = page.locator('span:has-text("我发起的流程"), .el-table, .el-card__header');
+    await successMarker.waitFor({ state: 'visible', timeout: 10000 });
+    
+    console.log('SUCCESS: Render verified (marker found).');
+    success = true;
 
-    const bodyText = await page.evaluate(() => document.body.innerText);
-    console.log(`Body Text Length: ${bodyText.length}`);
-    if (bodyText.includes('我发起的流程')) {
-        console.log('SUCCESS: Found "我发起的流程"');
-    } else {
-        console.log('FAILURE: "我发起的流程" NOT found.');
-    }
+  } catch (e) {
+    console.log(`FAILURE: Assertion failed or timeout. ${e.message}`);
+    logStream.write(`[SCRIPT_ERROR] ${e.message}\n`);
+  } finally {
+    const title = await page.title().catch(() => 'N/A');
+    const currentUrl = page.url();
+    console.log(`Final URL: ${currentUrl}`);
+    console.log(`Final Page Title: ${title}`);
     
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'screenshot.png'), fullPage: true });
     console.log('Screenshot saved.');
 
-  } catch (e) {
-    logStream.write(`[SCRIPT_ERROR] ${e.message}\n`);
-    console.error(e);
-  } finally {
+    console.log('\n--- ERROR SUMMARY ---');
+    if (errors.length) console.log(`Page Errors (${errors.length}):\n  ${errors.slice(0, 3).join('\n  ')}`);
+    if (consoleErrors.length) console.log(`Console Errors (${consoleErrors.length}):\n  ${consoleErrors.slice(0, 5).join('\n  ')}`);
+    if (failedRequests.length) console.log(`Failed Requests (${failedRequests.length}):\n  ${failedRequests.slice(0, 5).join('\n  ')}`);
+    if (!errors.length && !consoleErrors.length && !failedRequests.length) console.log('No obvious frontend errors captured.');
+    console.log('----------------------\n');
+
     logStream.end();
     await browser.close();
+    process.exit(success ? 0 : 1);
   }
 })();
