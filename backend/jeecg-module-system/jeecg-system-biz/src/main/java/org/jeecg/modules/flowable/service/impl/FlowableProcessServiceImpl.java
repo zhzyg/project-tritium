@@ -7,6 +7,7 @@ import org.flowable.engine.HistoryService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.engine.IdentityService;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.identitylink.api.IdentityLink;
 import org.flowable.variable.api.history.HistoricVariableInstance;
@@ -29,6 +30,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
+import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
@@ -78,6 +80,9 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
     @Autowired
     private HistoryService historyService;
+
+    @Autowired
+    private IdentityService identityService;
 
     @Autowired
     private IFormSchemaPublishService formSchemaPublishService;
@@ -143,6 +148,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             }
         }
 
+        identityService.setAuthenticatedUserId(initiator);
         ProcessInstance instance;
         if (oConvertUtils.isNotEmpty(businessKey)) {
             instance = runtimeService.startProcessInstanceByKey(
@@ -194,6 +200,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             ensureAmountVariable(variables, formData);
         }
         String businessKey = buildBusinessKey(req.getFormKey(), req.getRecordId(), published.getVersion());
+        identityService.setAuthenticatedUserId(initiator);
         ProcessInstance instance = runtimeService.startProcessInstanceByKey(processKey, businessKey, variables);
         insertProcessLink(instance.getProcessInstanceId(),
             processKey,
@@ -787,6 +794,30 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                     item.setProcessName(pd.getName());
                 }
             }
+            resp.add(item);
+        }
+        return resp;
+    }
+
+    @Override
+    public List<FlowableHistoricProcessInstanceResp> queryMyStartedProcesses(FlowableTaskQueryReq req, String username) {
+        String currentUser = resolveCurrentUser(req == null ? null : req.getAssignee(), username);
+        List<HistoricProcessInstance> processes = historyService.createHistoricProcessInstanceQuery()
+                .startedBy(currentUser)
+                .orderByProcessInstanceStartTime().desc()
+                .list();
+
+        List<FlowableHistoricProcessInstanceResp> resp = new ArrayList<>();
+        for (HistoricProcessInstance process : processes) {
+            FlowableHistoricProcessInstanceResp item = new FlowableHistoricProcessInstanceResp();
+            item.setProcessInstanceId(process.getId());
+            item.setProcessDefinitionId(process.getProcessDefinitionId());
+            item.setProcessName(process.getProcessDefinitionName());
+            item.setStartTime(process.getStartTime());
+            item.setEndTime(process.getEndTime());
+            item.setStatus(process.getEndTime() == null ? "RUNNING" : "ENDED");
+            item.setStartUserId(process.getStartUserId());
+            item.setBusinessKey(process.getBusinessKey());
             resp.add(item);
         }
         return resp;

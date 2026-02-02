@@ -26,6 +26,10 @@ const bpmMenu: MenuModule = {
         name: '已办任务',
         path: 'done',
       },
+      {
+        name: '我发起的',
+        path: 'my',
+      },
     ],
   },
 };

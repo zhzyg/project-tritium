@@ -12,6 +12,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
+import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
 
 import java.util.List;
 import java.util.Map;
@@ -38,4 +39,6 @@ public interface IFlowableProcessService {
     List<FlowableProcessTraceResp> getProcessTrace(String processInstanceId);
 
     List<FlowableHistoricTaskResp> queryDoneTasks(FlowableTaskQueryReq req, String username);
+
+    List<FlowableHistoricProcessInstanceResp> queryMyStartedProcesses(FlowableTaskQueryReq req, String username);
 }
