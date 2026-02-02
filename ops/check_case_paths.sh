@@ -18,15 +18,17 @@ else
     echo "✅ OK: No references to /views/bpm/my found."
 fi
 
-echo "[check-case-paths] Scanning for case-sensitivity drift (Bpm vs bpm)..."
-# Let's check for any /views/bpm/ (case insensitive) that isn't the new /bpm/my
-echo "[check-case-paths] Checking for any /views/bpm/ (case-insensitive) references..."
-OLD_BASE="/views/bpm/"
-HITS_BASE=$(grep -ri "$OLD_BASE" . --exclude-dir={.git,node_modules,dist,.artifacts} --include=*.{js,ts,vue,jsx,tsx,html,json})
+echo "[check-case-paths] Scanning for bpm path case drift..."
+# Scan for /views/bpm/ variants but ignore the canonical /views/bpm/
+# We use -i for case-insensitive search but then filter out the exact /views/bpm/
+DRIFT=$(grep -ri "/views/bpm/" frontend/src --exclude-dir={node_modules,dist} --include=*.{js,ts,vue,jsx,tsx,html,json} | grep -v "/views/bpm/" | head -n 80 || true)
 
-if [ ! -z "$HITS_BASE" ]; then
-    echo "⚠️ WARNING: Found references to '$OLD_BASE' (case-insensitive). Please verify if these should be migrated to '/bpm/':"
-    echo "$HITS_BASE" | head -n 20
+if [ -n "$DRIFT" ]; then
+    echo "❌ ERROR: Found bpm path case drift variants (expected /views/bpm/ only):"
+    echo "$DRIFT"
+    EXIT_CODE=1
+else
+    echo "✅ OK: No bpm path case drift variants."
 fi
 
 exit $EXIT_CODE
