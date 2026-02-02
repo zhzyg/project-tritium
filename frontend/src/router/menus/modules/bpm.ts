@@ -22,6 +22,10 @@ const bpmMenu: MenuModule = {
         name: '我的待办',
         path: 'tasks',
       },
+      {
+        name: '已办任务',
+        path: 'done',
+      },
     ],
   },
 };

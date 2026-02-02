@@ -20,6 +20,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
+import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -240,6 +241,17 @@ public class FlowableProcessController {
             return Result.ok(flowableProcessService.getTaskComments(taskId));
         } catch (Exception ex) {
             log.warn("getTaskComments failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/task/done")
+    public Result<List<FlowableHistoricTaskResp>> listDoneTasks(FlowableTaskQueryReq req, HttpServletRequest request) {
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            return Result.ok(flowableProcessService.queryDoneTasks(req, username));
+        } catch (RuntimeException ex) {
+            log.warn("Flowable done task query failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

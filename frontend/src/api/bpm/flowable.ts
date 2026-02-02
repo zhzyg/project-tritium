@@ -12,6 +12,7 @@ enum Api {
   ProcessVars = '/bpm/process/vars',
   TaskContext = '/bpm/task/context',
   TaskComments = '/bpm/task/comments',
+  TaskDone = '/bpm/task/done',
 }
 
 export interface ProcessDefItem {
@@ -150,4 +151,18 @@ export interface TaskCommentItem {
 }
 
 export const getTaskComments = (params: { taskId: string }) =>
-   defHttp.get<TaskCommentItem[]>({ url: Api.TaskComments, params });
+    defHttp.get<TaskCommentItem[]>({ url: Api.TaskComments, params });
+
+export interface HistoricTaskItem {
+    taskId: string;
+    name: string;
+    processName?: string;
+    processInstanceId: string;
+    endTime: string;
+    assignee?: string;
+    claimTime?: string;
+    duration?: number;
+}
+
+export const listDoneTasks = (params: TaskQueryReq) =>
+    defHttp.get<HistoricTaskItem[]>({ url: Api.TaskDone, params });

@@ -23,6 +23,29 @@
 
 # CHANGELOG
 
+- 2026-02-02: Stage4 MVP-5C BPM Center “已办任务 / 我已处理” 最小闭环
+- Goal / Why: Allow users to view their completed tasks.
+- Scope: frontend, backend
+- Key changes:
+  - Files:
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/flowable/dto/FlowableHistoricTaskResp.java
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/flowable/service/IFlowableProcessService.java
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/flowable/service/impl/FlowableProcessServiceImpl.java
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/flowable/controller/FlowableProcessController.java
+    - frontend/src/views/bpm/done/index.vue
+    - frontend/src/router/routes/modules/bpm.ts
+    - frontend/src/router/menus/modules/bpm.ts
+    - frontend/src/api/bpm/flowable.ts
+    - ops/regress_flowable_mvp5c_done_list.sh
+- Endpoints:
+  - GET /bpm/task/done
+- Verification (evidence paths):
+  - gate: artifacts/flowable-mvp5c-done_20260202_041527
+  - regress: artifacts/flowable-mvp5c-done_20260202_041527/regress.log
+- Rollback:
+  - Revert the changes to the files listed above.
+- Known issues / Next: None.
+
 - 2026-02-02: Stage4 MVP-5B Approval Comment (审批意见闭环)
 - Goal / Why: Allow users to add comments during approval and view historical comments.
 - Scope: frontend, backend

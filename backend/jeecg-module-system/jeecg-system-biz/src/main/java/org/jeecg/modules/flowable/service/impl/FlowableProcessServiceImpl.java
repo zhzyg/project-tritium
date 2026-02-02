@@ -14,6 +14,7 @@ import org.flowable.engine.history.HistoricActivityInstance;
 import org.flowable.engine.history.HistoricProcessInstance;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
+import org.flowable.task.api.history.HistoricTaskInstance;
 import org.flowable.engine.task.Comment;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
@@ -27,6 +28,7 @@ import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
+import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
@@ -753,6 +755,38 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             item.setUserId(comment.getUserId());
             item.setTime(comment.getTime());
             item.setMessage(comment.getFullMessage());
+            resp.add(item);
+        }
+        return resp;
+    }
+
+    @Override
+    public List<FlowableHistoricTaskResp> queryDoneTasks(FlowableTaskQueryReq req, String username) {
+        String currentUser = resolveCurrentUser(req == null ? null : req.getAssignee(), username);
+        List<HistoricTaskInstance> tasks = historyService.createHistoricTaskInstanceQuery()
+                .taskAssignee(currentUser)
+                .finished()
+                .orderByHistoricTaskInstanceEndTime().desc()
+                .list();
+
+        List<FlowableHistoricTaskResp> resp = new ArrayList<>();
+        for (HistoricTaskInstance task : tasks) {
+            FlowableHistoricTaskResp item = new FlowableHistoricTaskResp();
+            item.setTaskId(task.getId());
+            item.setName(task.getName());
+            item.setProcessInstanceId(task.getProcessInstanceId());
+            item.setAssignee(task.getAssignee());
+            item.setEndTime(task.getEndTime());
+            item.setClaimTime(task.getClaimTime());
+            item.setDuration(task.getDurationInMillis());
+            if (oConvertUtils.isNotEmpty(task.getProcessDefinitionId())) {
+                ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                        .processDefinitionId(task.getProcessDefinitionId())
+                        .singleResult();
+                if (pd != null) {
+                    item.setProcessName(pd.getName());
+                }
+            }
             resp.add(item);
         }
         return resp;
