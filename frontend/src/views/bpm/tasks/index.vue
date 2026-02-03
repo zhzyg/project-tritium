@@ -1,132 +1,106 @@
 <template>
-  <div class="p-4" data-testid="bpm-tasks-page">
-    <el-card>
-      <template #header>
-        <div class="flex justify-between items-center">
-          <span>我的待办</span>
-          <el-button type="primary" @click="fetchTasks">Refresh</el-button>
-        </div>
-      </template>
-      
-      <el-table :data="tableData" v-loading="loading" style="width: 100%" border stripe>
-        <el-table-column prop="taskId" label="Task ID" width="220" />
-        <el-table-column prop="processName" label="Process Name" width="180" />
-        <el-table-column prop="name" label="Task Name" width="180" />
-        <el-table-column prop="processInstanceId" label="Proc Inst ID" width="220" />
-        <el-table-column prop="createTime" label="Create Time" width="180" />
-        <el-table-column prop="assignee" label="Assignee" width="150" />
-        <el-table-column prop="candidateGroups" label="Candidate Groups" width="200">
-          <template #default="scope">
-            <el-tag v-for="group in scope.row.candidateGroups" :key="group" style="margin-right: 5px;">{{ group }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Status" width="100">
-          <template #default="scope">
-            <el-tag :type="scope.row.assignee ? 'success' : 'warning'">{{ scope.row.assignee ? 'Claimed' : 'Unclaimed' }}</el-tag>
-          </template>
-        </el-table-column>
-        
-        <el-table-column label="Actions" width="280" fixed="right">
-          <template #default="scope">
-            <el-button
-              type="primary"
-              size="small"
-              v-if="!scope.row.assignee"
-              @click="handleClaim(scope.row)"
-            >
-              Claim
-            </el-button>
-            <el-button
-              type="success"
-              size="small"
-              v-else
-              @click="handleApprove(scope.row)"
-            >
-              Approve
-            </el-button>
-            <el-button
-              type="danger"
-              size="small"
-              v-if="scope.row.assignee"
-              @click="handleReject(scope.row)"
-            >
-              Reject
-            </el-button>
-            <el-button
-              size="small"
-              @click="handleOpenForm(scope.row)"
-            >
-              Open Form
-            </el-button>
-            <el-button
-              size="small"
-              @click="handleVars(scope.row)"
-            >
-              Vars
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+  <BpmListPage
+    title="我的待办"
+    test-id="bpm-tasks-page"
+    :columns="columns"
+    :fetch-page="fetchMyTasks"
+    ref="listPageRef"
+  >
+    <template #groups="{ row }">
+      <el-tag v-for="group in row.candidateGroups" :key="group" style="margin-right: 5px;">{{ group }}</el-tag>
+    </template>
+    <template #status="{ row }">
+      <el-tag :type="row.assignee ? 'success' : 'warning'">{{ row.assignee ? 'Claimed' : 'Unclaimed' }}</el-tag>
+    </template>
+    <template #action="{ row }">
+      <el-button
+        type="primary"
+        size="small"
+        v-if="!row.assignee"
+        @click="handleClaim(row)"
+      >
+        Claim
+      </el-button>
+      <el-button
+        type="success"
+        size="small"
+        v-else
+        @click="handleApprove(row)"
+      >
+        Approve
+      </el-button>
+      <el-button
+        type="danger"
+        size="small"
+        v-if="row.assignee"
+        @click="handleReject(row)"
+      >
+        Reject
+      </el-button>
+      <el-button
+        size="small"
+        @click="handleOpenForm(row)"
+      >
+        Open Form
+      </el-button>
+      <el-button
+        size="small"
+        @click="handleVars(row)"
+      >
+        Vars
+      </el-button>
+    </template>
+  </BpmListPage>
 
-    <el-dialog v-model="varsVisible" title="Process Variables" width="50%">
-      <div v-loading="varsLoading">
-        <pre v-if="varsData">{{ JSON.stringify(varsData, null, 2) }}</pre>
-        <el-empty v-else description="No variables found" />
-      </div>
-    </el-dialog>
-  </div>
+  <el-dialog v-model="varsVisible" title="Process Variables" width="50%">
+    <div v-loading="varsLoading">
+      <pre v-if="varsData">{{ JSON.stringify(varsData, null, 2) }}</pre>
+      <el-empty v-else description="No variables found" />
+    </div>
+  </el-dialog>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { listMyTasks, claimTask, completeTask, getProcessVars, getTaskContext } from '/@/api/bpm/flowable';
-
-// Simple interface matching the API
-interface TaskItem {
-  taskId: string;
-  name: string;
-  processName?: string;
-  processInstanceId: string;
-  createTime: string;
-  assignee?: string;
-  candidateGroups?: string[];
-}
+import BpmListPage from '../_components/BpmListPage.vue';
+import { fetchMyTasks } from '../bpmFetchers';
+import { claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
 
 const router = useRouter();
-const loading = ref(false);
-const tableData = ref<TaskItem[]>([]);
+const listPageRef = ref();
+
 const varsVisible = ref(false);
 const varsLoading = ref(false);
 const varsData = ref<any>(null);
 
-const fetchTasks = async () => {
-  loading.value = true;
-  try {
-    const res = await listMyTasks({});
-    tableData.value = (res as any) || [];
-  } catch (error) {
-    console.error(error);
-    ElMessage.error('Failed to load tasks');
-  } finally {
-    loading.value = false;
-  }
-};
+const columns = [
+  { label: 'Task ID', prop: 'taskId', minWidth: 220 },
+  { label: 'Process Name', prop: 'processName', minWidth: 180 },
+  { label: 'Task Name', prop: 'name', minWidth: 180 },
+  { label: 'Proc Inst ID', prop: 'processInstanceId', minWidth: 220 },
+  { label: 'Create Time', prop: 'createTime', minWidth: 180 },
+  { label: 'Assignee', prop: 'assignee', minWidth: 150 },
+  { label: 'Candidate Groups', prop: 'candidateGroups', minWidth: 200, slot: 'groups' },
+  { label: 'Status', prop: 'status', minWidth: 100, slot: 'status' },
+  { label: 'Actions', prop: 'action', minWidth: 280, slot: 'action' },
+];
 
-const handleClaim = async (row: TaskItem) => {
+const refresh = () => listPageRef.value?.loadData();
+
+const handleClaim = async (row: any) => {
   try {
     await claimTask({ taskId: row.taskId });
     ElMessage.success('Claimed successfully');
-    fetchTasks();
+    refresh();
   } catch (error) {
     console.error(error);
     ElMessage.error('Claim failed');
   }
 };
 
-const handleApprove = async (row: TaskItem) => {
+const handleApprove = async (row: any) => {
   try {
     await completeTask({
       taskId: row.taskId,
@@ -134,14 +108,14 @@ const handleApprove = async (row: TaskItem) => {
     });
     ElMessage.success('Approved successfully');
     await handleVars(row);
-    fetchTasks();
+    refresh();
   } catch (error) {
     console.error(error);
     ElMessage.error('Approve failed');
   }
 };
 
-const handleReject = async (row: TaskItem) => {
+const handleReject = async (row: any) => {
   try {
     const { value } = await ElMessageBox.prompt('Please input reject reason', 'Reject', {
       confirmButtonText: 'OK',
@@ -156,7 +130,7 @@ const handleReject = async (row: TaskItem) => {
     });
     ElMessage.success('Rejected successfully');
     await handleVars(row);
-    fetchTasks();
+    refresh();
   } catch (error: any) {
     if (error !== 'cancel') {
       console.error(error);
@@ -165,14 +139,14 @@ const handleReject = async (row: TaskItem) => {
   }
 };
 
-const handleOpenForm = (row: TaskItem) => {
+const handleOpenForm = (row: any) => {
   router.push({
     path: '/bpm/approve',
     query: { taskId: row.taskId }
   });
 };
 
-const handleVars = async (row: TaskItem) => {
+const handleVars = async (row: any) => {
   if (!row.processInstanceId) {
     ElMessage.warning('No Process Instance ID');
     return;
@@ -190,8 +164,4 @@ const handleVars = async (row: TaskItem) => {
     varsLoading.value = false;
   }
 };
-
-onMounted(() => {
-  fetchTasks();
-});
 </script>
