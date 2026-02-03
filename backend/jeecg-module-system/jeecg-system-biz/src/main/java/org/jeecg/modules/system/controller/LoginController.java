@@ -68,6 +68,12 @@ public class LoginController {
 	@Autowired
 	private JeecgBaseConfig jeecgBaseConfig;
 
+    @org.springframework.beans.factory.annotation.Value("${jeecg.login.captcha.bypass.enabled:false}")
+    private boolean captchaBypassEnabled;
+
+    @org.springframework.beans.factory.annotation.Value("${jeecg.login.captcha.bypass.users:}")
+    private List<String> captchaBypassUsers;
+
 	private final String BASE_CHECK_CODES = "qwertyuiplkjhgfdsazxcvbnmQWERTYUPLKJHGFDSAZXCVBNM1234567890";
 
 	@ApiOperation("登录接口")
@@ -88,8 +94,10 @@ public class LoginController {
 
 		//update-begin-author:taoyan date:20190828 for:校验验证码
         String realKey = null;
-        // 允许 admin 账号跳过验证码（用于自动化测试）
-        if (!"admin".equals(username)) {
+        // 受控绕过：仅当开关开启且用户在白名单中时跳过
+        boolean canBypass = captchaBypassEnabled && captchaBypassUsers.contains(username);
+        
+        if (!canBypass) {
             String captcha = sysLoginModel.getCaptcha();
             if(captcha==null){
                 result.error500("验证码无效");

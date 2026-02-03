@@ -37,6 +37,14 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
   }
 
   const page = await context.newPage();
+  
+  let mainResponseStatus = 0;
+  page.on('response', response => {
+    if (response.url() === `${BASE_URL}${ROUTE}` || response.url() === `${BASE_URL}${ROUTE}/`) {
+      mainResponseStatus = response.status();
+      logStream.write(`[RESPONSE] ${response.url()} status: ${mainResponseStatus}\n`);
+    }
+  });
 
   page.on('console', msg => {
     const text = msg.text();
@@ -115,6 +123,7 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
       const currentUrl = page.url();
       console.log(`[${ROUTE}] Final URL: ${currentUrl}`);
       console.log(`[${ROUTE}] Final Page Title: ${title}`);
+      console.log(`[${ROUTE}] Main Doc Status: ${mainResponseStatus}`);
       try {
         const bodyText = await page.innerText('body');
         console.log(`[${ROUTE}] Body Text Sample: ${bodyText.substring(0, 500).replace(/\n/g, ' ')}`);
