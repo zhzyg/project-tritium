@@ -6,7 +6,7 @@ import path from 'path';
 const BASE_URL = process.env.BASE_URL || 'https://oa.donaldzhu.com';
 const OA_USER = process.env.OA_USER || 'admin';
 const OA_PASS = process.env.OA_PASS;
-const OA_STORAGE_STATE = process.env.OA_STORAGE_STATE || '.artifacts/oa-storage-state.json';
+const OA_STORAGE_STATE = process.env.OA_STORAGE_STATE || '.artifacts/oa/oa-storage-state.json';
 const HEADLESS = process.env.HEADLESS !== 'false'; // Default to true for agent safety, user can override
 
 // Artifacts setup

@@ -1,0 +1,7 @@
+# OA Online Environment Template
+# Copy this to .env (ignored by git) and fill in the password
+BASE_URL=https://oa.donaldzhu.com
+OA_USER=admin
+OA_PASS=***REDACTED***
+OA_STORAGE_STATE=.artifacts/oa/oa-storage-state.json
+HEADLESS=true

@@ -5,7 +5,7 @@
 set -e
 
 BASE_URL=${BASE_URL:-http://127.0.0.1:80}
-OA_STORAGE_STATE=${OA_STORAGE_STATE:-.artifacts/oa-storage-state.json}
+OA_STORAGE_STATE=${OA_STORAGE_STATE:-.artifacts/oa/oa-storage-state.json}
 export BASE_URL OA_STORAGE_STATE
 
 echo "🚀 Starting BPM Regression Suite at $BASE_URL..."
