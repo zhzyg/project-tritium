@@ -39,3 +39,11 @@ docs/ai/CTXPACK.latest.md
 .env
 .env
 .env
+
+# local secrets
+.secrets/
+
+# local secrets
+.secrets/
+.artifacts/oa-storage-state.json
+.artifacts/oa-login/

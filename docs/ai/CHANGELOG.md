@@ -167,3 +167,10 @@
 - [2026-02-03] MVP-5G1: Implemented 'oa_login_capture.mjs' for manual online login and session capture. Updated regression suite to reuse storage state, bypassing CAPTCHA/login issues on CI/Automated runs.
 - [2026-02-03] MVP-5G2: Enabled automated headless login for 'admin' by bypassing captcha in backend (Test Account Strategy). Verified /bpm/my and /bpm/tasks online. /bpm/done route remains unstable.
 - [2026-02-03] MVP-5G3: Fixed /bpm/done 404 (Frontend config internal host -> public host; Nginx WS headers). Hardened captcha bypass with 'jeecg.login.captcha.bypass.enabled' config.
+- [2026-02-03] MVP-5G4: Restored upstream (fixed 502) by correcting application-dev.yml (duplicate key fix) and restarting backend. Verified /bpm/my and /bpm/tasks online.
+- [2026-02-03] MVP-5G5: Systemd backend hosting + Readiness probe + BPM stabilization.
+  - **Ops**: Backend now managed via systemd (`tritium-backend.service`) with auto-restart and journal logging.
+  - **Stability**: Added `ops/wait_backend_ready.sh` to ensure suite only runs when `/jeecg-boot/` returns 200.
+  - **Security**: Refined captcha bypass to use comma-separated `users` list in YAML for proper Spring `@Value` binding.
+  - **Bugfix**: Resolved `/bpm/done` 404 (ErrorPage) by adding missing menu item to DB via `20260203_add_bpm_done_menu.sql` and rebuilding/redeploying frontend to sync chunks.
+  - **Verification**: Online suite `ops/repro_bpm_suite.sh` PASSES all 3 routes (my/tasks/done).

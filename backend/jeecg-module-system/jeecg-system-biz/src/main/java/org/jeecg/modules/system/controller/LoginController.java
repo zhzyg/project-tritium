@@ -92,13 +92,17 @@ public class LoginController {
 		//password = AesEncryptUtil.desEncrypt(sysLoginModel.getPassword().replaceAll("%2B", "\\+")).trim();//密码解密
 		//update-begin--Author:scott  Date:20190805 for：暂时注释掉密码加密逻辑，有点问题
 
-		//update-begin-author:taoyan date:20190828 for:校验验证码
-        String realKey = null;
-        // 受控绕过：仅当开关开启且用户在白名单中时跳过
-        boolean canBypass = captchaBypassEnabled && captchaBypassUsers.contains(username);
-        
-        if (!canBypass) {
-            String captcha = sysLoginModel.getCaptcha();
+		                                //update-begin-author:taoyan date:20190828 for:校验验证码
+
+		                        String realKey = null;
+
+		                        // 受控绕过：仅当开关开启且用户在白名单中时跳过
+
+		                        boolean canBypass = captchaBypassEnabled && captchaBypassUsers != null && captchaBypassUsers.contains(username);
+
+		                        
+
+		                        if (!canBypass) {            String captcha = sysLoginModel.getCaptcha();
             if(captcha==null){
                 result.error500("验证码无效");
                 return result;

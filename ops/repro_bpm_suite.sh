@@ -11,6 +11,7 @@ export BASE_URL OA_STORAGE_STATE
 echo "🚀 Starting BPM Regression Suite at $BASE_URL..."
 
 if [[ "$BASE_URL" == *"oa.donaldzhu.com"* ]]; then
+  ./ops/wait_backend_ready.sh "$BASE_URL"
   if [ ! -f "$OA_STORAGE_STATE" ]; then
     echo "ℹ️  Online environment detected. No storage state found, will attempt automated login (admin bypass)."
   else

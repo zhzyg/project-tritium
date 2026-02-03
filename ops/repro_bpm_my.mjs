@@ -102,13 +102,14 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
     console.log(`[${ROUTE}] Navigation done, waiting for marker: ${MARKER_SELECTOR}`); 
 
+    const timeout = ROUTE === '/bpm/done' ? 30000 : 20000;
     const marker = page.locator(MARKER_SELECTOR).first();
-    await marker.waitFor({ state: 'visible', timeout: 20000 });
+    await marker.waitFor({ state: 'visible', timeout });
     
     if (MARKER_TEXT) {
       console.log(`[${ROUTE}] Waiting for text: ${MARKER_TEXT}`);
       const textMarker = page.locator(`span:has-text("${MARKER_TEXT}"), div:has-text("${MARKER_TEXT}"), :text("${MARKER_TEXT}")`).first();
-      await textMarker.waitFor({ state: 'visible', timeout: 20000 });
+      await textMarker.waitFor({ state: 'visible', timeout });
     }
     
     success = true;

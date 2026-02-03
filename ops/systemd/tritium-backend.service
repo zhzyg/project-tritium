@@ -1,0 +1,17 @@
+[Unit]
+Description=Tritium JeecgBoot Backend Service
+After=syslog.target network.target mysql.service redis.service
+
+[Service]
+User=root
+WorkingDirectory=/root/project-tritium
+ExecStart=/usr/bin/java -Xms512m -Xmx2048m -Dfile.encoding=UTF-8 -jar /root/project-tritium/backend/jeecg-module-system/jeecg-system-start/target/jeecg-system-start-3.6.1.jar --spring.profiles.active=dev
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10s
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
