@@ -71,15 +71,42 @@ public class FormRecordQueryServiceImpl implements IFormRecordQueryService {
 
         List<Object> params = new ArrayList<>();
         StringBuilder where = new StringBuilder(" where 1=1");
-        int filterCount = 0;
+
         if (filters != null) {
+            // MVP-6A: Global keyword search
+            String globalKeyword = filters.get("keyword");
+            if (oConvertUtils.isNotEmpty(globalKeyword) && !metaByField.containsKey("keyword")) {
+                StringBuilder keywordWhere = new StringBuilder();
+                boolean first = true;
+                if (published.getFieldMetas() != null) {
+                    for (FormSchemaFieldMetaResp meta : published.getFieldMetas()) {
+                        if (isLikeType(meta.getDbType()) && isSafeIdentifier(meta.getDbColumn())) {
+                            if (!first) {
+                                keywordWhere.append(" or ");
+                            }
+                            keywordWhere.append("t.`").append(meta.getDbColumn()).append("` like ?");
+                            params.add("%" + globalKeyword + "%");
+                            first = false;
+                        }
+                    }
+                }
+                if (keywordWhere.length() > 0) {
+                    where.append(" and (").append(keywordWhere).append(")");
+                }
+            }
+
+            int filterCount = 0;
             for (Map.Entry<String, String> entry : filters.entrySet()) {
-                if (filterCount >= 3) {
+                if (filterCount >= 5) { // Increased limit slightly
                     break;
                 }
                 String fieldKey = entry.getKey();
                 String value = entry.getValue();
                 if (oConvertUtils.isEmpty(fieldKey) || oConvertUtils.isEmpty(value)) {
+                    continue;
+                }
+                // Skip keyword if already handled globally
+                if ("keyword".equals(fieldKey) && !metaByField.containsKey("keyword")) {
                     continue;
                 }
                 FormSchemaFieldMetaResp meta = metaByField.get(fieldKey);

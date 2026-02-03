@@ -182,4 +182,29 @@
   - **Frontend**: Added `bpmQuery.ts` to strictly construct list query parameters, ensuring empty/null fields are omitted and field names are consistent.
   - **Frontend**: Refactored `bpmFetchers.ts` to enforce the query contract across `/bpm/my`, `/bpm/tasks`, and `/bpm/done`.
   - **Verification**: Enhanced `ops/repro_bpm_my.mjs` to capture list API request snapshots (URL + sanitized data) in `.artifacts/repro/api-snapshot-*.txt`.
-  - **Evidence**: Regression suite `ops/repro_bpm_suite.sh` SUCCESS for all 3 routes. Captured snapshots confirm standard parameter usage (`pageNo`, `pageSize`, etc.).
+  - Evidence: Regression suite `ops/repro_bpm_suite.sh` SUCCESS for all 3 routes. Captured snapshots confirm standard parameter usage (`pageNo`, `pageSize`, etc.).
+
+- 2026-02-03: Stage4 MVP-6A v0: Form Runtime Menu + Readonly Data List
+- Goal / Why: Implement Tritium-style dynamic menus for published forms and a read-only data list view.
+- Scope: frontend, backend, db
+- Key changes:
+  - Files:
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/formengine/service/impl/FormSchemaPublishServiceImpl.java (Added `ensureFormMenu` logic)
+    - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/formruntime/service/impl/FormRecordQueryServiceImpl.java (Implemented `q_keyword` global search)
+    - frontend/src/views/form/runtime/FormDataList.vue (Implemented dynamic columns, pagination, and multi-selection)
+  - DB patches:
+    - backend/db/patches/20260203_add_app_runtime_menu.sql (Added "App Runtime" parent menu)
+- Endpoints:
+  - POST /form/schema/publish (Triggers menu generation)
+  - GET /form/data/page (Supports `q_keyword` global search)
+- Verification (evidence paths):
+  - db: `select * from sys_permission where url like '/form/runtime/%'` (Record found)
+  - curl: `GET /form/data/page?formKey=test_menu_form_01&q_keyword=Alice` (Correctly filtered result)
+  - ai_guard: OK
+- Rollback:
+  - Revert backend code changes and delete the new frontend component.
+  - Manually remove added menu records from `sys_permission`.
+- Known issues / Next:
+  - Detail page currently redirects to a placeholder `/form/runtime/:formKey/view`.
+  - MVP-6B: Implement true detail page rendering.
+

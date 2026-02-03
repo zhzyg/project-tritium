@@ -20,7 +20,12 @@ import org.jeecg.modules.formmeta.dto.FormSchemaFieldMetaResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishedResp;
 import org.jeecg.modules.formmeta.entity.FormSchema;
 import org.jeecg.modules.formmeta.service.IFormSchemaService;
+import org.jeecg.modules.system.entity.SysPermission;
+import org.jeecg.modules.system.entity.SysRolePermission;
+import org.jeecg.modules.system.service.ISysPermissionService;
+import org.jeecg.modules.system.service.ISysRolePermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -43,9 +49,20 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
     private IFormFieldMetaService formFieldMetaService;
 
     @Autowired
+    private ISysPermissionService sysPermissionService;
+
+    @Autowired
+    private ISysRolePermissionService sysRolePermissionService;
+
+    @Autowired
     private DdlExecutor ddlExecutor;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private final FormSchemaFieldExtractor fieldExtractor = new FormSchemaFieldExtractor();
+
+    private static final String RUNTIME_MENU_PARENT_ID = "9f1b2c3d4e5f60718293a4b5c6d7e8f8";
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -97,6 +114,9 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
         ddlApplied.addAll(ddlExecutor.ensureTable(tableName, ddlColumns));
         ddlApplied.addAll(ddlExecutor.ensureIndexes(tableName, buildIndexes(fieldMetas)));
 
+        // MVP-6A: Generate/Update Menu
+        ensureFormMenu(formKey, formKey);
+
         FormSchemaPublishResp resp = new FormSchemaPublishResp();
         resp.setFormKey(formKey);
         resp.setVersion(schemaVersion);
@@ -104,6 +124,60 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
         resp.setDdlApplied(ddlApplied);
         return resp;
     }
+
+    private void ensureFormMenu(String formKey, String formTitle) {
+        String url = "/form/runtime/" + formKey + "/list";
+        SysPermission permission = sysPermissionService.lambdaQuery()
+            .eq(SysPermission::getUrl, url)
+            .one();
+
+        boolean isNew = false;
+        if (permission == null) {
+            permission = new SysPermission();
+            permission.setId(IdWorker.getIdStr());
+            permission.setParentId(RUNTIME_MENU_PARENT_ID);
+            permission.setUrl(url);
+            permission.setComponent("form/runtime/FormDataList");
+            permission.setMenuType(1);
+            permission.setRoute(true);
+            permission.setLeaf(true);
+            permission.setSortNo(1.0); // Simple sort for now
+            permission.setCreateBy("admin");
+            permission.setCreateTime(new Date());
+            permission.setStatus("1");
+            permission.setDelFlag(0);
+            permission.setAlwaysShow(false);
+            isNew = true;
+        }
+
+        permission.setName(oConvertUtils.isEmpty(formTitle) ? formKey : formTitle);
+        permission.setUpdateBy("admin");
+        permission.setUpdateTime(new Date());
+
+        if (isNew) {
+            sysPermissionService.save(permission);
+            // Bind to admin role by default
+            String adminRoleId = getAdminRoleId();
+            if (oConvertUtils.isNotEmpty(adminRoleId)) {
+                sysRolePermissionService.save(new SysRolePermission(adminRoleId, permission.getId()));
+            }
+        } else {
+            sysPermissionService.updateById(permission);
+        }
+    }
+
+    private String getAdminRoleId() {
+        try {
+            List<Map<String, Object>> list = jdbcTemplate.queryForList("select id from sys_role where role_code = 'admin' limit 1");
+            if (!list.isEmpty()) {
+                return (String) list.get(0).get("id");
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
 
     @Override
     public FormSchemaPublishedResp getLatestPublished(String formKey) {
