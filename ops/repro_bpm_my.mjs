@@ -7,8 +7,8 @@ const ROUTE = process.env.ROUTE || '/bpm/my';
 const MARKER_TEXT = process.env.MARKER_TEXT || '';
 const MARKER_SELECTOR = process.env.MARKER_SELECTOR || '.el-table, .el-card__header';
 
-const ADMIN_USER = 'admin';
-const ADMIN_PASS = '123456'; 
+const ADMIN_USER = process.env.OA_USER || 'admin';
+const ADMIN_PASS = process.env.OA_PASS || '123456'; 
 const ARTIFACTS_BASE = path.resolve('.artifacts/repro-bpm-suite');
 const ROUTE_SLUG = ROUTE.replace(/\//g, '_').replace(/^_/, '');
 const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
@@ -28,8 +28,10 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
   page.on('console', msg => {
     const text = msg.text();
-    logStream.write(`[CONSOLE] ${msg.type()}: ${text}\n`);
-    if (msg.type() === 'error') consoleErrors.push(text);
+    // Mask password in logs
+    const safeText = text.replace(new RegExp(ADMIN_PASS, 'g'), '***');
+    logStream.write(`[CONSOLE] ${msg.type()}: ${safeText}\n`);
+    if (msg.type() === 'error') consoleErrors.push(safeText);
   });
   page.on('pageerror', err => {
     logStream.write(`[PAGEERROR] ${err.message}\n`);
@@ -46,27 +48,38 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
   let success = false;
   try {
-    const loginUrl = (await page.url()).includes('/login') ? await page.url() : `${BASE_URL}/user/login`;
-    console.log(`[${ROUTE}] Current URL: ${await page.url()}, attempting login at ${loginUrl}...`);
+    const loginUrl = (await page.url()).includes('/login') ? await page.url() : `${BASE_URL}/login`;
+    // Also try /user/login if /login is not the right one, usually base/login works or redirects
+    console.log(`[${ROUTE}] Navigating to login...`);
+    await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle', timeout: 20000 });
     
+    console.log(`[${ROUTE}] Attempting login...`);
     await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
     await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
     
     await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
     
-    console.log(`[${ROUTE}] Login submitted, waiting for navigation to ${ROUTE}...`);
+    console.log(`[${ROUTE}] Login submitted, waiting for navigation...`);
+    // Wait for either the target route or a redirect
+    await page.waitForTimeout(3000); 
+
+    console.log(`[${ROUTE}] Navigating to target route: ${BASE_URL}${ROUTE}`);
     await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 20000 });
 
-    console.log(`[${ROUTE}] Navigation done, waiting for marker: ${MARKER_SELECTOR} / ${MARKER_TEXT}`);
-    await page.waitForTimeout(2000); // Wait for potential redirects or partial loads
+    console.log(`[${ROUTE}] Navigation done, waiting for marker: ${MARKER_SELECTOR}`);
+    await page.waitForTimeout(2000); 
 
     const marker = page.locator(MARKER_SELECTOR).first();
     await marker.waitFor({ state: 'visible', timeout: 20000 });
     
     if (MARKER_TEXT) {
+      console.log(`[${ROUTE}] Waiting for text: ${MARKER_TEXT}`);
       const textMarker = page.locator(`span:has-text("${MARKER_TEXT}"), div:has-text("${MARKER_TEXT}"), :text("${MARKER_TEXT}")`).first();
       await textMarker.waitFor({ state: 'visible', timeout: 20000 });
     }
+    
+    success = true;
+    console.log(`[${ROUTE}] SUCCESS: Marker found.`);
 
   } catch (e) {
     console.log(`[${ROUTE}] FAILURE: ${e.message}`);
@@ -75,6 +88,12 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
     try {
       const title = await page.title().catch(() => 'N/A');
       const currentUrl = page.url();
+      console.log(`[${ROUTE}] Final URL: ${currentUrl}`);
+      console.log(`[${ROUTE}] Final Page Title: ${title}`);
+      try {
+        const bodyText = await page.innerText('body');
+        console.log(`[${ROUTE}] Body Text Sample: ${bodyText.substring(0, 500).replace(/\n/g, ' ')}`);
+      } catch (e) {}
       logStream.write(`Final URL: ${currentUrl}\nFinal Page Title: ${title}\n`);
       await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'screenshot.png'), fullPage: true, timeout: 5000 }).catch(() => {});
     } catch (ssErr) {}

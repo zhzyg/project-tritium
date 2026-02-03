@@ -8,7 +8,6 @@
       :show-filter="true"
       :show-time-range="true"
       :status-options="statusOptions"
-      :get-actions="getActions"
       ref="listPageRef"
     >
       <template #groups="{ row }">
@@ -21,24 +20,37 @@
           {{ row.assignee ? 'Claimed' : 'Unclaimed' }}
         </a-tag>
       </template>
+      
+      <!-- New modularized actions -->
+      <template #action="{ row }">
+        <TaskRowActions 
+          :row="row" 
+          scene="tasks"
+          @claim="handleClaim"
+          @approve="handleApprove"
+          @reject="handleReject"
+          @open="handleOpen"
+          @open-vars="handleVars"
+        />
+      </template>
     </BpmListPage>
 
-    <a-modal v-model:visible="varsVisible" title="Process Variables" width="600px" :footer="null">
-      <a-spin :spinning="varsLoading">
-        <pre v-if="varsData" class="bg-gray-100 p-4 rounded overflow-auto max-h-96">{{ JSON.stringify(varsData, null, 2) }}</pre>
-        <a-empty v-else description="No variables found" />
-      </a-spin>
-    </a-modal>
+    <VarsDialog 
+      v-model:visible="varsVisible"
+      :loading="varsLoading"
+      :vars-data="varsData"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, h } from 'vue';
 import { useRouter } from 'vue-router';
 import { message, Modal } from 'ant-design-vue';
 import BpmListPage from '../_components/BpmListPage.vue';
+import TaskRowActions from './_components/TaskRowActions.vue';
+import VarsDialog from './_components/VarsDialog.vue';
 import { fetchMyTasks } from '../bpmFetchers';
-import { getRowActions } from '../bpmActions';
 import { claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
 
 const router = useRouter();
@@ -149,14 +161,4 @@ const handleVars = async (row: any) => {
     varsLoading.value = false;
   }
 };
-
-const getActions = (row: any) => getRowActions('tasks', row, {
-  handleOpen,
-  handleClaim,
-  handleApprove,
-  handleReject,
-  handleVars,
-});
-
-import { h } from 'vue';
 </script>
