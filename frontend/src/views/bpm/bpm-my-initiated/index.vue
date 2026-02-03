@@ -5,6 +5,7 @@
     :columns="columns"
     :fetch-page="fetchMyInitiated"
     :show-filter="true"
+    :status-options="statusOptions"
     :get-actions="getActions"
   >
     <template #status="{ row }">
@@ -22,6 +23,11 @@ import { fetchMyInitiated } from '../bpmFetchers';
 import { getRowActions } from '../bpmActions';
 
 const router = useRouter();
+
+const statusOptions = [
+  { label: 'Running', value: 'running' },
+  { label: 'Completed', value: 'completed' },
+];
 
 const columns = [
   { title: 'Process ID', dataIndex: 'id', key: 'id', width: 220 },

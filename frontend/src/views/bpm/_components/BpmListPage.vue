@@ -51,10 +51,10 @@
             <div class="flex gap-2 flex-wrap">
               <slot name="action" :row="record" :index="index">
                 <!-- 如果页面没传 action slot，尝试使用默认配置渲染 -->
-                <template v-for="act in getActions(record)" :key="act.key">
+                <template v-for="act in (getActions ? getActions(record) : [])" :key="act.key">
                   <a-button 
                     :type="act.type === 'link' ? 'link' : 'primary'"
-                    :danger="act.danger"
+                    :danger="act.danger || act.type === 'danger'"
                     size="small"
                     @click="act.onClick(record)"
                   >

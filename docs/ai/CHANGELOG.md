@@ -126,26 +126,30 @@
 
 - 2026-02-02: fix(mvp-5d): resolve /bpm/my white screen
 - Goal / Why: Fix the white screen issue on the "My Initiated" page (`/bpm/my`).
-- Scope: frontend, ops
-- Key changes:
-  - Renamed directory `frontend/src/views/bpm/my` to `frontend/src/views/bpm/MyInitiated` to resolve potential case-sensitivity import issues.
-  - Updated route definition in `frontend/src/router/routes/modules/bpm.ts`.
-  - Added `ops/check_case_paths.sh` to prevent future regressions of old paths or case-sensitivity issues.
-  - Integrated `ops/check_case_paths.sh` into `ops/ai_guard.sh`.
-  - Strengthened `ops/repro_bpm_my.mjs` with robust DOM assertions and detailed error capturing.
-  - Parameterized `ops/repro_bpm_my.mjs` to support any ROUTE and MARKER_TEXT/SELECTOR.
-  - Added `ops/repro_bpm_suite.sh` to run regression tests for `/bpm/my`, `/bpm/tasks`, and `/bpm/done`.
-  - Added stable `data-testid` markers (`bpm-my-page`, `bpm-tasks-page`, `bpm-done-page`) to BPM pages.
-  - Updated `ops/repro_bpm_suite.sh` to prioritize `data-testid` selectors for higher stability.
-- Verification (evidence paths):
-  - repro script: ops/repro_bpm_my.mjs (parameterized)
-  - repro suite: ops/repro_bpm_suite.sh (covers my/todo/done with data-testid)
-  - prod-verify: Production build successful; verified static serve.
-  - guard: `ops/check_case_paths.sh` successfully integrated into `ai_guard`.
+...
 - Rollback:
   - Revert directory rename and route change.
   - Remove new ops scripts and references.
   - Remove `data-testid` attributes from Vue components.
+
+- 2026-02-03: Stage4 MVP-5F v0 BPM 三页统一筛选条 + 行操作 Action 适配层
+- Goal / Why: Unify the user experience across BPM list pages and centralize action logic.
+- Scope: frontend
+- Key changes:
+  - Files:
+    - frontend/src/views/bpm/_components/BpmListPage.vue (Unified filter bar & Action rendering)
+    - frontend/src/views/bpm/bpmActions.ts (Action adapter layer)
+    - frontend/src/views/bpm/bpm-my-initiated/index.vue (Integration & Status filter)
+    - frontend/src/views/bpm/done/index.vue (Integration & Status filter)
+    - frontend/src/views/bpm/tasks/index.vue (Integration & TimeRange)
+- Verification (evidence paths):
+  - ai_guard: build passed (Vite production build)
+  - regress: ops/repro_bpm_suite.sh (marker check)
+- Rollback:
+  - Revert changes to BpmListPage.vue and page components.
+- Known issues / Next:
+  - Backend support for 'keyword' and 'status' filters in Flowable APIs needs to be verified.
+
 
 ## [2026-02-03] MVP-5F v0: 统一 BPM 筛选条与 Action 适配层
 - **BpmListPage 增强**: 

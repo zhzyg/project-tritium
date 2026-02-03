@@ -5,6 +5,7 @@
     :columns="columns"
     :fetch-page="fetchMyDone"
     :show-filter="true"
+    :status-options="statusOptions"
     :get-actions="getActions"
   >
     <template #status="{ row }">
@@ -20,6 +21,10 @@ import { fetchMyDone } from '../bpmFetchers';
 import { getRowActions } from '../bpmActions';
 
 const router = useRouter();
+
+const statusOptions = [
+  { label: 'Finished', value: 'finished' },
+];
 
 const columns = [
   { title: 'Task ID', dataIndex: 'id', key: 'id', width: 220 },
