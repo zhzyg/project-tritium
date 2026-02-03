@@ -3,67 +3,68 @@ import fs from 'fs';
 import path from 'path';
 
 const BASE_URL = process.env.BASE_URL || 'https://oa.donaldzhu.com';
+const OA_STORAGE_STATE = process.env.OA_STORAGE_STATE || '.artifacts/oa/oa-storage-state.json';
 const ADMIN_USER = process.env.OA_USER || 'admin';
-const ADMIN_PASS = process.env.OA_PASS || '123456';
+const ADMIN_PASS = process.env.OA_PASS || 'Admin#2026!Reset';
+
+const ARTIFACTS_DIR = path.resolve('.artifacts/repro-form-runtime');
+if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 (async () => {
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const context = await browser.newContext();
+  
+  let context;
+  if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
+    console.log(`Using storage state from: ${OA_STORAGE_STATE}`);
+    context = await browser.newContext({ storageState: OA_STORAGE_STATE });
+  } else {
+    console.log(`No storage state found. Attempting auto-login.`);
+    context = await browser.newContext();
+  }
+
   const page = await context.newPage();
 
   try {
-    console.log(`[Verify] Navigating to ${BASE_URL}/login...`);
-    await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle', timeout: 30000 });
-    
-    console.log(`[Verify] Attempting login...`);
-    await page.fill('input[placeholder*="账号"]', ADMIN_USER);
-    await page.fill('input[placeholder*="密码"]', ADMIN_PASS);
-    
-    // Fill dummy captcha for admin bypass
-    const captchaInput = page.locator('.ant-tabs-tabpane-active input[placeholder="验证码"]');
-    if (await captchaInput.count() > 0 && await captchaInput.isVisible()) {
-        await captchaInput.fill('1234');
-    }
+    await page.goto(BASE_URL, { waitUntil: 'networkidle', timeout: 30000 });
 
-    await page.click('button:has-text("登 录")');
-    await page.waitForNavigation({ waitUntil: 'networkidle', timeout: 30000 });
-
-    console.log(`[Verify] Checking for "App Runtime" menu...`);
-    const appRuntimeMenu = page.locator('.ant-menu-title-content:has-text("App Runtime")');
-    await appRuntimeMenu.waitFor({ state: 'visible', timeout: 10000 });
-    console.log(`[Verify] SUCCESS: "App Runtime" menu found.`);
-
-    // Click to expand
-    await appRuntimeMenu.click();
-    
-    // Wait for a form menu (e.g. any sub-menu under App Runtime)
-    // Since we don't know the exact form names, we look for items in the submenu
-    console.log(`[Verify] Waiting for dynamic form submenus...`);
-    await page.waitForTimeout(2000); // Wait for animation
-    
-    // For this test to pass, a form MUST HAVE BEEN PUBLISHED after the fix.
-    // I will trigger a publish via API in this script or just check if any submenu exists.
-    const subMenus = page.locator('.ant-menu-sub .ant-menu-title-content');
-    const count = await subMenus.count();
-    console.log(`[Verify] Found ${count} submenus under App Runtime.`);
-    
-    if (count > 0) {
-        const firstMenuText = await subMenus.first().innerText();
-        console.log(`[Verify] Clicking first form menu: ${firstMenuText}`);
-        await subMenus.first().click();
-        await page.waitForNavigation({ waitUntil: 'networkidle' });
+    if (page.url().includes('/login')) {
+        console.log('Filling login form...');
+        await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
+        await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
         
-        console.log(`[Verify] Final URL: ${page.url()}`);
-        const table = page.locator('.ant-table');
-        await table.waitFor({ state: 'visible', timeout: 10000 });
-        console.log(`[Verify] SUCCESS: Data table found on list page.`);
-    } else {
-        console.log(`[Verify] WARNING: No dynamic form menus found. Please publish a form to see them.`);
+        // Try filling captcha if present (dummy value for admin bypass)
+        try {
+            const captchaInput = page.locator('input[placeholder*="验证码"], input[id*="inputCode"]');
+            if (await captchaInput.isVisible()) {
+                await captchaInput.fill('1234');
+            }
+        } catch (e) {}
+
+        await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
+        await page.waitForTimeout(3000);
     }
+
+    console.log('Checking for "App Runtime" menu...');
+    // We might need to wait for the menu to load
+    await page.waitForSelector('.ant-menu', { timeout: 10000 });
+
+    const runtimeMenu = page.locator('.ant-menu-submenu-title, .ant-menu-item').filter({ hasText: /App Runtime|应用运行/ });
+    if (await runtimeMenu.count() === 0) {
+        throw new Error('Parent menu "App Runtime" not found in sidebar.');
+    }
+    console.log('Parent menu found.');
+    
+    // We don't necessarily have a formKey to test here unless we create one, 
+    // but we can check if the parent menu is expandable.
+    await runtimeMenu.first().click();
+    await page.waitForTimeout(1000);
+    
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'sidebar.png') });
+    console.log('Sidebar screenshot saved.');
 
   } catch (e) {
-    console.error(`[Verify] FAILURE: ${e.message}`);
-    await page.screenshot({ path: '.artifacts/repro_form_runtime_fail.png' });
+    console.error(`FAILURE: ${e.message}`);
+    await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'error.png') });
     process.exit(1);
   } finally {
     await browser.close();

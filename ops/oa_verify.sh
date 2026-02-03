@@ -15,22 +15,7 @@ echo "[oa-verify] BASE_URL: $BASE_URL"
 echo "[oa-verify] OA_USER:  $OA_USER"
 echo "[oa-verify] STORAGE:  $OA_STORAGE_STATE"
 
-# 1. Wait for backend if BASE_URL is likely the local one or if wait script is present
-if [[ -f "./ops/wait_backend_ready.sh" ]]; then
-    echo "[oa-verify] Waiting for backend readiness..."
-    ./ops/wait_backend_ready.sh || echo "[oa-verify] Warning: wait_backend_ready failed, proceeding anyway."
-fi
-
-# 2. Check if storage state exists
-if [[ -f "$OA_STORAGE_STATE" ]]; then
-    echo "[oa-verify] Reusing existing storageState from $OA_STORAGE_STATE"
-else
-    echo "[oa-verify] No storageState found. Using AUTO login path."
-fi
-
-# 3. Run the main verification suite
-echo "[oa-verify] Running repro_bpm_suite.sh..."
-if ! ./ops/repro_bpm_suite.sh; then
+handle_failure() {
     echo ""
     echo "❌ [oa-verify] VERIFICATION FAILED."
     echo "----------------------------------------------------------------"
@@ -46,6 +31,27 @@ if ! ./ops/repro_bpm_suite.sh; then
     echo "  3. Then re-run this verify script."
     echo "----------------------------------------------------------------"
     exit 1
+}
+
+# 1. Wait for backend
+if [[ -f "./ops/wait_backend_ready.sh" ]]; then
+    echo "[oa-verify] Waiting for backend readiness..."
+    ./ops/wait_backend_ready.sh || echo "[oa-verify] Warning: wait_backend_ready failed, proceeding anyway."
 fi
+
+# 2. Check if storage state exists
+if [[ -f "$OA_STORAGE_STATE" ]]; then
+    echo "[oa-verify] Reusing existing storageState from $OA_STORAGE_STATE"
+else
+    echo "[oa-verify] No storageState found. Using AUTO login path."
+fi
+
+# 3. Run BPM suite
+echo "[oa-verify] Running repro_bpm_suite.sh..."
+./ops/repro_bpm_suite.sh || handle_failure
+
+# 4. Run Form Runtime verification
+echo "[oa-verify] Running repro_form_runtime_list.mjs..."
+node ops/repro_form_runtime_list.mjs || handle_failure
 
 echo "✅ [oa-verify] ALL ROUTES PASSED."
