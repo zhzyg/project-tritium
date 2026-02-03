@@ -1,71 +1,44 @@
 <template>
-  <BpmListPage
-    title="我的待办"
-    test-id="bpm-tasks-page"
-    :columns="columns"
-    :fetch-page="fetchMyTasks"
-    ref="listPageRef"
-  >
-    <template #groups="{ row }">
-      <el-tag v-for="group in row.candidateGroups" :key="group" style="margin-right: 5px;">{{ group }}</el-tag>
-    </template>
-    <template #status="{ row }">
-      <el-tag :type="row.assignee ? 'success' : 'warning'">{{ row.assignee ? 'Claimed' : 'Unclaimed' }}</el-tag>
-    </template>
-    <template #action="{ row }">
-      <el-button
-        type="primary"
-        size="small"
-        v-if="!row.assignee"
-        @click="handleClaim(row)"
-      >
-        Claim
-      </el-button>
-      <el-button
-        type="success"
-        size="small"
-        v-else
-        @click="handleApprove(row)"
-      >
-        Approve
-      </el-button>
-      <el-button
-        type="danger"
-        size="small"
-        v-if="row.assignee"
-        @click="handleReject(row)"
-      >
-        Reject
-      </el-button>
-      <el-button
-        size="small"
-        @click="handleOpenForm(row)"
-      >
-        Open Form
-      </el-button>
-      <el-button
-        size="small"
-        @click="handleVars(row)"
-      >
-        Vars
-      </el-button>
-    </template>
-  </BpmListPage>
+  <div>
+    <BpmListPage
+      title="我的待办"
+      test-id="bpm-tasks-page"
+      :columns="columns"
+      :fetch-page="fetchMyTasks"
+      :show-filter="true"
+      :show-time-range="true"
+      :status-options="statusOptions"
+      :get-actions="getActions"
+      ref="listPageRef"
+    >
+      <template #groups="{ row }">
+        <a-tag v-for="group in row.candidateGroups" :key="group" color="blue" style="margin-right: 5px;">
+          {{ group }}
+        </a-tag>
+      </template>
+      <template #status="{ row }">
+        <a-tag :color="row.assignee ? 'green' : 'orange'">
+          {{ row.assignee ? 'Claimed' : 'Unclaimed' }}
+        </a-tag>
+      </template>
+    </BpmListPage>
 
-  <el-dialog v-model="varsVisible" title="Process Variables" width="50%">
-    <div v-loading="varsLoading">
-      <pre v-if="varsData">{{ JSON.stringify(varsData, null, 2) }}</pre>
-      <el-empty v-else description="No variables found" />
-    </div>
-  </el-dialog>
+    <a-modal v-model:visible="varsVisible" title="Process Variables" width="600px" :footer="null">
+      <a-spin :spinning="varsLoading">
+        <pre v-if="varsData" class="bg-gray-100 p-4 rounded overflow-auto max-h-96">{{ JSON.stringify(varsData, null, 2) }}</pre>
+        <a-empty v-else description="No variables found" />
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { message, Modal } from 'ant-design-vue';
 import BpmListPage from '../_components/BpmListPage.vue';
 import { fetchMyTasks } from '../bpmFetchers';
+import { getRowActions } from '../bpmActions';
 import { claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
 
 const router = useRouter();
@@ -75,16 +48,20 @@ const varsVisible = ref(false);
 const varsLoading = ref(false);
 const varsData = ref<any>(null);
 
+const statusOptions = [
+  { label: 'Unclaimed', value: 'unclaimed' },
+  { label: 'Claimed', value: 'claimed' },
+];
+
 const columns = [
-  { label: 'Task ID', prop: 'taskId', minWidth: 220 },
-  { label: 'Process Name', prop: 'processName', minWidth: 180 },
-  { label: 'Task Name', prop: 'name', minWidth: 180 },
-  { label: 'Proc Inst ID', prop: 'processInstanceId', minWidth: 220 },
-  { label: 'Create Time', prop: 'createTime', minWidth: 180 },
-  { label: 'Assignee', prop: 'assignee', minWidth: 150 },
-  { label: 'Candidate Groups', prop: 'candidateGroups', minWidth: 200, slot: 'groups' },
-  { label: 'Status', prop: 'status', minWidth: 100, slot: 'status' },
-  { label: 'Actions', prop: 'action', minWidth: 280, slot: 'action' },
+  { title: 'Task ID', dataIndex: 'taskId', key: 'taskId', width: 220 },
+  { title: 'Process Name', dataIndex: 'processName', key: 'processName' },
+  { title: 'Task Name', dataIndex: 'name', key: 'name' },
+  { title: 'Create Time', dataIndex: 'createTime', key: 'createTime', width: 180 },
+  { title: 'Assignee', dataIndex: 'assignee', key: 'assignee', width: 120 },
+  { title: 'Groups', dataIndex: 'candidateGroups', key: 'candidateGroups', slot: 'groups' },
+  { title: 'Status', dataIndex: 'status', key: 'status', slot: 'status', width: 100 },
+  { title: 'Actions', dataIndex: 'action', key: 'action', slot: 'action', width: 280 },
 ];
 
 const refresh = () => listPageRef.value?.loadData();
@@ -92,11 +69,10 @@ const refresh = () => listPageRef.value?.loadData();
 const handleClaim = async (row: any) => {
   try {
     await claimTask({ taskId: row.taskId });
-    ElMessage.success('Claimed successfully');
+    message.success('Claimed successfully');
     refresh();
-  } catch (error) {
-    console.error(error);
-    ElMessage.error('Claim failed');
+  } catch (error: any) {
+    message.error('Claim failed: ' + error.message);
   }
 };
 
@@ -106,40 +82,50 @@ const handleApprove = async (row: any) => {
       taskId: row.taskId,
       variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() }
     });
-    ElMessage.success('Approved successfully');
-    await handleVars(row);
-    refresh();
-  } catch (error) {
-    console.error(error);
-    ElMessage.error('Approve failed');
-  }
-};
-
-const handleReject = async (row: any) => {
-  try {
-    const { value } = await ElMessageBox.prompt('Please input reject reason', 'Reject', {
-      confirmButtonText: 'OK',
-      cancelButtonText: 'Cancel',
-      inputPattern: /\S+/,
-      inputErrorMessage: 'Reason is required',
-    });
-    
-    await completeTask({
-      taskId: row.taskId,
-      variables: { status: 'REJECTED', reason: value, updatedAt: new Date().toISOString() }
-    });
-    ElMessage.success('Rejected successfully');
+    message.success('Approved successfully');
     await handleVars(row);
     refresh();
   } catch (error: any) {
-    if (error !== 'cancel') {
-      console.error(error);
-      ElMessage.error('Reject failed');
-    }
+    message.error('Approve failed: ' + error.message);
   }
 };
 
-const handleOpenForm = (row: any) => {
+const handleReject = (row: any) => {
+  let reason = '';
+  Modal.confirm({
+    title: 'Reject Task',
+    content: () => {
+      return h('div', [
+        h('p', 'Please input reject reason:'),
+        h('textarea', {
+          class: 'ant-input',
+          rows: 3,
+          value: reason,
+          onInput: (e: any) => (reason = e.target.value),
+        }),
+      ]);
+    },
+    onOk: async () => {
+      if (!reason.trim()) {
+        message.warning('Reason is required');
+        return Promise.reject();
+      }
+      try {
+        await completeTask({
+          taskId: row.taskId,
+          variables: { status: 'REJECTED', reason, updatedAt: new Date().toISOString() }
+        });
+        message.success('Rejected successfully');
+        await handleVars(row);
+        refresh();
+      } catch (error: any) {
+        message.error('Reject failed: ' + error.message);
+      }
+    },
+  });
+};
+
+const handleOpen = (row: any) => {
   router.push({
     path: '/bpm/approve',
     query: { taskId: row.taskId }
@@ -148,7 +134,7 @@ const handleOpenForm = (row: any) => {
 
 const handleVars = async (row: any) => {
   if (!row.processInstanceId) {
-    ElMessage.warning('No Process Instance ID');
+    message.warning('No Process Instance ID');
     return;
   }
   varsVisible.value = true;
@@ -157,11 +143,20 @@ const handleVars = async (row: any) => {
   try {
     const res = await getProcessVars({ processInstanceId: row.processInstanceId });
     varsData.value = res;
-  } catch (error) {
-    console.error(error);
-    ElMessage.error('Failed to load variables');
+  } catch (error: any) {
+    message.error('Failed to load variables: ' + error.message);
   } finally {
     varsLoading.value = false;
   }
 };
+
+const getActions = (row: any) => getRowActions('tasks', row, {
+  handleOpen,
+  handleClaim,
+  handleApprove,
+  handleReject,
+  handleVars,
+});
+
+import { h } from 'vue';
 </script>

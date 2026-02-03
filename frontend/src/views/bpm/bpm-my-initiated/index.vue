@@ -1,17 +1,16 @@
 <template>
   <BpmListPage
-    title="我发起的流程"
+    title="我发起的"
     test-id="bpm-my-page"
     :columns="columns"
     :fetch-page="fetchMyInitiated"
+    :show-filter="true"
+    :get-actions="getActions"
   >
     <template #status="{ row }">
-      <el-tag :type="row.status === 'RUNNING' ? 'primary' : 'success'">
-        {{ row.status }}
-      </el-tag>
-    </template>
-    <template #action="{ row }">
-      <el-button link type="primary" @click="handleOpen(row)">详情</el-button>
+      <a-tag :color="row.endTime ? 'blue' : 'green'">
+        {{ row.endTime ? 'Completed' : 'Running' }}
+      </a-tag>
     </template>
   </BpmListPage>
 </template>
@@ -20,23 +19,27 @@
 import { useRouter } from 'vue-router';
 import BpmListPage from '../_components/BpmListPage.vue';
 import { fetchMyInitiated } from '../bpmFetchers';
-
-defineOptions({ name: 'BpmMy' });
+import { getRowActions } from '../bpmActions';
 
 const router = useRouter();
 
 const columns = [
-  { label: '流程实例ID', prop: 'processInstanceId', minWidth: 250 },
-  { label: '流程名称', prop: 'processName', minWidth: 150 },
-  { label: '发起时间', prop: 'startTime', minWidth: 180 },
-  { label: '状态', prop: 'status', minWidth: 120, slot: 'status' },
-  { label: '操作', prop: 'action', minWidth: 100, slot: 'action' },
+  { title: 'Process ID', dataIndex: 'id', key: 'id', width: 220 },
+  { title: 'Process Name', dataIndex: 'processDefinitionName', key: 'processDefinitionName' },
+  { title: 'Start Time', dataIndex: 'startTime', key: 'startTime', width: 180 },
+  { title: 'End Time', dataIndex: 'endTime', key: 'endTime', width: 180 },
+  { title: 'Status', dataIndex: 'status', key: 'status', slot: 'status', width: 120 },
+  { title: 'Actions', dataIndex: 'action', key: 'action', slot: 'action', width: 120 },
 ];
 
 const handleOpen = (row: any) => {
   router.push({
-    path: '/bpm/process/view',
-    query: { procInstId: row.processInstanceId }
+    path: '/bpm/approve',
+    query: { taskId: row.taskId || row.id } // For my-initiated, it might be processInstanceId
   });
 };
+
+const getActions = (row: any) => getRowActions('my', row, {
+  handleOpen,
+});
 </script>

@@ -4,9 +4,11 @@
     test-id="bpm-done-page"
     :columns="columns"
     :fetch-page="fetchMyDone"
+    :show-filter="true"
+    :get-actions="getActions"
   >
-    <template #action="{ row }">
-      <el-button size="small" @click="handleOpenForm(row)">Open</el-button>
+    <template #status="{ row }">
+      <a-tag color="blue">Finished</a-tag>
     </template>
   </BpmListPage>
 </template>
@@ -15,23 +17,27 @@
 import { useRouter } from 'vue-router';
 import BpmListPage from '../_components/BpmListPage.vue';
 import { fetchMyDone } from '../bpmFetchers';
+import { getRowActions } from '../bpmActions';
 
 const router = useRouter();
 
 const columns = [
-  { label: 'Task ID', prop: 'taskId', minWidth: 220 },
-  { label: 'Process Name', prop: 'processName', minWidth: 180 },
-  { label: 'Task Name', prop: 'name', minWidth: 180 },
-  { label: 'Proc Inst ID', prop: 'processInstanceId', minWidth: 220 },
-  { label: 'End Time', prop: 'endTime', minWidth: 180 },
-  { label: 'Assignee', prop: 'assignee', minWidth: 150 },
-  { label: 'Actions', prop: 'action', minWidth: 120, slot: 'action' },
+  { title: 'Task ID', dataIndex: 'id', key: 'id', width: 220 },
+  { title: 'Process Name', dataIndex: 'processDefinitionName', key: 'processDefinitionName' },
+  { title: 'Task Name', dataIndex: 'name', key: 'name' },
+  { title: 'End Time', dataIndex: 'endTime', key: 'endTime', width: 180 },
+  { title: 'Status', dataIndex: 'status', key: 'status', slot: 'status', width: 120 },
+  { title: 'Actions', dataIndex: 'action', key: 'action', slot: 'action', width: 120 },
 ];
 
-const handleOpenForm = (row: any) => {
+const handleOpen = (row: any) => {
   router.push({
     path: '/bpm/approve',
-    query: { taskId: row.taskId }
+    query: { taskId: row.id }
   });
 };
+
+const getActions = (row: any) => getRowActions('done', row, {
+  handleOpen,
+});
 </script>

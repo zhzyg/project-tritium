@@ -146,3 +146,16 @@
   - Revert directory rename and route change.
   - Remove new ops scripts and references.
   - Remove `data-testid` attributes from Vue components.
+
+## [2026-02-03] MVP-5F v0: 统一 BPM 筛选条与 Action 适配层
+- **BpmListPage 增强**: 
+  - 回归 Ant Design Vue 风格，符合 JeecgBoot 规范。
+  - 新增可配置筛选条，支持关键字搜索、状态下拉及时间范围选择。
+- **Action 适配层**: 
+  - 新增 `frontend/src/views/bpm/bpmActions.ts`，通过场景 (`my`, `tasks`, `done`) 驱动行操作按钮渲染。
+- **路由与三页接入**: 
+  - `/bpm/my`、`/bpm/tasks`、`/bpm/done` 全面接入新骨架。
+  - 修正了 `bpm.ts` 中的冗余路由定义，对齐 `sys_permission` 数据库配置。
+- **验证**: 
+  - 通过 `./ops/frontend_check.sh` (Vite Build) 验证通过。
+  - 增强 `ops/repro_bpm_my.mjs` 登录鲁棒性。

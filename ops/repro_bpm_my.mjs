@@ -46,37 +46,27 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
   let success = false;
   try {
-    console.log(`[${ROUTE}] Navigating to Login at ${BASE_URL}...`);
-    await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle', timeout: 15000 });
-
-    const userField = page.locator('input[placeholder*="账号"], .ant-input[type="text"], input#username').first();
-    await userField.waitFor({ state: 'visible', timeout: 5000 });
-    await userField.fill(ADMIN_USER);
-    await page.locator('input[placeholder*="密码"], .ant-input[type="password"], input#password').first().fill(ADMIN_PASS);
+    const loginUrl = (await page.url()).includes('/login') ? await page.url() : `${BASE_URL}/user/login`;
+    console.log(`[${ROUTE}] Current URL: ${await page.url()}, attempting login at ${loginUrl}...`);
     
-    const captcha = page.locator('input[placeholder="验证码"]:visible, input#captcha:visible').first();
-    if (await captcha.count() > 0) {
-      await captcha.fill('1234');
-    }
+    await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
+    await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
+    
+    await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
+    
+    console.log(`[${ROUTE}] Login submitted, waiting for navigation to ${ROUTE}...`);
+    await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 20000 });
 
-    await page.click('button.ant-btn-primary:visible, button[type="submit"]:visible, .login-button:visible');
-    await page.waitForURL(url => !url.href.includes('/login'), { timeout: 10000 }).catch(() => {});
+    console.log(`[${ROUTE}] Navigation done, waiting for marker: ${MARKER_SELECTOR} / ${MARKER_TEXT}`);
+    await page.waitForTimeout(2000); // Wait for potential redirects or partial loads
 
-    console.log(`[${ROUTE}] Navigating to ${ROUTE}...`);
-    await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 15000 });
-
-    // Strong assertion
-    let successMarker;
+    const marker = page.locator(MARKER_SELECTOR).first();
+    await marker.waitFor({ state: 'visible', timeout: 20000 });
+    
     if (MARKER_TEXT) {
-      successMarker = page.locator(`span:has-text("${MARKER_TEXT}"), div:has-text("${MARKER_TEXT}"), :text("${MARKER_TEXT}")`);
-    } else {
-      successMarker = page.locator(MARKER_SELECTOR);
+      const textMarker = page.locator(`span:has-text("${MARKER_TEXT}"), div:has-text("${MARKER_TEXT}"), :text("${MARKER_TEXT}")`).first();
+      await textMarker.waitFor({ state: 'visible', timeout: 20000 });
     }
-    
-    await successMarker.first().waitFor({ state: 'visible', timeout: 10000 });
-    
-    console.log(`[${ROUTE}] SUCCESS: Render verified.`);
-    success = true;
 
   } catch (e) {
     console.log(`[${ROUTE}] FAILURE: ${e.message}`);

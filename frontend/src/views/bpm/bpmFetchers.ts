@@ -9,6 +9,9 @@ export interface ListQuery {
   pageNo: number;
   pageSize: number;
   keyword?: string;
+  status?: string;
+  startTime?: string;
+  endTime?: string;
   [key: string]: any;
 }
 
@@ -17,8 +20,9 @@ function handleResult(res: any): PageResult {
   let total = 0;
 
   if (res && typeof res === 'object' && !Array.isArray(res)) {
-    records = res.result || res.records || [];
-    total = res.total || records.length;
+    // Handle Jeecg standard result structure
+    records = res.result?.records || res.result || res.records || [];
+    total = res.result?.total || res.total || (Array.isArray(records) ? records.length : 0);
   } else if (Array.isArray(res)) {
     total = res.length;
   } else {
