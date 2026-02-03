@@ -174,3 +174,7 @@
   - **Security**: Refined captcha bypass to use comma-separated `users` list in YAML for proper Spring `@Value` binding.
   - **Bugfix**: Resolved `/bpm/done` 404 (ErrorPage) by adding missing menu item to DB via `20260203_add_bpm_done_menu.sql` and rebuilding/redeploying frontend to sync chunks.
   - **Verification**: Online suite `ops/repro_bpm_suite.sh` PASSES all 3 routes (my/tasks/done).
+- [2026-02-03] MVP-5H v0: BPM Task Action Refactoring.
+  - **Frontend**: Extracted `TaskExecutors.ts` to centralize Claim/Approve/Reject/Vars action logic (API + Notify + Refresh).
+  - **Frontend**: Refactored `index.vue` (Tasks page) to act as a coordinator, reducing code duplication and improving maintainability.
+  - **Verification**: Online suite `ops/repro_bpm_suite.sh` SUCCESS for all 3 routes on `oa.donaldzhu.com`.

@@ -51,7 +51,7 @@ import BpmListPage from '../_components/BpmListPage.vue';
 import TaskRowActions from './_components/TaskRowActions.vue';
 import VarsDialog from './_components/VarsDialog.vue';
 import { fetchMyTasks } from '../bpmFetchers';
-import { claimTask, completeTask, getProcessVars } from '/@/api/bpm/flowable';
+import { createTaskExecutors } from './TaskExecutors';
 
 const router = useRouter();
 const listPageRef = ref();
@@ -78,29 +78,19 @@ const columns = [
 
 const refresh = () => listPageRef.value?.loadData();
 
-const handleClaim = async (row: any) => {
-  try {
-    await claimTask({ taskId: row.taskId });
-    message.success('Claimed successfully');
-    refresh();
-  } catch (error: any) {
-    message.error('Claim failed: ' + error.message);
-  }
-};
+const executors = createTaskExecutors({
+  onRefresh: refresh,
+  onOpenVars: (_row, data) => {
+    varsData.value = data;
+    varsVisible.value = true;
+  },
+  setVarsLoading: (loading) => {
+    varsLoading.value = loading;
+  },
+});
 
-const handleApprove = async (row: any) => {
-  try {
-    await completeTask({
-      taskId: row.taskId,
-      variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() }
-    });
-    message.success('Approved successfully');
-    await handleVars(row);
-    refresh();
-  } catch (error: any) {
-    message.error('Approve failed: ' + error.message);
-  }
-};
+const handleClaim = (row: any) => executors.handleClaim(row);
+const handleApprove = (row: any) => executors.handleApprove(row);
 
 const handleReject = (row: any) => {
   let reason = '';
@@ -122,17 +112,7 @@ const handleReject = (row: any) => {
         message.warning('Reason is required');
         return Promise.reject();
       }
-      try {
-        await completeTask({
-          taskId: row.taskId,
-          variables: { status: 'REJECTED', reason, updatedAt: new Date().toISOString() }
-        });
-        message.success('Rejected successfully');
-        await handleVars(row);
-        refresh();
-      } catch (error: any) {
-        message.error('Reject failed: ' + error.message);
-      }
+      return executors.handleReject(row, reason);
     },
   });
 };
@@ -144,21 +124,5 @@ const handleOpen = (row: any) => {
   });
 };
 
-const handleVars = async (row: any) => {
-  if (!row.processInstanceId) {
-    message.warning('No Process Instance ID');
-    return;
-  }
-  varsVisible.value = true;
-  varsLoading.value = true;
-  varsData.value = null;
-  try {
-    const res = await getProcessVars({ processInstanceId: row.processInstanceId });
-    varsData.value = res;
-  } catch (error: any) {
-    message.error('Failed to load variables: ' + error.message);
-  } finally {
-    varsLoading.value = false;
-  }
-};
+const handleVars = (row: any) => executors.loadVars(row);
 </script>
