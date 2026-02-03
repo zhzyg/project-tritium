@@ -73,6 +73,15 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
         await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
         await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
         
+        // Try filling captcha if present (dummy value for admin bypass)
+        try {
+            const captchaInput = page.locator('input[placeholder*="验证码"], input[id*="inputCode"]');
+            if (await captchaInput.isVisible()) {
+                console.log(`[${ROUTE}] Captcha input detected, filling dummy value...`);
+                await captchaInput.fill('1234');
+            }
+        } catch (e) {}
+
         await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
         
         console.log(`[${ROUTE}] Login submitted, waiting for navigation...`);
