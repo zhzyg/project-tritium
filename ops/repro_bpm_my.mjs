@@ -38,6 +38,51 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
   const page = await context.newPage();
   
+  const reproDir = path.join('.artifacts', 'repro');
+  if (!fs.existsSync(reproDir)) fs.mkdirSync(reproDir, { recursive: true });
+  const apiSnapshotFile = path.join(reproDir, `api-snapshot-${ROUTE_SLUG}.txt`);
+  fs.writeFileSync(apiSnapshotFile, `API Snapshot for ${ROUTE} at ${new Date().toISOString()}\n\n`);
+
+  let listApiCaptured = false;
+  page.on('request', request => {
+    const url = request.url();
+    const isBpmApi = url.includes('/jeecg-boot/bpm/') && (url.includes('/my') || url.includes('/done') || url.includes('/list'));
+    if (isBpmApi && !listApiCaptured) {
+      const method = request.method();
+      const postData = request.postData();
+      let bodySummary = 'N/A';
+      
+      if (method === 'GET') {
+          const urlObj = new URL(url);
+          const params = {};
+          urlObj.searchParams.forEach((v, k) => {
+              if (!['token', '_t'].includes(k.toLowerCase())) {
+                  params[k] = v;
+              }
+          });
+          bodySummary = `Query: ${JSON.stringify(params)}`;
+      } else if (postData) {
+          try {
+              const parsed = JSON.parse(postData);
+              const safeBody = {};
+              Object.keys(parsed).forEach(k => {
+                  if (!['token', 'password', 'cookie', 'authorization'].includes(k.toLowerCase())) {
+                      safeBody[k] = parsed[k];
+                  }
+              });
+              bodySummary = JSON.stringify(safeBody);
+          } catch (e) {
+              bodySummary = 'non-JSON body';
+          }
+      }
+      
+      const snapshot = `[API_CALL] ${method} ${url.split('?')[0]}\n[DATA] ${bodySummary}\n`;
+      fs.appendFileSync(apiSnapshotFile, snapshot);
+      logStream.write(snapshot);
+      listApiCaptured = true; 
+    }
+  });
+
   let mainResponseStatus = 0;
   page.on('response', response => {
     if (response.url() === `${BASE_URL}${ROUTE}` || response.url() === `${BASE_URL}${ROUTE}/`) {

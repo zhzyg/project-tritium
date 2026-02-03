@@ -178,3 +178,8 @@
   - **Frontend**: Extracted `TaskExecutors.ts` to centralize Claim/Approve/Reject/Vars action logic (API + Notify + Refresh).
   - **Frontend**: Refactored `index.vue` (Tasks page) to act as a coordinator, reducing code duplication and improving maintainability.
   - **Verification**: Online suite `ops/repro_bpm_suite.sh` SUCCESS for all 3 routes on `oa.donaldzhu.com`.
+- [2026-02-03] MVP-5I v0: Unified BPM Query Parameter Enforcement.
+  - **Frontend**: Added `bpmQuery.ts` to strictly construct list query parameters, ensuring empty/null fields are omitted and field names are consistent.
+  - **Frontend**: Refactored `bpmFetchers.ts` to enforce the query contract across `/bpm/my`, `/bpm/tasks`, and `/bpm/done`.
+  - **Verification**: Enhanced `ops/repro_bpm_my.mjs` to capture list API request snapshots (URL + sanitized data) in `.artifacts/repro/api-snapshot-*.txt`.
+  - **Evidence**: Regression suite `ops/repro_bpm_suite.sh` SUCCESS for all 3 routes. Captured snapshots confirm standard parameter usage (`pageNo`, `pageSize`, etc.).

@@ -1,18 +1,9 @@
 import { listMyProcesses, listMyTasks, listDoneTasks } from '/@/api/bpm/flowable';
+import { buildBpmQuery, BpmListQuery } from './bpmQuery';
 
 export interface PageResult<T = any> {
   records: T[];
   total: number;
-}
-
-export interface ListQuery {
-  pageNo: number;
-  pageSize: number;
-  keyword?: string;
-  status?: string;
-  startTime?: string;
-  endTime?: string;
-  [key: string]: any;
 }
 
 function handleResult(res: any): PageResult {
@@ -32,17 +23,20 @@ function handleResult(res: any): PageResult {
   return { records, total };
 }
 
-export async function fetchMyInitiated(query: ListQuery): Promise<PageResult> {
-  const res = await listMyProcesses(query);
+export async function fetchMyInitiated(query: Partial<BpmListQuery>): Promise<PageResult> {
+  const cleanQuery = buildBpmQuery(query);
+  const res = await listMyProcesses(cleanQuery);
   return handleResult(res);
 }
 
-export async function fetchMyTasks(query: ListQuery): Promise<PageResult> {
-  const res = await listMyTasks(query);
+export async function fetchMyTasks(query: Partial<BpmListQuery>): Promise<PageResult> {
+  const cleanQuery = buildBpmQuery(query);
+  const res = await listMyTasks(cleanQuery);
   return handleResult(res);
 }
 
-export async function fetchMyDone(query: ListQuery): Promise<PageResult> {
-  const res = await listDoneTasks(query);
+export async function fetchMyDone(query: Partial<BpmListQuery>): Promise<PageResult> {
+  const cleanQuery = buildBpmQuery(query);
+  const res = await listDoneTasks(cleanQuery);
   return handleResult(res);
 }
