@@ -5,9 +5,23 @@
 set -e
 
 BASE_URL=${BASE_URL:-http://127.0.0.1:80}
-export BASE_URL
+OA_STORAGE_STATE=${OA_STORAGE_STATE:-.artifacts/oa-storage-state.json}
+export BASE_URL OA_STORAGE_STATE
 
 echo "🚀 Starting BPM Regression Suite at $BASE_URL..."
+
+if [[ "$BASE_URL" == *"oa.donaldzhu.com"* ]]; then
+  if [ ! -f "$OA_STORAGE_STATE" ]; then
+    echo "⚠️  Online environment detected but no storage state found at $OA_STORAGE_STATE."
+    echo "⚠️  Please run 'node ops/oa_login_capture.mjs' first to capture a valid session."
+    # We allow it to proceed, but it will likely fail if CAPTCHA is present. 
+    # Or strict fail:
+    # exit 1 
+    # For now, let's just warn and try (maybe no captcha for admin?)
+  else
+    echo "✅ Using existing session from $OA_STORAGE_STATE"
+  fi
+fi
 
 mkdir -p .artifacts/repro-bpm-suite
 

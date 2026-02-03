@@ -164,3 +164,4 @@
   - 通过 `./ops/frontend_check.sh` (Vite Build) 验证通过。
   - 增强 `ops/repro_bpm_my.mjs` 登录鲁棒性。
 - [2026-02-03] MVP-5G v0: Modularized BPM tasks page. Split actions into 'TaskRowActions.vue' and variables dialog into 'VarsDialog.vue'. Updated verification scripts for online support (though online login requires adjustment).
+- [2026-02-03] MVP-5G1: Implemented 'oa_login_capture.mjs' for manual online login and session capture. Updated regression suite to reuse storage state, bypassing CAPTCHA/login issues on CI/Automated runs.

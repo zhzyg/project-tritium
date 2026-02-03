@@ -8,7 +8,9 @@ const MARKER_TEXT = process.env.MARKER_TEXT || '';
 const MARKER_SELECTOR = process.env.MARKER_SELECTOR || '.el-table, .el-card__header';
 
 const ADMIN_USER = process.env.OA_USER || 'admin';
-const ADMIN_PASS = process.env.OA_PASS || '123456'; 
+const ADMIN_PASS = process.env.OA_PASS || '123456';
+const OA_STORAGE_STATE = process.env.OA_STORAGE_STATE;
+
 const ARTIFACTS_BASE = path.resolve('.artifacts/repro-bpm-suite');
 const ROUTE_SLUG = ROUTE.replace(/\//g, '_').replace(/^_/, '');
 const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
@@ -24,7 +26,17 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
   const failedRequests = [];
 
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-  const page = await browser.newPage();
+  
+  let context;
+  if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
+    console.log(`[${ROUTE}] Using storage state from: ${OA_STORAGE_STATE}`);
+    context = await browser.newContext({ storageState: OA_STORAGE_STATE });
+  } else {
+    console.log(`[${ROUTE}] No valid storage state found. Will attempt login.`);
+    context = await browser.newContext();
+  }
+
+  const page = await context.newPage();
 
   page.on('console', msg => {
     const text = msg.text();
@@ -48,26 +60,30 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
 
   let success = false;
   try {
-    const loginUrl = (await page.url()).includes('/login') ? await page.url() : `${BASE_URL}/login`;
-    // Also try /user/login if /login is not the right one, usually base/login works or redirects
-    console.log(`[${ROUTE}] Navigating to login...`);
-    await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle', timeout: 20000 });
-    
-    console.log(`[${ROUTE}] Attempting login...`);
-    await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
-    await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
-    
-    await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
-    
-    console.log(`[${ROUTE}] Login submitted, waiting for navigation...`);
-    // Wait for either the target route or a redirect
-    await page.waitForTimeout(3000); 
+    if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
+       console.log(`[${ROUTE}] Navigating to target route (with session): ${BASE_URL}${ROUTE}`);
+       await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 20000 });
+    } else {
+        const loginUrl = (await page.url()).includes('/login') ? await page.url() : `${BASE_URL}/user/login`;
+        // Also try /user/login if /login is not the right one, usually base/login works or redirects
+        console.log(`[${ROUTE}] Navigating to login...`);
+        await page.goto(`${BASE_URL}/user/login`, { waitUntil: 'networkidle', timeout: 20000 });
+        
+        console.log(`[${ROUTE}] Attempting login...`);
+        await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
+        await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
+        
+        await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
+        
+        console.log(`[${ROUTE}] Login submitted, waiting for navigation...`);
+        // Wait for either the target route or a redirect
+        await page.waitForTimeout(3000); 
 
-    console.log(`[${ROUTE}] Navigating to target route: ${BASE_URL}${ROUTE}`);
-    await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 20000 });
+        console.log(`[${ROUTE}] Navigating to target route: ${BASE_URL}${ROUTE}`);
+        await page.goto(`${BASE_URL}${ROUTE}`, { waitUntil: 'networkidle', timeout: 20000 });
+    }
 
-    console.log(`[${ROUTE}] Navigation done, waiting for marker: ${MARKER_SELECTOR}`);
-    await page.waitForTimeout(2000); 
+    console.log(`[${ROUTE}] Navigation done, waiting for marker: ${MARKER_SELECTOR}`); 
 
     const marker = page.locator(MARKER_SELECTOR).first();
     await marker.waitFor({ state: 'visible', timeout: 20000 });
