@@ -130,9 +130,11 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             throw new IllegalArgumentException("formKey is required for TRITIUM_APPROVAL_V1");
         }
         if (oConvertUtils.isNotEmpty(formKey)) {
+            variables.put("formKey", formKey);
             if (oConvertUtils.isEmpty(recordId)) {
                 throw new IllegalArgumentException("recordId is required for form mapping");
             }
+            variables.put("recordId", recordId);
             published = formSchemaPublishService.getLatestPublished(formKey);
             if (published == null) {
                 throw new IllegalStateException("published schema not found");
@@ -146,6 +148,9 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             if (oConvertUtils.isEmpty(businessKey)) {
                 businessKey = buildBusinessKey(formKey, recordId, published.getVersion());
             }
+        }
+        if (oConvertUtils.isNotEmpty(businessKey)) {
+            variables.put("businessKey", businessKey);
         }
 
         identityService.setAuthenticatedUserId(initiator);
@@ -195,11 +200,14 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         Map<String, Object> variables = new HashMap<>();
         variables.put("assignee", assignee);
         variables.put("initiator", initiator);
+        variables.put("formKey", req.getFormKey());
+        variables.put("recordId", req.getRecordId());
         variables.putAll(mappedVars);
         if (PROCESS_APPROVAL_V1.equals(processKey)) {
             ensureAmountVariable(variables, formData);
         }
         String businessKey = buildBusinessKey(req.getFormKey(), req.getRecordId(), published.getVersion());
+        variables.put("businessKey", businessKey);
         identityService.setAuthenticatedUserId(initiator);
         ProcessInstance instance = runtimeService.startProcessInstanceByKey(processKey, businessKey, variables);
         insertProcessLink(instance.getProcessInstanceId(),

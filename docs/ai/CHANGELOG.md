@@ -219,3 +219,9 @@
   - **Frontend**: Added created time range filter (`startTime`/`endTime`) alongside keyword.
   - **Backend**: `POST /form/data/delete` removes runtime records (form_record + physical table); query now supports created_time range filters.
   - **Ops**: `ops/repro_form_runtime_list.mjs` covers column toggle, export click, and delete attempt (skips delete if no data).
+
+- [2026-02-04] MVP-7A v0: BPM start center minimal loop.
+  - **Frontend**: `/bpm/start` rebuilt to select process + form, render VForm, and submit-then-start.
+  - **Backend**: added published schema list/json endpoints for form selection; start variables now include `formKey`/`recordId`/`businessKey`.
+  - **Flow**: submit form → `form_record` + physical insert → start process with `businessKey=recordId` → redirect to `/bpm/my`.
+  - **Ops**: `ops/repro_bpm_start.mjs` added and wired into `oa_verify` to cover start regression.

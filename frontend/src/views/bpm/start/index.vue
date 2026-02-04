@@ -1,130 +1,222 @@
 <template>
-  <PageWrapper title="按表单发起" contentBackground>
+  <PageWrapper title="流程发起" contentBackground>
     <a-card bordered size="small">
-      <div class="start-toolbar">
-        <a-space wrap>
-          <a-input v-model:value="formKey" placeholder="formKey" style="width: 200px" />
-          <a-input v-model:value="recordId" placeholder="recordId" style="width: 320px" />
-          <a-input-number v-model:value="amountValue" :min="0" style="width: 160px" placeholder="amount" />
-          <a-button :loading="creating" @click="createTestRecord">创建测试记录</a-button>
-          <a-button type="primary" :loading="starting" @click="startProcess">发起流程</a-button>
-          <a-button :disabled="!processInfo" @click="fetchStatus">刷新状态</a-button>
-        </a-space>
+      <a-form layout="inline" class="mb-4">
+        <a-form-item label="流程定义">
+          <a-select
+            v-model:value="processKey"
+            placeholder="请选择流程"
+            style="width: 260px"
+            :options="processOptions"
+            :loading="loadingDefs"
+            data-testid="bpm-start-proc"
+          />
+        </a-form-item>
+        <a-form-item label="业务表单">
+          <a-select
+            v-model:value="formKey"
+            placeholder="请选择表单"
+            style="width: 240px"
+            :options="formOptions"
+            :loading="loadingForms"
+            data-testid="bpm-start-form"
+          />
+        </a-form-item>
+        <a-form-item>
+          <a-button @click="reloadOptions">刷新</a-button>
+        </a-form-item>
+      </a-form>
+
+      <a-alert
+        class="mb-4"
+        type="info"
+        show-icon
+        message="选择流程与表单后填写数据，提交即发起流程并跳转到“我发起的”。"
+      />
+
+      <div class="bpm-start-form" data-testid="bpm-start-render">
+        <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
+        <a-empty v-if="!schemaReady" description="请选择已发布表单" />
       </div>
 
-      <a-divider />
-
-      <a-descriptions title="发起结果" :column="1" size="small">
-        <a-descriptions-item label="processInstanceId">{{ processInfo?.processInstanceId || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="processKey">{{ processInfo?.processKey || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="businessKey">{{ processInfo?.businessKey || '-' }}</a-descriptions-item>
-      </a-descriptions>
-
-      <a-divider />
-
-      <a-descriptions title="流程状态" :column="1" size="small">
-        <a-descriptions-item label="ended">{{ statusInfo?.ended ?? '-' }}</a-descriptions-item>
-        <a-descriptions-item label="businessKey">{{ statusInfo?.businessKey || '-' }}</a-descriptions-item>
-      </a-descriptions>
-      <a-table
-        :data-source="statusInfo?.currentTasks || []"
-        :columns="taskColumns"
-        row-key="taskId"
-        size="small"
-        :pagination="false"
-        style="margin-top: 12px"
-      />
+      <div class="bpm-start-actions">
+        <a-button
+          type="primary"
+          :loading="submitting"
+          :disabled="!schemaReady || !processKey"
+          data-testid="bpm-start-submit"
+          @click="handleSubmit"
+        >
+          提交并发起
+        </a-button>
+      </div>
     </a-card>
   </PageWrapper>
 </template>
 
 <script lang="ts" setup>
-  import { computed, ref } from 'vue';
+  import { computed, onMounted, reactive, ref, watch } from 'vue';
+  import { useRouter } from 'vue-router';
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
-  import { startByForm, getProcessStatus } from '/@/api/bpm/flowable';
-  import { getLatestPublishedSchema, insertRecord } from '/@/views/form/runtime/runtime.api';
+  import { VFormRender } from 'vform3-builds';
+  import 'vform3-builds/dist/render.style.css';
+  import { listProcessDefs, startProcess } from '/@/api/bpm/flowable';
+  import { getLatestPublishedSchemaJson, insertRecord, listPublishedSchemas } from '/@/views/form/runtime/runtime.api';
 
-  const formKey = ref('dev');
-  const recordId = ref('');
-  const amountValue = ref<number | null>(20001);
-  const creating = ref(false);
-  const starting = ref(false);
-  const processInfo = ref<any>(null);
-  const statusInfo = ref<any>(null);
+  const router = useRouter();
+  const renderRef = ref<any>(null);
+  const formJson = ref<Record<string, any>>({ widgetList: [], formConfig: {} });
+  const formData = reactive<Record<string, any>>({});
+  const optionData = reactive<Record<string, any>>({});
 
-  const taskColumns = computed(() => [
-    { title: 'Task ID', dataIndex: 'taskId', key: 'taskId', width: 220 },
-    { title: 'Name', dataIndex: 'name', key: 'name', width: 160 },
-    { title: 'Assignee', dataIndex: 'assignee', key: 'assignee', width: 120 },
-    { title: 'Candidate Groups', dataIndex: 'candidateGroups', key: 'candidateGroups' },
-  ]);
+  const processKey = ref('');
+  const formKey = ref('');
+  const processDefs = ref<any[]>([]);
+  const formSchemas = ref<any[]>([]);
+  const loadingDefs = ref(false);
+  const loadingForms = ref(false);
+  const loadingSchema = ref(false);
+  const submitting = ref(false);
+  const schemaReady = ref(false);
 
-  const createTestRecord = async () => {
-    if (!formKey.value) {
-      message.warning('formKey 必填');
-      return;
-    }
-    creating.value = true;
-    try {
-      const published = await getLatestPublishedSchema({ formKey: formKey.value });
-      const metas = published?.fieldMetas || [];
-      const numericMeta = metas.find((meta) => {
-        const type = (meta.widgetType || meta.dbType || '').toLowerCase();
-        return type.includes('number') || type.includes('decimal');
-      });
-      if (!numericMeta?.fieldKey) {
-        message.error('未找到数值字段，无法创建测试记录');
-        return;
-      }
-      if (amountValue.value === null || Number.isNaN(amountValue.value)) {
-        message.error('amount 不能为空');
-        return;
-      }
-      const data: Record<string, any> = { [numericMeta.fieldKey]: amountValue.value };
-      const res = await insertRecord({ formKey: formKey.value, data });
-      recordId.value = res?.recordId || '';
-      message.success(`recordId: ${recordId.value}`);
-    } catch (err: any) {
-      message.error(err?.message || '创建记录失败');
-    } finally {
-      creating.value = false;
+  const processOptions = computed(() =>
+    processDefs.value
+      .filter((item) => item?.enabled !== 0)
+      .map((item) => ({
+        label: item?.name ? `${item.name} (${item.processKey})` : item.processKey,
+        value: item.processKey,
+      }))
+  );
+
+  const formOptions = computed(() =>
+    formSchemas.value.map((item) => ({
+      label: `${item.formKey} (v${item.version})`,
+      value: item.formKey,
+    }))
+  );
+
+  const resetFormData = () => {
+    Object.keys(formData).forEach((key) => delete formData[key]);
+    if (renderRef.value?.setFormData) {
+      renderRef.value.setFormData({});
     }
   };
 
-  const startProcess = async () => {
-    if (!formKey.value || !recordId.value) {
-      message.warning('formKey 和 recordId 必填');
+  const loadProcessDefs = async () => {
+    loadingDefs.value = true;
+    try {
+      processDefs.value = (await listProcessDefs()) || [];
+      if (!processKey.value && processOptions.value.length) {
+        processKey.value = processOptions.value[0].value;
+      }
+    } catch (err: any) {
+      message.error(err?.message || '流程定义加载失败');
+      processDefs.value = [];
+    } finally {
+      loadingDefs.value = false;
+    }
+  };
+
+  const loadFormList = async () => {
+    loadingForms.value = true;
+    try {
+      formSchemas.value = (await listPublishedSchemas()) || [];
+      if (!formKey.value && formOptions.value.length) {
+        formKey.value = formOptions.value[0].value;
+      }
+    } catch (err: any) {
+      message.error(err?.message || '表单列表加载失败');
+      formSchemas.value = [];
+    } finally {
+      loadingForms.value = false;
+    }
+  };
+
+  const loadFormSchema = async () => {
+    if (!formKey.value) {
+      schemaReady.value = false;
+      formJson.value = { widgetList: [], formConfig: {} };
       return;
     }
-    starting.value = true;
+    loadingSchema.value = true;
+    schemaReady.value = false;
+    resetFormData();
     try {
-      const res = await startByForm({ formKey: formKey.value, recordId: recordId.value });
-      processInfo.value = res;
-      message.success('流程已发起');
-      await fetchStatus();
+      const res = await getLatestPublishedSchemaJson({ formKey: formKey.value });
+      if (!res?.schemaJson) {
+        throw new Error('schemaJson is empty');
+      }
+      const parsed = JSON.parse(res.schemaJson);
+      formJson.value = parsed;
+      if (renderRef.value?.setFormJson) {
+        renderRef.value.setFormJson(parsed);
+      }
+      schemaReady.value = true;
+    } catch (err: any) {
+      message.error(err?.message || '表单加载失败');
+      schemaReady.value = false;
+    } finally {
+      loadingSchema.value = false;
+    }
+  };
+
+  const reloadOptions = async () => {
+    await Promise.all([loadProcessDefs(), loadFormList()]);
+    await loadFormSchema();
+  };
+
+  const handleSubmit = async () => {
+    if (!processKey.value || !formKey.value) {
+      message.warning('请选择流程与表单');
+      return;
+    }
+    const api = renderRef.value;
+    if (!api?.getFormData) {
+      message.error('表单渲染未就绪');
+      return;
+    }
+    submitting.value = true;
+    try {
+      const data = await api.getFormData();
+      const recordResp = await insertRecord({ formKey: formKey.value, data: data || {} });
+      const recordId = recordResp?.recordId;
+      if (!recordId) {
+        throw new Error('recordId empty');
+      }
+      await startProcess({
+        processKey: processKey.value,
+        formKey: formKey.value,
+        recordId,
+        businessKey: recordId,
+      });
+      message.success('流程已发起，正在跳转...');
+      router.push('/bpm/my');
     } catch (err: any) {
       message.error(err?.message || '发起失败');
     } finally {
-      starting.value = false;
+      submitting.value = false;
     }
   };
 
-  const fetchStatus = async () => {
-    if (!processInfo.value?.processInstanceId) {
-      statusInfo.value = null;
-      return;
-    }
-    try {
-      statusInfo.value = await getProcessStatus({ processInstanceId: processInfo.value.processInstanceId });
-    } catch (err: any) {
-      message.error(err?.message || '状态查询失败');
-    }
-  };
+  watch(formKey, async (next) => {
+    if (!next) return;
+    await loadFormSchema();
+  });
+
+  onMounted(async () => {
+    await reloadOptions();
+  });
 </script>
 
 <style scoped>
-  .start-toolbar {
-    margin-bottom: 8px;
+  .bpm-start-form {
+    min-height: 240px;
+    position: relative;
+  }
+
+  .bpm-start-actions {
+    margin-top: 16px;
+    text-align: right;
   }
 </style>

@@ -24,7 +24,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -100,6 +103,50 @@ public class FormSchemaController {
             return Result.error(404, "published schema not found");
         }
         return Result.ok(resp);
+    }
+
+    @GetMapping("/latestPublishedJson")
+    public Result<FormSchemaLatestResp> latestPublishedJson(@RequestParam(name = "formKey") String formKey) {
+        if (oConvertUtils.isEmpty(formKey)) {
+            return Result.error("formKey is required");
+        }
+        FormSchema latest = formSchemaService.getLatestPublished(formKey);
+        if (latest == null) {
+            return Result.error(404, "published schema not found");
+        }
+        FormSchemaLatestResp resp = new FormSchemaLatestResp();
+        resp.setFormKey(latest.getFormKey());
+        resp.setVersion(latest.getVersion());
+        resp.setSchemaJson(latest.getSchemaJson());
+        resp.setSavedTime(latest.getCreatedTime());
+        return Result.ok(resp);
+    }
+
+    @GetMapping("/publishedList")
+    public Result<List<FormSchemaVersionResp>> publishedList() {
+        List<FormSchema> schemas = formSchemaService.lambdaQuery()
+            .eq(FormSchema::getStatus, 1)
+            .orderByDesc(FormSchema::getCreatedTime)
+            .list();
+        Map<String, FormSchema> latestMap = new LinkedHashMap<>();
+        if (schemas != null) {
+            for (FormSchema item : schemas) {
+                if (item == null || oConvertUtils.isEmpty(item.getFormKey())) {
+                    continue;
+                }
+                latestMap.putIfAbsent(item.getFormKey(), item);
+            }
+        }
+        List<FormSchemaVersionResp> respList = new ArrayList<>();
+        for (FormSchema item : latestMap.values()) {
+            FormSchemaVersionResp resp = new FormSchemaVersionResp();
+            resp.setFormKey(item.getFormKey());
+            resp.setVersion(item.getVersion());
+            resp.setStatus(item.getStatus());
+            resp.setCreatedTime(item.getCreatedTime());
+            respList.add(resp);
+        }
+        return Result.ok(respList);
     }
 
     @PostMapping("/publish")

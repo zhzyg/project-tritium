@@ -3,6 +3,8 @@ import { defHttp } from '/@/utils/http/axios';
 enum Api {
   Latest = '/form/schema/latest',
   LatestPublished = '/form/schema/latestPublished',
+  LatestPublishedJson = '/form/schema/latestPublishedJson',
+  PublishedList = '/form/schema/publishedList',
   Submit = '/form/data/submit',
   Insert = '/form/data/insert',
   Page = '/form/data/page',
@@ -14,6 +16,13 @@ export interface FormSchemaLatestResp {
   version: number;
   schemaJson: string;
   savedTime?: string;
+}
+
+export interface FormSchemaVersionResp {
+  formKey: string;
+  version: number;
+  status?: number;
+  createdTime?: string;
 }
 
 export interface FormRecordSubmitReq {
@@ -74,6 +83,12 @@ export interface FormSchemaPublishedResp {
 
 export const getLatestPublishedSchema = (params: { formKey: string }) =>
   defHttp.get<FormSchemaPublishedResp>({ url: Api.LatestPublished, params });
+
+export const getLatestPublishedSchemaJson = (params: { formKey: string }) =>
+  defHttp.get<FormSchemaLatestResp>({ url: Api.LatestPublishedJson, params });
+
+export const listPublishedSchemas = () =>
+  defHttp.get<FormSchemaVersionResp[]>({ url: Api.PublishedList });
 
 export const submitRecord = (params: FormRecordSubmitReq) =>
   defHttp.post<FormRecordSubmitResp>({ url: Api.Submit, params });
