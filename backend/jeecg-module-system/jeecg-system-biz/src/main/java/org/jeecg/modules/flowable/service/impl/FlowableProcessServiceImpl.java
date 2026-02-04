@@ -331,6 +331,8 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                 log.warn("Failed to add comment: {}", e.getMessage());
             }
         }
+        String action = getVarString(reqVars, "action", "status");
+        writeFormAudit(req.getFormKey(), req.getRecordId(), processInstanceId, task.getId(), action, comment, currentUser);
 
         Map<String, Object> taskVars = req.getVariables();
         if (taskVars == null) {
@@ -505,6 +507,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         FlowableTaskContextResp resp = new FlowableTaskContextResp();
         resp.setTaskId(taskId);
         resp.setProcessInstanceId(processInstanceId);
+        resp.setActive(task != null);
         if (task != null) {
             resp.setTaskName(task.getName());
             resp.setAssignee(task.getAssignee());
@@ -698,6 +701,38 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         }
         Object val = row.get(key);
         return val == null ? null : val.toString();
+    }
+
+    private void writeFormAudit(String formKey,
+                                String recordId,
+                                String processInstanceId,
+                                String taskId,
+                                String action,
+                                String comment,
+                                String username) {
+        if (oConvertUtils.isEmpty(formKey) || oConvertUtils.isEmpty(recordId)) {
+            return;
+        }
+        if (oConvertUtils.isEmpty(action) && oConvertUtils.isEmpty(comment)) {
+            return;
+        }
+        String auditComment = oConvertUtils.isNotEmpty(comment) ? comment : action;
+        try {
+            jdbcTemplate.update(
+                "insert into tr_form_audit(id, form_key, record_id, process_instance_id, task_id, action, comment, created_by, created_time) values (?,?,?,?,?,?,?,?,?)",
+                IdWorker.getIdStr(),
+                formKey,
+                recordId,
+                processInstanceId,
+                taskId,
+                action,
+                auditComment,
+                username,
+                new Date()
+            );
+        } catch (Exception ex) {
+            log.warn("Failed to insert form audit: {}", ex.getMessage());
+        }
     }
 
     @Override

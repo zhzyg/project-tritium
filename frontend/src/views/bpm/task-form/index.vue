@@ -43,9 +43,63 @@
         <a-descriptions-item label="表单">{{ formKey || '-' }}</a-descriptions-item>
       </a-descriptions>
 
+      <a-alert
+        v-if="isTaskView && contextLoaded && !taskActive"
+        class="mb-4"
+        type="info"
+        show-icon
+        message="该任务已完成，无法再次审批。"
+      />
+
+      <div v-if="isTaskView" class="task-comment-box">
+        <div class="task-comment-label">审批意见</div>
+        <a-input
+          v-model:value="comment"
+          type="textarea"
+          :rows="3"
+          placeholder="请输入审批意见"
+          :disabled="!taskActive"
+          data-testid="bpm-task-comment"
+        />
+        <a-space class="task-comment-actions">
+          <a-button
+            type="primary"
+            :loading="actionLoading"
+            :disabled="!taskActive"
+            data-testid="bpm-task-approve"
+            @click="handleApprove"
+          >
+            通过
+          </a-button>
+          <a-button
+            danger
+            :loading="actionLoading"
+            :disabled="!taskActive"
+            data-testid="bpm-task-reject"
+            @click="handleReject"
+          >
+            驳回
+          </a-button>
+        </a-space>
+      </div>
+
       <div class="form-container" data-testid="bpm-task-form-render">
         <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
         <a-empty v-if="contextLoaded && recordId && !schemaReady" description="未找到可渲染表单" />
+      </div>
+
+      <div v-if="contextLoaded && procInsId" class="task-comments">
+        <div class="task-comment-label">审批记录</div>
+        <a-empty v-if="!commentItems.length" description="暂无审批记录" />
+        <a-timeline v-else class="task-comment-timeline">
+          <a-timeline-item v-for="(item, index) in commentItems" :key="index">
+            <div class="comment-title">
+              {{ item.time }} · {{ item.taskName || item.type || '任务' }}
+              <span v-if="item.assignee" class="comment-user">({{ item.assignee }})</span>
+            </div>
+            <div v-if="item.comment" class="comment-message">{{ item.comment }}</div>
+          </a-timeline-item>
+        </a-timeline>
       </div>
     </div>
   </PageWrapper>
@@ -58,7 +112,7 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { getProcessContext, getTaskContext } from '/@/api/bpm/flowable';
+  import { completeTask, getProcessContext, getProcessTrace, getTaskContext } from '/@/api/bpm/flowable';
   import { getLatestPublishedSchemaJson, getRecord } from '/@/views/form/runtime/runtime.api';
 
   const route = useRoute();
@@ -70,18 +124,28 @@
   const optionData = reactive<Record<string, any>>({});
 
   const taskId = computed(() => (route.params.taskId as string) || (route.query.taskId as string) || '');
-  const procInsId = computed(() => (route.params.procInsId as string) || (route.query.procInsId as string) || '');
+  const routeProcInsId = computed(() => (route.params.procInsId as string) || (route.query.procInsId as string) || '');
+  const isTaskView = computed(() => !!taskId.value);
 
   const taskName = ref('');
   const processName = ref('');
   const businessKey = ref('');
   const recordId = ref('');
   const formKey = ref('');
+  const taskActive = ref(false);
+  const procInsId = ref('');
 
   const loading = ref(false);
+  const actionLoading = ref(false);
   const schemaReady = ref(false);
   const contextLoaded = ref(false);
   const errorMessage = ref('');
+  const comment = ref('');
+  const traceData = ref<any[]>([]);
+
+  const commentItems = computed(() =>
+    traceData.value.filter((item) => item?.comment || item?.taskName || item?.type)
+  );
 
   const pageTitle = computed(() => {
     if (processName.value && taskName.value) {
@@ -111,6 +175,7 @@
     businessKey.value = '';
     taskName.value = '';
     processName.value = '';
+    taskActive.value = false;
 
     if (taskId.value) {
       const ctx = await getTaskContext({ taskId: taskId.value });
@@ -119,17 +184,21 @@
       businessKey.value = ctx?.businessKey || '';
       taskName.value = ctx?.taskName || '';
       processName.value = ctx?.processName || '';
+      taskActive.value = ctx?.active !== false;
+      procInsId.value = ctx?.processInstanceId || '';
       contextLoaded.value = true;
       return;
     }
 
-    if (procInsId.value) {
-      const ctx = await getProcessContext({ processInstanceId: procInsId.value });
+    if (routeProcInsId.value) {
+      const ctx = await getProcessContext({ processInstanceId: routeProcInsId.value });
       recordId.value = ctx?.recordId || '';
       formKey.value = ctx?.formKey || '';
       businessKey.value = ctx?.businessKey || '';
       taskName.value = ctx?.taskName || '';
       processName.value = ctx?.processName || '';
+      taskActive.value = false;
+      procInsId.value = ctx?.processInstanceId || routeProcInsId.value || '';
       contextLoaded.value = true;
       return;
     }
@@ -173,11 +242,60 @@
     applyReadonly();
   };
 
+  const loadTrace = async () => {
+    traceData.value = [];
+    if (!procInsId.value) {
+      return;
+    }
+    try {
+      const res = await getProcessTrace({ procInstId: procInsId.value });
+      traceData.value = res || [];
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  const submitTask = async (action: 'APPROVE' | 'REJECT') => {
+    if (!taskId.value) {
+      return;
+    }
+    const payload = comment.value?.trim();
+    if (action === 'REJECT' && !payload) {
+      message.warning('请填写驳回意见');
+      return;
+    }
+    actionLoading.value = true;
+    try {
+      await completeTask({
+        taskId: taskId.value,
+        formKey: formKey.value,
+        recordId: recordId.value,
+        comment: payload,
+        variables: {
+          status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
+          action,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+      message.success(action === 'APPROVE' ? '已通过' : '已驳回');
+      comment.value = '';
+      router.push('/bpm/tasks');
+    } catch (err: any) {
+      message.error(err?.message || '提交失败');
+    } finally {
+      actionLoading.value = false;
+    }
+  };
+
+  const handleApprove = () => submitTask('APPROVE');
+  const handleReject = () => submitTask('REJECT');
+
   const loadAll = async () => {
     loading.value = true;
     try {
       await loadContext();
       await loadForm();
+      await loadTrace();
     } catch (err: any) {
       errorMessage.value = err?.message || '加载失败';
       message.error(errorMessage.value);
@@ -194,7 +312,7 @@
     router.push('/bpm/tasks');
   };
 
-  watch([taskId, procInsId], () => {
+  watch([taskId, routeProcInsId], () => {
     loadAll();
   });
 
@@ -222,6 +340,53 @@
     padding: 12px;
     border-radius: 6px;
     pointer-events: none;
+  }
+
+  .task-comment-box {
+    background: #fff;
+    padding: 12px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-comment-label {
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  .task-comment-actions {
+    margin-top: 4px;
+  }
+
+  .task-comments {
+    background: #fff;
+    padding: 12px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-comment-timeline {
+    margin-top: 6px;
+  }
+
+  .comment-title {
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.85);
+  }
+
+  .comment-user {
+    margin-left: 6px;
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  .comment-message {
+    margin-top: 4px;
+    color: rgba(0, 0, 0, 0.65);
+    font-style: italic;
   }
 
   .context-summary {

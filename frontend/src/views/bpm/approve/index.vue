@@ -169,6 +169,8 @@
       try {
           await completeTask({ 
               taskId: taskId.value, 
+              formKey: formKey.value,
+              recordId: recordId.value,
               comment: comment.value,
               variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() } 
           });
@@ -187,6 +189,8 @@
         });
         await completeTask({ 
              taskId: taskId.value, 
+             formKey: formKey.value,
+             recordId: recordId.value,
              comment: value,
              variables: { status: 'REJECTED', reason: value, updatedAt: new Date().toISOString() } 
         });

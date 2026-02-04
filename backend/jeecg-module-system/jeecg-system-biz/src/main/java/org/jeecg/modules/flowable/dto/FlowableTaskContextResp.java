@@ -31,6 +31,9 @@ public class FlowableTaskContextResp {
     @ApiModelProperty("schema version")
     private Integer schemaVersion;
 
+    @ApiModelProperty("task active")
+    private Boolean active;
+
     @ApiModelProperty("assignee")
     private String assignee;
 

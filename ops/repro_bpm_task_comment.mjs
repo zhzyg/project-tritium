@@ -11,10 +11,8 @@ const ROUTE_TIMEOUT = Number.isFinite(ROUTE_TIMEOUT_MS) ? ROUTE_TIMEOUT_MS : 900
 const RETRY_MAX = Number.parseInt(process.env.RETRY_MAX || '2', 10);
 const RETRY_BASE_DELAY_MS = Number.parseInt(process.env.RETRY_DELAY_MS || '2000', 10);
 const SHELL_SELECTOR = '.ant-layout, .ant-menu, .ant-layout-sider';
-const FORM_MARKER = '[data-testid="bpm-task-form-render"]';
-const LEGACY_FORM_MARKER = '.approve-page';
 
-const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-open-form');
+const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-task-comment');
 if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,14 +33,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const pageErrors = [];
   const failedRequests = [];
   let failureStage = 'init';
-  let failureReason = '';
   let lastScreenshotPath = path.join(ARTIFACTS_DIR, 'error.png');
 
   const waitForAppShell = async () => {
     await page.waitForSelector(SHELL_SELECTOR, { state: 'visible', timeout: ROUTE_TIMEOUT });
   };
 
-  const gotoWithRetries = async (url, label) => {
+  const gotoWithRetries = async (url) => {
     let lastError;
     for (let attempt = 0; attempt <= RETRY_MAX; attempt += 1) {
       try {
@@ -80,10 +77,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   try {
     if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
       failureStage = 'navigate-tasks';
-      await gotoWithRetries(`${BASE_URL}/bpm/tasks`, 'goto-tasks');
+      await gotoWithRetries(`${BASE_URL}/bpm/tasks`);
     } else {
       failureStage = 'navigate-login';
-      await gotoWithRetries(`${BASE_URL}/login`, 'goto-login');
+      await gotoWithRetries(`${BASE_URL}/login`);
       failureStage = 'login-submit';
       await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
       await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
@@ -97,7 +94,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
       await waitForAppShell();
       failureStage = 'navigate-tasks';
-      await gotoWithRetries(`${BASE_URL}/bpm/tasks`, 'goto-tasks');
+      await gotoWithRetries(`${BASE_URL}/bpm/tasks`);
     }
 
     await waitForAppShell();
@@ -111,7 +108,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const result = {
         success: true,
         skipped: true,
-        reason: 'NO TASK DATA: SKIP open-form',
+        reason: 'NO TASK DATA: SKIP task comment',
         url: page.url(),
         screenshot: emptyShot,
       };
@@ -130,44 +127,39 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await openButton.click();
 
     failureStage = 'wait-form-route';
-    const targetRoute = /\/bpm\/(task|instance)\/.+\/form|\/bpm\/approve/;
-    try {
-      await page.waitForURL(targetRoute, { timeout: ROUTE_TIMEOUT, waitUntil: 'domcontentloaded' });
-    } catch (err) {
-      const fallbackUrl = page.url();
-      if (!targetRoute.test(fallbackUrl)) {
-        throw err;
-      }
-    }
-    const currentUrl = page.url();
-    const notFoundMarker = page.locator('text=404, text=页面不存在, text=抱歉');
-    if (await notFoundMarker.first().isVisible().catch(() => false)) {
-      const notFoundShot = path.join(ARTIFACTS_DIR, 'not-found.png');
-      await page.screenshot({ path: notFoundShot, timeout: 5000 });
-      throw new Error('Open form landed on 404 page');
-    }
-    if (currentUrl.includes('/bpm/approve')) {
-      await page.waitForSelector(LEGACY_FORM_MARKER, { timeout: ROUTE_TIMEOUT });
-    } else {
-      await page.waitForSelector(FORM_MARKER, { timeout: ROUTE_TIMEOUT });
-    }
+    await page.waitForURL(/\/bpm\/task\/.+\/form/, { timeout: ROUTE_TIMEOUT, waitUntil: 'domcontentloaded' });
 
-    const successShot = path.join(ARTIFACTS_DIR, 'open-form.png');
-    try {
-      await page.screenshot({ path: successShot, timeout: 5000 });
-    } catch (e) {
-      // ignore screenshot failures
+    failureStage = 'fill-comment';
+    const commentInput = page.locator('[data-testid="bpm-task-comment"]').first();
+    await commentInput.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+    const commentText = `Auto approve ${new Date().toISOString()}`;
+    await commentInput.fill(commentText);
+
+    failureStage = 'approve-click';
+    const approveBtn = page.locator('[data-testid="bpm-task-approve"]').first();
+    if (!(await approveBtn.count())) {
+      throw new Error('Approve button not found');
     }
+    await approveBtn.click();
+
+    failureStage = 'wait-after-approve';
+    const successToast = page.locator('.ant-message-success, .ant-message-notice');
+    await Promise.race([
+      page.waitForURL(/\/bpm\/tasks/, { timeout: ROUTE_TIMEOUT }),
+      successToast.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT }),
+    ]);
+
+    const successShot = path.join(ARTIFACTS_DIR, 'task-comment.png');
+    await page.screenshot({ path: successShot, timeout: 5000 });
     const resultPayload = {
       success: true,
       skipped: false,
       url: page.url(),
-      routeType: currentUrl.includes('/bpm/approve') ? 'legacy-approve' : 'task-form',
       screenshot: successShot,
     };
     fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(resultPayload, null, 2));
   } catch (e) {
-    failureReason = e?.message || 'unknown error';
+    const failureReason = e?.message || 'unknown error';
     console.error(`FAILURE: ${failureReason}`);
     try {
       await page.screenshot({ path: lastScreenshotPath, timeout: 5000 });

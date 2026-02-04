@@ -254,3 +254,10 @@
   - **Ops**: added `ops/repro_bpm_open_form.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-bpm-open-form`).
   - **Routing**: task/instance form routes are registered in `basicRoutes` to avoid BACK-mode menu 404.
   - **Ops**: `ops/repro_form_runtime_list.mjs` tolerates missing column settings modal (logs skip) to reduce false negatives.
+
+- [2026-02-04] MVP-8B v0: Task comment + approval record display.
+  - **Backend**: `completeTask` writes Flowable comment and appends a lightweight audit row into `tr_form_audit` (best-effort, failures don’t block completion).
+  - **Backend**: added DB patch `20260204_add_form_audit.sql` for the audit table.
+  - **Frontend**: `/bpm/task/:taskId/form` adds comment input + “通过/驳回” actions (sends formKey/recordId/status/action).
+  - **Frontend**: `/bpm/instance/:procInsId/form` renders approval record list from `/bpm/process/trace`, with empty-state handling.
+  - **Ops**: added `ops/repro_bpm_task_comment.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-bpm-task-comment`).

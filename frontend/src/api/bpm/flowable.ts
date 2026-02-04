@@ -133,6 +133,9 @@ export interface TaskClaimReq {
 
 export interface TaskCompleteReq {
   taskId: string;
+  formKey?: string;
+  recordId?: string;
+  patchData?: Record<string, any>;
   variables?: Record<string, any>;
   comment?: string;
 }
@@ -157,6 +160,7 @@ export interface TaskContextResp {
   recordId?: string;
   formKey?: string;
   schemaVersion?: number;
+  active?: boolean;
   taskName?: string;
   processName?: string;
   assignee?: string;
