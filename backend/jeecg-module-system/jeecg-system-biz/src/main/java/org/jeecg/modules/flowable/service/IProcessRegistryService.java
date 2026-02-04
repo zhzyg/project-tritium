@@ -17,4 +17,6 @@ public interface IProcessRegistryService {
     String resolveDefaultProcessKey(String formKey);
 
     FlowableProcFormBindResp getDefaultBindByProcessKey(String processKey);
+
+    String getStartPermCodeByProcessKey(String processKey);
 }

@@ -14,6 +14,7 @@ const SHELL_SELECTOR = '.ant-layout, .ant-menu, .ant-layout-sider';
 const BIND_OK_SELECTOR = '[data-testid="bpm-start-bind-ok"]';
 const BIND_MISSING_SELECTOR = '[data-testid="bpm-start-bind-missing"]';
 const MANUAL_TOGGLE_SELECTOR = '[data-testid="bpm-start-manual-toggle"]';
+const PROC_NO_PERMISSION_SELECTOR = '[data-testid="bpm-start-proc-no-permission"]';
 
 const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-start');
 if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -41,6 +42,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let bindingStatus = 'unknown';
   let boundProcFound = false;
   let unboundProcFound = false;
+  let lockedProcFound = false;
 
   const waitForAppShell = async () => {
     await page.waitForSelector(SHELL_SELECTOR, { state: 'visible', timeout: ROUTE_TIMEOUT });
@@ -158,20 +160,47 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       if (procCount < 1) {
         throw new Error('No process definitions available');
       }
+      const optionTexts = [];
+      for (let i = 0; i < procCount; i += 1) {
+        optionTexts.push((await procOptions.nth(i).innerText()) || '');
+      }
+      const lockedIndices = [];
+      const startableIndices = [];
+      optionTexts.forEach((text, index) => {
+        if (text.includes('无权限')) lockedIndices.push(index);
+        else startableIndices.push(index);
+      });
       await page.keyboard.press('Escape').catch(() => {});
+
+      if (lockedIndices.length > 0) {
+        lockedProcFound = true;
+        await selectProcessByIndex(procSelect, lockedIndices[0]);
+        await page.waitForSelector(PROC_NO_PERMISSION_SELECTOR, { timeout: 8000 });
+        const lockedSubmitBtn = page.locator('[data-testid="bpm-start-submit"]').first();
+        if (!(await lockedSubmitBtn.isDisabled())) {
+          throw new Error('Locked process submit button should be disabled');
+        }
+      } else {
+        console.log('NO LOCKED PROC FOUND: skip locked check');
+      }
+
+      if (startableIndices.length < 1) {
+        throw new Error('No startable process available');
+      }
 
       let boundIndex = null;
       let missingIndex = null;
-      const maxCheck = Math.min(procCount, 5);
+      const maxCheck = Math.min(startableIndices.length, 5);
       for (let i = 0; i < maxCheck; i += 1) {
-        await selectProcessByIndex(procSelect, i);
+        const index = startableIndices[i];
+        await selectProcessByIndex(procSelect, index);
         const status = await waitForBindingStatus();
-        if (status === 'bound' && boundIndex === null) boundIndex = i;
-        if (status === 'missing' && missingIndex === null) missingIndex = i;
+        if (status === 'bound' && boundIndex === null) boundIndex = index;
+        if (status === 'missing' && missingIndex === null) missingIndex = index;
         if (boundIndex !== null && missingIndex !== null) break;
       }
 
-      const targetIndex = boundIndex ?? missingIndex ?? 0;
+      const targetIndex = boundIndex ?? missingIndex ?? startableIndices[0];
       if (targetIndex !== null) {
         await selectProcessByIndex(procSelect, targetIndex);
       }
@@ -269,6 +298,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       bindingStatus,
       boundProcFound,
       unboundProcFound,
+      lockedProcFound,
     };
     fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(successPayload, null, 2));
   } catch (e) {

@@ -25,6 +25,9 @@ export interface ProcessDefItem {
   category?: string;
   enabled?: number;
   isDefault?: number;
+  startPermCode?: string;
+  canStart?: boolean;
+  missingPerm?: string;
 }
 
 export interface ProcessDefRegisterReq {

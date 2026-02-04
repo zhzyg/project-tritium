@@ -21,4 +21,13 @@ public class FlowableProcessDefResp {
 
     @ApiModelProperty("is default")
     private Integer isDefault;
+
+    @ApiModelProperty("start permission code")
+    private String startPermCode;
+
+    @ApiModelProperty("can start")
+    private Boolean canStart;
+
+    @ApiModelProperty("missing permission code")
+    private String missingPerm;
 }

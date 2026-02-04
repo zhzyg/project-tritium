@@ -2,6 +2,8 @@ package org.jeecg.modules.flowable.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.subject.Subject;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableFormBindReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefRegReq;
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,15 +36,43 @@ public class ProcessRegistryServiceImpl implements IProcessRegistryService {
     @Override
     public List<FlowableProcessDefResp> listDefs() {
         List<FlowableProcessDefResp> list = new ArrayList<>();
+        Map<String, String> startPermMap = new LinkedHashMap<>();
+        List<Map<String, Object>> permRows = jdbcTemplate.queryForList(
+            "select process_definition_key, start_perm_code from tr_form_proc_bind "
+                + "where enabled=1 and start_perm_code is not null and start_perm_code<>''");
+        for (Map<String, Object> row : permRows) {
+            String key = getString(row, "process_definition_key");
+            String code = getString(row, "start_perm_code");
+            if (oConvertUtils.isNotEmpty(key) && oConvertUtils.isNotEmpty(code) && !startPermMap.containsKey(key)) {
+                startPermMap.put(key, code);
+            }
+        }
+        Subject subject = SecurityUtils.getSubject();
+        boolean hasGlobalStart = subject != null && subject.isPermitted("bpm:start");
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             "select process_definition_key, name, category, enabled, is_default from tr_proc_def_registry order by created_time desc");
         for (Map<String, Object> row : rows) {
             FlowableProcessDefResp resp = new FlowableProcessDefResp();
-            resp.setProcessKey(getString(row, "process_definition_key"));
+            String processKey = getString(row, "process_definition_key");
+            resp.setProcessKey(processKey);
             resp.setName(getString(row, "name"));
             resp.setCategory(getString(row, "category"));
             resp.setEnabled(getInt(row, "enabled"));
             resp.setIsDefault(getInt(row, "is_default"));
+            String startPermCode = startPermMap.get(processKey);
+            resp.setStartPermCode(startPermCode);
+            boolean canStart = hasGlobalStart;
+            String missingPerm = null;
+            if (!hasGlobalStart) {
+                missingPerm = "bpm:start";
+            } else if (oConvertUtils.isNotEmpty(startPermCode)) {
+                if (subject == null || !subject.isPermitted(startPermCode)) {
+                    canStart = false;
+                    missingPerm = startPermCode;
+                }
+            }
+            resp.setCanStart(canStart);
+            resp.setMissingPerm(missingPerm);
             list.add(resp);
         }
         return list;
@@ -146,6 +177,22 @@ public class ProcessRegistryServiceImpl implements IProcessRegistryService {
         resp.setFormKey(getString(row, "form_key"));
         resp.setEnabled(getInt(row, "enabled"));
         return resp;
+    }
+
+    @Override
+    public String getStartPermCodeByProcessKey(String processKey) {
+        if (oConvertUtils.isEmpty(processKey)) {
+            return null;
+        }
+        List<String> list = jdbcTemplate.queryForList(
+            "select start_perm_code from tr_form_proc_bind where process_definition_key=? and enabled=1 "
+                + "and start_perm_code is not null and start_perm_code<>'' limit 1",
+            new Object[]{processKey},
+            String.class);
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        return list.get(0);
     }
 
     private String getString(Map<String, Object> row, String key) {

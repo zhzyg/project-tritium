@@ -50,12 +50,21 @@
         />
 
         <a-alert
-          v-if="!canStart"
+          v-if="!canStartGlobal"
           class="mb-4"
           type="warning"
           show-icon
           data-testid="bpm-start-no-permission"
           message="当前账号没有发起权限，请联系管理员授权。"
+        />
+
+        <a-alert
+          v-else-if="!processCanStart"
+          class="mb-4"
+          type="warning"
+          show-icon
+          data-testid="bpm-start-proc-no-permission"
+          :message="processMissingPerm ? `无权发起该流程，缺少权限码：${processMissingPerm}` : '无权发起该流程'"
         />
 
         <a-alert
@@ -74,7 +83,7 @@
         <a-button
           type="primary"
           :loading="submitting"
-          :disabled="!schemaReady || !processKey || !canStart"
+          :disabled="!schemaReady || !processKey || !canStartGlobal || !processCanStart"
           data-testid="bpm-start-submit"
           @click="handleSubmit"
         >
@@ -123,10 +132,14 @@
   const processOptions = computed(() =>
     processDefs.value
       .filter((item) => item?.enabled !== 0)
-      .map((item) => ({
-        label: item?.name ? `${item.name} (${item.processKey})` : item.processKey,
-        value: item.processKey,
-      }))
+      .map((item) => {
+        const baseLabel = item?.name ? `${item.name} (${item.processKey})` : item.processKey;
+        const canStart = item?.canStart !== false;
+        return {
+          label: canStart ? baseLabel : `${baseLabel} [无权限]`,
+          value: item.processKey,
+        };
+      })
   );
 
   const formOptions = computed(() =>
@@ -136,7 +149,13 @@
     }))
   );
 
-  const canStart = computed(() => hasPermission(START_PERMISSION));
+  const canStartGlobal = computed(() => hasPermission(START_PERMISSION));
+
+  const selectedProcess = computed(() =>
+    processDefs.value.find((item) => item?.processKey === processKey.value)
+  );
+  const processCanStart = computed(() => selectedProcess.value?.canStart !== false);
+  const processMissingPerm = computed(() => selectedProcess.value?.missingPerm || '');
 
   const boundFormLabel = computed(() =>
     boundFormName.value ? `${boundFormName.value} (${boundFormKey.value})` : boundFormKey.value
@@ -156,7 +175,8 @@
     try {
       processDefs.value = (await listProcessDefs()) || [];
       if (!processKey.value && processOptions.value.length) {
-        processKey.value = processOptions.value[0].value;
+        const preferred = processDefs.value.find((item) => item?.enabled !== 0 && item?.canStart !== false);
+        processKey.value = preferred ? preferred.processKey : processOptions.value[0].value;
       }
     } catch (err: any) {
       message.error(err?.message || '流程定义加载失败');
@@ -243,8 +263,12 @@
   };
 
   const handleSubmit = async () => {
-    if (!canStart.value) {
+    if (!canStartGlobal.value) {
       message.warning('无发起权限');
+      return;
+    }
+    if (!processCanStart.value) {
+      message.warning(processMissingPerm.value ? `缺少权限：${processMissingPerm.value}` : '无权发起该流程');
       return;
     }
     if (!processKey.value || !formKey.value) {

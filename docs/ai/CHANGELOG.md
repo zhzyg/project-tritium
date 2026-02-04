@@ -238,3 +238,11 @@
   - **Frontend**: `/bpm/start` shows no-permission alert and disables submit when lacking `bpm:start`.
   - **Ops**: `ops/repro_bpm_start.mjs` asserts start button is present and enabled for admin.
   - **Verification**: `ops/oa_verify.sh` evidence in `.artifacts/repro-bpm-start`.
+
+- [2026-02-04] MVP-7D v0: Per-process start permission (canStart).
+  - **Storage**: `tr_form_proc_bind.start_perm_code` added for per-procDefKey start permission.
+  - **Backend**: `/bpm/defs/list` returns `canStart` + `missingPerm` + `startPermCode`; start endpoints enforce per-process permission.
+  - **SQL**: patch adds `bpm:start:TRITIUM_APPROVAL_V1` permission and admin grant.
+  - **Frontend**: `/bpm/start` marks locked流程,提示缺少权限并禁用提交。
+  - **Ops**: `ops/repro_bpm_start.mjs` checks locked流程提示与可发起流程闭环。
+  - **Verification**: `ops/oa_verify.sh` evidence in `.artifacts/repro-bpm-start`.

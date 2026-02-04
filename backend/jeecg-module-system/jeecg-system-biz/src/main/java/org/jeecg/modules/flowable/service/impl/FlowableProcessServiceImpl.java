@@ -3,6 +3,9 @@ package org.jeecg.modules.flowable.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.SecurityUtils;
+import org.apache.shiro.authz.UnauthorizedException;
+import org.apache.shiro.subject.Subject;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
@@ -116,6 +119,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         if (req == null || oConvertUtils.isEmpty(req.getProcessKey())) {
             throw new IllegalArgumentException("processKey is required");
         }
+        checkStartPermission(req.getProcessKey());
         String assignee = resolveAssignee(req.getAssignee(), username);
         String initiator = oConvertUtils.isNotEmpty(username) ? username : assignee;
         Map<String, Object> variables = new HashMap<>();
@@ -189,6 +193,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         if (oConvertUtils.isEmpty(processKey)) {
             throw new IllegalStateException("no default process binding");
         }
+        checkStartPermission(processKey);
         FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(req.getFormKey());
         if (published == null) {
             throw new IllegalStateException("published schema not found");
@@ -223,6 +228,17 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         resp.setProcessKey(processKey);
         resp.setBusinessKey(instance.getBusinessKey());
         return resp;
+    }
+
+    private void checkStartPermission(String processKey) {
+        String startPermCode = processRegistryService.getStartPermCodeByProcessKey(processKey);
+        if (oConvertUtils.isEmpty(startPermCode)) {
+            return;
+        }
+        Subject subject = SecurityUtils.getSubject();
+        if (subject == null || !subject.isPermitted(startPermCode)) {
+            throw new UnauthorizedException("no permission: " + startPermCode);
+        }
     }
 
     @Override
