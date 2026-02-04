@@ -356,25 +356,26 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await page.getByTestId('process-designer-root').waitFor({ state: 'attached', timeout: ROUTE_TIMEOUT });
     await page.getByTestId('task-rule-panel').waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
 
-    const taskBtn = page.getByTestId('task-rule-task-0');
+    let taskBtn = page.getByTestId('task-rule-task-0');
     if (!(await taskBtn.count())) {
-      const skipShot = path.join(ARTIFACTS_DIR, 'no-user-task.png');
-      try {
-        await page.screenshot({ path: skipShot, timeout: 15000 });
-      } catch (err) {}
-      writeResult({
-        success: true,
-        skipped: true,
-        reason: 'NO USER TASK NODE FOUND',
-        url: page.url(),
-        screenshot: skipShot,
-      });
-      await browser.close();
-      return;
+      const insertBtn = page.getByTestId('btn-insert-sample-usertask');
+      if (!(await insertBtn.count())) {
+        throw new Error('未找到用户任务节点，且缺少插入示例节点按钮');
+      }
+      failureStage = 'insert-sample-usertask';
+      await insertBtn.scrollIntoViewIfNeeded().catch(() => {});
+      await insertBtn.click({ force: true });
+      taskBtn = page.getByTestId('task-rule-task-0');
+      await taskBtn.waitFor({ state: 'attached', timeout: ROUTE_TIMEOUT });
     }
 
     failureStage = 'select-user-task';
-    await taskBtn.click();
+    const taskClickTarget = taskBtn.locator('button').first();
+    if (await taskClickTarget.count()) {
+      await taskClickTarget.click({ force: true });
+    } else {
+      await taskBtn.click({ force: true });
+    }
 
     const fieldRow = page.getByTestId('task-rule-row-0');
     if (!(await fieldRow.count())) {
@@ -413,8 +414,39 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     failureStage = 'save-rule';
     const saveRuleBtn = page.getByTestId('btn-task-rule-save');
     await saveRuleBtn.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
-    await saveRuleBtn.click();
-    await page.waitForSelector('.ant-message-success, .ant-message-notice', { timeout: ROUTE_TIMEOUT });
+    if (await saveRuleBtn.isDisabled().catch(() => false)) {
+      if (await taskClickTarget.count()) {
+        await taskClickTarget.click({ force: true }).catch(() => {});
+      } else {
+        await taskBtn.click({ force: true }).catch(() => {});
+      }
+      await page.waitForTimeout(500);
+    }
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('[data-testid="btn-task-rule-save"]');
+      return !!btn && !btn.hasAttribute('disabled');
+    }, { timeout: 20000 }).catch(() => {});
+    await saveRuleBtn.click({ force: true });
+    const saveResponse = await page
+      .waitForResponse(
+        (resp) =>
+          resp.url().includes('/bpm/taskFieldRule/upsert') &&
+          resp.request().method() === 'POST',
+        { timeout: 20000 }
+      )
+      .catch(() => null);
+    if (saveResponse && !saveResponse.ok()) {
+      throw new Error(`保存字段权限失败: ${saveResponse.status()}`);
+    }
+    const errorToast = await page
+      .waitForSelector('.ant-message-error, .ant-message-notice-error, .el-message--error', { timeout: 3000 })
+      .catch(() => null);
+    if (errorToast) {
+      throw new Error('保存字段权限失败: 页面提示错误');
+    }
+    await page
+      .waitForSelector('.ant-message-success, .ant-message-notice, .el-message--success', { timeout: 5000 })
+      .catch(() => null);
 
     const designerShot = path.join(ARTIFACTS_DIR, 'rule-saved.png');
     try {

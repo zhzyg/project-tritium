@@ -95,14 +95,14 @@ const levelRoute = {
       path: 'menu1',
       name: 'Menu1Demo',
       meta: {
-        title: 'Menu1',
+        title: '菜单一',
       },
       children: [
         {
           path: 'menu1-1',
           name: 'Menu11Demo',
           meta: {
-            title: 'Menu1-1',
+            title: '菜单一-1',
           },
           children: [
             {
@@ -110,7 +110,7 @@ const levelRoute = {
               name: 'Menu111Demo',
               component: '/demo/level/Menu111',
               meta: {
-                title: 'Menu111',
+                title: '菜单一-1-1',
               },
             },
           ],
@@ -120,7 +120,7 @@ const levelRoute = {
           name: 'Menu12Demo',
           component: '/demo/level/Menu12',
           meta: {
-            title: 'Menu1-2',
+            title: '菜单一-2',
           },
         },
       ],
@@ -130,7 +130,7 @@ const levelRoute = {
       name: 'Menu2Demo',
       component: '/demo/level/Menu2',
       meta: {
-        title: 'Menu2',
+        title: '菜单二',
       },
     },
   ],

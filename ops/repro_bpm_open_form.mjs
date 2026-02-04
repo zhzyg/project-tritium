@@ -104,10 +104,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await page.waitForSelector('.ant-table, .ant-table-wrapper', { timeout: ROUTE_TIMEOUT });
 
     const rows = page.locator('.ant-table-tbody tr');
+    const dataRows = page.locator('.ant-table-tbody tr.ant-table-row');
     const rowCount = await rows.count();
-    if (rowCount < 1) {
+    const dataRowCount = await dataRows.count();
+    const emptyPlaceholder = page.locator('.ant-table-placeholder, .ant-empty, text=暂无数据, text=无数据');
+    if (rowCount < 1 || dataRowCount < 1 || (await emptyPlaceholder.first().isVisible().catch(() => false))) {
       const emptyShot = path.join(ARTIFACTS_DIR, 'no-data.png');
-      await page.screenshot({ path: emptyShot, timeout: 5000 });
+      try {
+        await page.screenshot({ path: emptyShot, timeout: 15000 });
+      } catch (err) {}
       const result = {
         success: true,
         skipped: true,

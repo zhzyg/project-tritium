@@ -36,8 +36,8 @@
       <a-descriptions v-if="contextLoaded" bordered size="small" class="mb-4">
         <a-descriptions-item label="流程">{{ processName || '-' }}</a-descriptions-item>
         <a-descriptions-item label="任务">{{ taskName || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="Task ID">{{ taskId || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="实例">{{ procInsId || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="任务ID">{{ taskId || '-' }}</a-descriptions-item>
+        <a-descriptions-item label="实例ID">{{ procInsId || '-' }}</a-descriptions-item>
         <a-descriptions-item label="业务键">{{ businessKey || '-' }}</a-descriptions-item>
         <a-descriptions-item label="记录ID">{{ recordId || '-' }}</a-descriptions-item>
         <a-descriptions-item label="表单">{{ formKey || '-' }}</a-descriptions-item>

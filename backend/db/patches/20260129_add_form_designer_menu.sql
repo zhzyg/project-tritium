@@ -32,7 +32,7 @@ INSERT INTO sys_permission (
 ) VALUES (
   '6312b6f5fd1011f0a332d6fe3cabb6d4',
   '1455100420297859074',
-  'Form Designer',
+  '表单设计器',
   '/form/designer',
   'form/designer/index',
   1,

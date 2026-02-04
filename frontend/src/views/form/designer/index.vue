@@ -1,20 +1,20 @@
 <template>
-  <PageWrapper title="表单设计器（VForm）" contentFullHeight>
+  <PageWrapper title="表单设计器" contentFullHeight>
     <a-tabs v-model:activeKey="activeTab">
       <a-tab-pane key="form" tab="表单设计">
         <div class="vform-designer-page">
           <div class="vform-designer-toolbar">
             <a-space>
-              <a-button type="primary" @click="handleSave">Save</a-button>
-              <a-button @click="handlePublish">Publish</a-button>
-              <a-button @click="handleLoad">Load</a-button>
-              <a-button danger @click="handleReset">Reset</a-button>
+              <a-button type="primary" @click="handleSave">保存</a-button>
+              <a-button @click="handlePublish">发布</a-button>
+              <a-button @click="handleLoad">加载</a-button>
+              <a-button danger @click="handleReset">重置</a-button>
             </a-space>
             <a-space class="vform-designer-meta" size="large">
-              <span>formKey: {{ formKey }}</span>
-              <span>version: {{ latestVersion ?? '-' }}</span>
-              <span>table: {{ lastPublishTable || '-' }}</span>
-              <span>last saved: {{ lastSavedTime || '-' }}</span>
+              <span>表单Key: {{ formKey }}</span>
+              <span>版本: {{ latestVersion ?? '-' }}</span>
+              <span>数据表: {{ lastPublishTable || '-' }}</span>
+              <span>最近保存: {{ lastSavedTime || '-' }}</span>
             </a-space>
           </div>
           <div class="vform-designer-body">
@@ -77,7 +77,7 @@
     const api = getDesignerApi();
     const schema = extractSchema(api);
     if (!schema) {
-      message.error('Designer API not ready');
+      message.error('设计器未就绪');
       return;
     }
     const schemaJson = JSON.stringify(schema);
@@ -86,56 +86,56 @@
       latestVersion.value = res?.version ?? latestVersion.value;
       lastSavedTime.value = res?.savedTime ?? lastSavedTime.value;
       localStorage.setItem(storageKey.value, schemaJson);
-      message.success('Schema saved');
+      message.success('表单已保存');
     } catch (err) {
       localStorage.setItem(storageKey.value, schemaJson);
-      message.warning('Backend save failed, saved locally');
+      message.warning('后端保存失败，已保存到本地');
     }
   };
 
   const loadFromLocal = (silent = false) => {
     const raw = localStorage.getItem(storageKey.value);
     if (!raw) {
-      if (!silent) message.warning('No schema saved');
+      if (!silent) message.warning('本地暂无表单数据');
       return;
     }
     let parsed: Record<string, any> | null = null;
     try {
       parsed = JSON.parse(raw);
     } catch (err) {
-      if (!silent) message.error('Schema JSON invalid');
+      if (!silent) message.error('表单数据格式异常');
       return;
     }
     const api = getDesignerApi();
     if (!applySchema(api, parsed)) {
-      if (!silent) message.error('Designer API not ready');
+      if (!silent) message.error('设计器未就绪');
       return;
     }
-    if (!silent) message.success('Schema loaded');
+    if (!silent) message.success('表单已加载');
   };
 
   const loadFromBackend = async (silent = false) => {
     const res = await getLatestSchema({ formKey: formKey.value });
     if (!res?.schemaJson) {
-      if (!silent) message.warning('No schema returned');
+      if (!silent) message.warning('未获取到表单数据');
       return;
     }
     let parsed: Record<string, any> | null = null;
     try {
       parsed = JSON.parse(res.schemaJson);
     } catch (err) {
-      if (!silent) message.error('Schema JSON invalid');
+      if (!silent) message.error('表单数据格式异常');
       return;
     }
     const api = getDesignerApi();
     if (!applySchema(api, parsed)) {
-      if (!silent) message.error('Designer API not ready');
+      if (!silent) message.error('设计器未就绪');
       return;
     }
     latestVersion.value = res?.version ?? latestVersion.value;
     lastSavedTime.value = res?.savedTime ?? lastSavedTime.value;
     localStorage.setItem(storageKey.value, res.schemaJson);
-    if (!silent) message.success('Schema loaded');
+    if (!silent) message.success('表单已加载');
   };
 
   const handleLoad = async (silent = false) => {
@@ -143,7 +143,7 @@
       await loadFromBackend(silent);
       return;
     } catch (err) {
-      if (!silent) message.warning('Backend load failed, using local storage');
+      if (!silent) message.warning('后端加载失败，改用本地数据');
     }
     loadFromLocal(silent);
   };
@@ -154,9 +154,9 @@
       latestVersion.value = resp?.version ?? latestVersion.value;
       lastPublishTable.value = resp?.tableName ?? lastPublishTable.value;
       const ddlCount = resp?.ddlApplied?.length ?? 0;
-      message.success(`Published to ${resp?.tableName || 'table'} (ddl: ${ddlCount})`);
+      message.success(`发布成功：${resp?.tableName || '数据表'}（DDL: ${ddlCount}）`);
     } catch (err) {
-      message.error('Publish failed');
+      message.error('发布失败');
     }
   };
 
@@ -166,7 +166,7 @@
     if (api?.setFormJson) {
       api.setFormJson({ widgetList: [], formConfig: {} });
     }
-    message.success('Schema reset');
+    message.success('表单已重置');
   };
 
   const resetMeta = () => {

@@ -3,26 +3,26 @@
     <div class="approve-page">
      <div class="task-header">
        <a-descriptions bordered>
-         <a-descriptions-item label="Task Name">{{ taskName }}</a-descriptions-item>
-         <a-descriptions-item label="Task ID">{{ taskId }}</a-descriptions-item>
-         <a-descriptions-item label="Create Time">{{ createTime }}</a-descriptions-item>
-         <a-descriptions-item label="Assignee">
-           <a-tag :color="assignee ? 'green' : 'orange'">{{ assignee || 'Unclaimed' }}</a-tag>
+         <a-descriptions-item label="任务名称">{{ taskName }}</a-descriptions-item>
+         <a-descriptions-item label="任务ID">{{ taskId }}</a-descriptions-item>
+         <a-descriptions-item label="创建时间">{{ createTime }}</a-descriptions-item>
+         <a-descriptions-item label="处理人">
+           <a-tag :color="assignee ? 'green' : 'orange'">{{ assignee || '未认领' }}</a-tag>
          </a-descriptions-item>
-         <a-descriptions-item label="Candidate Groups" :span="2">
+         <a-descriptions-item label="候选组" :span="2">
            <a-tag v-for="group in candidateGroups" :key="group" color="blue">{{ group }}</a-tag>
          </a-descriptions-item>
        </a-descriptions>
      </div>
       <div class="toolbar">
         <a-space>
-          <a-button type="primary" @click="handleApprove" :disabled="!assignee">Approve</a-button>
-          <a-button type="danger" @click="handleReject" :disabled="!assignee">Reject</a-button>
-          <a-button type="primary" v-if="!assignee" @click="handleClaim">Claim</a-button>
+          <a-button type="primary" @click="handleApprove" :disabled="!assignee">通过</a-button>
+          <a-button type="danger" @click="handleReject" :disabled="!assignee">驳回</a-button>
+          <a-button type="primary" v-if="!assignee" @click="handleClaim">认领</a-button>
            <a-tooltip title="MVP-5B">
-             <a-button disabled>Assign/Transfer</a-button>
+             <a-button disabled>转派/委派</a-button>
            </a-tooltip>
-          <a-button @click="goBack">Back</a-button>
+          <a-button @click="goBack">返回</a-button>
         </a-space>
       </div>
       
@@ -42,20 +42,20 @@
        </div>
 
       <div class="trace-container" v-if="traceData.length" style="padding: 16px; background: #fff; margin-top: 16px;">
-        <h3>Process Trace</h3>
+        <h3>流程轨迹</h3>
         <a-timeline style="margin-top: 16px;">
           <a-timeline-item v-for="(item, index) in traceData" :key="index" :color="item.type === 'END' ? 'green' : 'blue'">
             <p>{{ item.time }} - {{ item.taskName || item.type }}</p>
-            <p v-if="item.assignee" style="color: #999; font-size: 12px;">Assignee: {{ item.assignee }}</p>
+            <p v-if="item.assignee" style="color: #999; font-size: 12px;">处理人：{{ item.assignee }}</p>
             <p v-if="item.comment" style="color: #666; font-style: italic; margin-top: 4px;">{{ item.comment }}</p>
           </a-timeline-item>
         </a-timeline>
       </div>
 
-      <el-dialog v-model="varsVisible" title="Process Variables" width="50%">
+      <el-dialog v-model="varsVisible" title="流程变量" width="50%">
         <pre>{{ JSON.stringify(varsData, null, 2) }}</pre>
         <template #footer>
-           <a-button type="primary" @click="goBack">Back to Tasks</a-button>
+           <a-button type="primary" @click="goBack">返回待办</a-button>
         </template>
       </el-dialog>
     </div>
@@ -89,7 +89,7 @@
     if (processName.value && taskName.value) {
       return `${processName.value} - ${taskName.value}`;
     }
-    return 'Task Approval';
+    return '任务审批';
   });
   
   const renderRef = ref<any>(null);
@@ -106,14 +106,14 @@
   const loadTask = async () => {
       taskId.value = route.query.taskId as string;
       if (!taskId.value) {
-          ElMessage.error('Task ID missing');
+          ElMessage.error('缺少任务ID');
           return;
       }
       
       try {
           const ctx = await getTaskContext({ taskId: taskId.value });
           if (!ctx || !ctx.recordId) {
-             ElMessage.error('Context not found');
+             ElMessage.error('任务上下文不存在');
              return;
           }
           recordId.value = ctx.recordId;
@@ -151,18 +151,18 @@
 
       } catch (e: any) {
           console.error(e);
-          ElMessage.error(e.message || 'Load failed');
+          ElMessage.error(e.message || '加载失败');
       }
   };
 
   const handleClaim = async () => {
    try {
      await claimTask({ taskId: taskId.value });
-     ElMessage.success('Claimed successfully');
+     ElMessage.success('认领成功');
      loadTask();
    } catch (error) {
      console.error(error);
-     ElMessage.error('Claim failed');
+     ElMessage.error('认领失败');
    }
  };
   const handleApprove = async () => {
@@ -174,18 +174,18 @@
               comment: comment.value,
               variables: { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() } 
           });
-          ElMessage.success('Approved');
+          ElMessage.success('已通过');
           showVars();
           loadTrace();
           loadComments();
-      } catch(e) { console.error(e); ElMessage.error('Failed'); }
+      } catch(e) { console.error(e); ElMessage.error('操作失败'); }
   };
   
   const handleReject = async () => {
       try {
-        const { value } = await ElMessageBox.prompt('Reason', 'Reject', {
+        const { value } = await ElMessageBox.prompt('驳回原因', '驳回', {
              inputPattern: /\S+/,
-             inputErrorMessage: 'Required'
+             inputErrorMessage: '必填'
         });
         await completeTask({ 
              taskId: taskId.value, 
@@ -194,11 +194,11 @@
              comment: value,
              variables: { status: 'REJECTED', reason: value, updatedAt: new Date().toISOString() } 
         });
-        ElMessage.success('Rejected');
+        ElMessage.success('已驳回');
         showVars();
         loadTrace();
         loadComments();
-      } catch(e: any) { if(e !== 'cancel') ElMessage.error('Failed'); }
+      } catch(e: any) { if(e !== 'cancel') ElMessage.error('操作失败'); }
   };
   
   const loadTrace = async () => {

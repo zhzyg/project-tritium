@@ -95,9 +95,9 @@ const fieldMetas = ref<any[]>([]);
 const columnSettingsVisible = ref(false);
 const selectedSystemCols = ref<string[]>([]);
 const systemColumnOptions = [
-  { label: 'record_id', value: 'recordId' },
-  { label: 'created_by', value: 'createdBy' },
-  { label: 'created_time', value: 'createdTime' },
+  { label: '记录ID', value: 'recordId' },
+  { label: '创建人', value: 'createdBy' },
+  { label: '创建时间', value: 'createdTime' },
 ];
 const columnSettings = ref({
   recordId: true,
@@ -105,7 +105,7 @@ const columnSettings = ref({
   createdTime: true,
 });
 const columns = ref<any[]>([
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 200 },
+  { title: '记录ID', dataIndex: 'id', key: 'id', width: 200 },
   { title: '创建人', dataIndex: 'createdBy', key: 'createdBy' },
   { title: '创建时间', dataIndex: 'createdTime', key: 'createdTime' },
 ]);
@@ -169,13 +169,13 @@ const buildColumns = () => {
   }));
   const systemCols = [];
   if (columnSettings.value.recordId) {
-    systemCols.push({ title: 'record_id', dataIndex: 'recordId', key: 'recordId', width: 200 });
+    systemCols.push({ title: '记录ID', dataIndex: 'recordId', key: 'recordId', width: 200 });
   }
   if (columnSettings.value.createdBy) {
-    systemCols.push({ title: 'created_by', dataIndex: 'createdBy', key: 'createdBy', width: 140 });
+    systemCols.push({ title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 140 });
   }
   if (columnSettings.value.createdTime) {
-    systemCols.push({ title: 'created_time', dataIndex: 'createdTime', key: 'createdTime', width: 180 });
+    systemCols.push({ title: '创建时间', dataIndex: 'createdTime', key: 'createdTime', width: 180 });
   }
   columns.value = [
     ...dynamicCols,

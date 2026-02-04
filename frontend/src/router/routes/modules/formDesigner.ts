@@ -10,7 +10,7 @@ const formDesigner: AppRouteModule = {
   meta: {
     orderNo: 9000,
     icon: 'mdi:form-select',
-    title: '表单设计器（VForm）',
+    title: '表单设计器',
   },
   children: [
     {
@@ -18,7 +18,7 @@ const formDesigner: AppRouteModule = {
       name: 'FormDesigner',
       component: () => import('/@/views/form/designer/index.vue'),
       meta: {
-        title: '表单设计器（VForm）',
+        title: '表单设计器',
       },
     },
     {
@@ -26,7 +26,7 @@ const formDesigner: AppRouteModule = {
       name: 'FormRuntime',
       component: () => import('/@/views/form/runtime/index.vue'),
       meta: {
-        title: '表单运行态（VForm）',
+        title: '表单运行态',
       },
     },
   ],

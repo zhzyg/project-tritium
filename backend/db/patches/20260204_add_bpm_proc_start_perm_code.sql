@@ -19,7 +19,7 @@ INSERT INTO sys_permission (id, parent_id, name, url, component, component_name,
 VALUES (
     '9f1b2c3d4e5f60718293a4b5c6d7e911', -- id
     '9f1b2c3d4e5f60718293a4b5c6d7e8f4', -- parent_id (/bpm/start)
-    '发起流程(TRITIUM_APPROVAL_V1)', -- name
+    '发起流程（审批流程）', -- name
     '', -- url
     '', -- component
     NULL, -- component_name

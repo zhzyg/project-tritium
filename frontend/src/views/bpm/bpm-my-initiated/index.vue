@@ -10,7 +10,7 @@
   >
     <template #status="{ row }">
       <a-tag :color="row.endTime ? 'blue' : 'green'">
-        {{ row.endTime ? 'Completed' : 'Running' }}
+        {{ row.endTime ? '已完成' : '进行中' }}
       </a-tag>
     </template>
   </BpmListPage>
@@ -25,17 +25,17 @@ import { getRowActions } from '../bpmActions';
 const router = useRouter();
 
 const statusOptions = [
-  { label: 'Running', value: 'running' },
-  { label: 'Completed', value: 'completed' },
+  { label: '进行中', value: 'running' },
+  { label: '已完成', value: 'completed' },
 ];
 
 const columns = [
-  { title: 'Process ID', dataIndex: 'id', key: 'id', width: 220 },
-  { title: 'Process Name', dataIndex: 'processDefinitionName', key: 'processDefinitionName' },
-  { title: 'Start Time', dataIndex: 'startTime', key: 'startTime', width: 180 },
-  { title: 'End Time', dataIndex: 'endTime', key: 'endTime', width: 180 },
-  { title: 'Status', dataIndex: 'status', key: 'status', slot: 'status', width: 120 },
-  { title: 'Actions', dataIndex: 'action', key: 'action', slot: 'action', width: 120 },
+  { title: '流程ID', dataIndex: 'id', key: 'id', width: 220 },
+  { title: '流程名称', dataIndex: 'processDefinitionName', key: 'processDefinitionName' },
+  { title: '开始时间', dataIndex: 'startTime', key: 'startTime', width: 180 },
+  { title: '结束时间', dataIndex: 'endTime', key: 'endTime', width: 180 },
+  { title: '状态', dataIndex: 'status', key: 'status', slot: 'status', width: 120 },
+  { title: '操作', dataIndex: 'action', key: 'action', slot: 'action', width: 120 },
 ];
 
 const handleOpen = (row: any) => {

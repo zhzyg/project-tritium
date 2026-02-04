@@ -13,10 +13,10 @@ export function createTaskExecutors(deps: TaskExecutorDeps) {
   const handleClaim = async (row: any) => {
     try {
       await claimTask({ taskId: row.taskId });
-      message.success('Claimed successfully');
+      message.success('认领成功');
       onRefresh();
     } catch (error: any) {
-      message.error('Claim failed: ' + (error.message || 'Unknown error'));
+      message.error('认领失败：' + (error.message || '未知错误'));
     }
   };
 
@@ -27,14 +27,14 @@ export function createTaskExecutors(deps: TaskExecutorDeps) {
         variables: variables || { status: 'APPROVED', reason: '', updatedAt: new Date().toISOString() }
       };
       await completeTask(payload);
-      message.success('Approved successfully');
+      message.success('审批通过');
       // If we want to auto-open vars after approve like the current index.vue does:
       if (onOpenVars) {
         await loadVars(row);
       }
       onRefresh();
     } catch (error: any) {
-      message.error('Approve failed: ' + (error.message || 'Unknown error'));
+      message.error('审批失败：' + (error.message || '未知错误'));
     }
   };
 
@@ -45,19 +45,19 @@ export function createTaskExecutors(deps: TaskExecutorDeps) {
         variables: { status: 'REJECTED', reason, updatedAt: new Date().toISOString() }
       };
       await completeTask(payload);
-      message.success('Rejected successfully');
+      message.success('驳回成功');
       if (onOpenVars) {
         await loadVars(row);
       }
       onRefresh();
     } catch (error: any) {
-      message.error('Reject failed: ' + (error.message || 'Unknown error'));
+      message.error('驳回失败：' + (error.message || '未知错误'));
     }
   };
 
   const loadVars = async (row: any) => {
     if (!row.processInstanceId) {
-      message.warning('No Process Instance ID');
+      message.warning('缺少流程实例ID');
       return;
     }
     try {
@@ -68,7 +68,7 @@ export function createTaskExecutors(deps: TaskExecutorDeps) {
       }
       return res;
     } catch (error: any) {
-      message.error('Failed to load variables: ' + (error.message || 'Unknown error'));
+      message.error('变量加载失败：' + (error.message || '未知错误'));
     } finally {
       if (setVarsLoading) setVarsLoading(false);
     }

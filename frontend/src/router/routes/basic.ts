@@ -8,7 +8,7 @@ export const PAGE_NOT_FOUND_ROUTE: AppRouteRecordRaw = {
   name: PAGE_NOT_FOUND_NAME,
   component: LAYOUT,
   meta: {
-    title: 'ErrorPage',
+    title: '异常页面',
     hideBreadcrumb: true,
     hideMenu: true,
   },
@@ -18,7 +18,7 @@ export const PAGE_NOT_FOUND_ROUTE: AppRouteRecordRaw = {
       name: PAGE_NOT_FOUND_NAME,
       component: EXCEPTION_COMPONENT,
       meta: {
-        title: 'ErrorPage',
+        title: '异常页面',
         hideBreadcrumb: true,
         hideMenu: true,
       },
@@ -54,7 +54,7 @@ export const ERROR_LOG_ROUTE: AppRouteRecordRaw = {
   component: LAYOUT,
   redirect: '/error-log/list',
   meta: {
-    title: 'ErrorLog',
+    title: '错误日志',
     hideBreadcrumb: true,
     hideChildrenInMenu: true,
   },
@@ -77,7 +77,7 @@ export const BPM_TASK_FORM_ROUTE: AppRouteRecordRaw = {
   name: 'BpmTaskFormRoot',
   component: LAYOUT,
   meta: {
-    title: 'BpmTaskForm',
+    title: '任务表单',
     hideBreadcrumb: true,
     hideMenu: true,
   },
@@ -101,7 +101,7 @@ export const BPM_INSTANCE_FORM_ROUTE: AppRouteRecordRaw = {
   name: 'BpmInstanceFormRoot',
   component: LAYOUT,
   meta: {
-    title: 'BpmInstanceForm',
+    title: '流程表单',
     hideBreadcrumb: true,
     hideMenu: true,
   },

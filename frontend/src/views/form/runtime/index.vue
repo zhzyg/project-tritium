@@ -1,10 +1,10 @@
 <template>
-  <PageWrapper title="表单运行态（VForm）" contentFullHeight>
+  <PageWrapper title="表单运行态" contentFullHeight>
     <div class="vform-runtime-page">
       <div class="vform-runtime-toolbar">
         <a-space>
-          <a-button type="primary" :loading="submitting" @click="handleSubmit">Submit</a-button>
-          <a-button @click="fetchRecords">Refresh</a-button>
+          <a-button type="primary" :loading="submitting" @click="handleSubmit">提交</a-button>
+          <a-button @click="fetchRecords">刷新</a-button>
         </a-space>
         <a-space class="vform-runtime-meta" size="large">
           <span>formKey: {{ formKey }}</span>
@@ -17,14 +17,14 @@
         <a-space>
           <a-input
             v-model:value="filterValue"
-            :placeholder="`Search ${filterLabel}`"
+            :placeholder="`搜索${filterLabel}`"
             allow-clear
             style="min-width: 220px"
             @pressEnter="fetchRecords"
           />
-          <a-button @click="fetchRecords">Search</a-button>
+          <a-button @click="fetchRecords">搜索</a-button>
         </a-space>
-        <span class="vform-runtime-filter-meta">field: {{ filterFieldKey }}</span>
+        <span class="vform-runtime-filter-meta">字段：{{ filterFieldKey }}</span>
       </div>
 
       <div class="vform-runtime-body">
@@ -47,13 +47,13 @@
               <span>{{ record?.data?.[filterFieldKey] ?? '-' }}</span>
             </template>
             <template v-else-if="column.key === 'actions'">
-              <a-button size="small" @click="openJson(record)">View</a-button>
+              <a-button size="small" @click="openJson(record)">查看</a-button>
             </template>
           </template>
         </a-table>
       </div>
 
-      <a-modal v-model:open="jsonModalOpen" title="Record JSON" width="720px" :footer="null">
+      <a-modal v-model:open="jsonModalOpen" title="记录JSON" width="720px" :footer="null">
         <pre class="json-preview">{{ selectedJson }}</pre>
       </a-modal>
     </div>
@@ -92,19 +92,19 @@
   const selectedJson = ref('');
 
   const columns = computed(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 180, ellipsis: true },
-    { title: 'Schema Version', dataIndex: 'schemaVersion', key: 'schemaVersion', width: 130 },
-    { title: filterLabel.value || 'Field', dataIndex: 'data', key: 'field', width: 140 },
-    { title: 'Created By', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
-    { title: 'Created Time', dataIndex: 'createdTime', key: 'createdTime', width: 180 },
-    { title: 'Data JSON', dataIndex: 'dataJson', key: 'dataJson' },
-    { title: 'Actions', key: 'actions', width: 90 },
+    { title: '记录ID', dataIndex: 'id', key: 'id', width: 180, ellipsis: true },
+    { title: 'Schema版本', dataIndex: 'schemaVersion', key: 'schemaVersion', width: 130 },
+    { title: filterLabel.value || '字段', dataIndex: 'data', key: 'field', width: 140 },
+    { title: '创建人', dataIndex: 'createdBy', key: 'createdBy', width: 120 },
+    { title: '创建时间', dataIndex: 'createdTime', key: 'createdTime', width: 180 },
+    { title: '数据JSON', dataIndex: 'dataJson', key: 'dataJson' },
+    { title: '操作', key: 'actions', width: 90 },
   ]);
 
   const loadSchema = async () => {
     const res = await getLatestSchema({ formKey: formKey.value });
     if (!res?.schemaJson) {
-      message.warning('No schema found');
+      message.warning('未找到表单配置');
       return;
     }
     try {
@@ -114,7 +114,7 @@
         renderRef.value.setFormJson(parsed);
       }
     } catch (err) {
-      message.error('Schema JSON invalid');
+      message.error('表单配置格式错误');
       return;
     }
     schemaVersion.value = res?.version ?? null;
@@ -138,7 +138,7 @@
   const handleSubmit = async () => {
     const api = renderRef.value;
     if (!api?.getFormData) {
-      message.error('Renderer not ready');
+      message.error('渲染器未就绪');
       return;
     }
     submitting.value = true;
@@ -146,10 +146,10 @@
       const data = await api.getFormData();
       const dataJson = JSON.stringify(data || {});
       const res = await submitRecord({ formKey: formKey.value, dataJson });
-      message.success(`Saved ${res?.recordId || ''}`.trim());
+      message.success(`已保存 ${res?.recordId || ''}`.trim());
       await fetchRecords();
     } catch (err: any) {
-      message.error(err?.message || 'Submit failed');
+      message.error(err?.message || '提交失败');
     } finally {
       submitting.value = false;
     }

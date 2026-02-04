@@ -32,7 +32,7 @@ INSERT INTO sys_permission (
 ) VALUES (
   '9f1b2c3d4e5f60718293a4b5c6d7e8f1',
   '',
-  'BPM Center',
+  '审批中心',
   '/bpm',
   'layouts/RouteView',
   1,
@@ -87,7 +87,7 @@ INSERT INTO sys_permission (
   (
     '9f1b2c3d4e5f60718293a4b5c6d7e8f2',
     '9f1b2c3d4e5f60718293a4b5c6d7e8f1',
-    'Process Definitions',
+    '流程定义',
     '/bpm/defs',
     'bpm/defs/index',
     1,
@@ -114,7 +114,7 @@ INSERT INTO sys_permission (
   (
     '9f1b2c3d4e5f60718293a4b5c6d7e8f3',
     '9f1b2c3d4e5f60718293a4b5c6d7e8f1',
-    'Form Bindings',
+    '表单绑定',
     '/bpm/bind',
     'bpm/bind/index',
     1,
@@ -141,7 +141,7 @@ INSERT INTO sys_permission (
   (
     '9f1b2c3d4e5f60718293a4b5c6d7e8f4',
     '9f1b2c3d4e5f60718293a4b5c6d7e8f1',
-    'Start From Form',
+    '流程发起',
     '/bpm/start',
     'bpm/start/index',
     1,
@@ -168,7 +168,7 @@ INSERT INTO sys_permission (
   (
     '9f1b2c3d4e5f60718293a4b5c6d7e8f5',
     '9f1b2c3d4e5f60718293a4b5c6d7e8f1',
-    'My Tasks',
+    '我的待办',
     '/bpm/tasks',
     'bpm/tasks/index',
     1,

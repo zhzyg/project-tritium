@@ -44,7 +44,7 @@ export function getRowActions(
     
     actions.push({
       key: 'claim',
-      label: 'Claim',
+      label: '认领',
       type: 'primary',
       visible: isUnclaimed,
       onClick: handlers.handleClaim!,
@@ -52,7 +52,7 @@ export function getRowActions(
     
     actions.push({
       key: 'approve',
-      label: 'Approve',
+      label: '通过',
       type: 'success',
       visible: !isUnclaimed,
       onClick: handlers.handleApprove!,
@@ -60,7 +60,7 @@ export function getRowActions(
     
     actions.push({
       key: 'reject',
-      label: 'Reject',
+      label: '驳回',
       type: 'danger',
       visible: !isUnclaimed,
       onClick: handlers.handleReject!,
@@ -76,7 +76,7 @@ export function getRowActions(
     
     actions.push({
       key: 'vars',
-      label: 'Vars',
+      label: '变量',
       type: 'link',
       visible: true,
       onClick: handlers.handleVars!,

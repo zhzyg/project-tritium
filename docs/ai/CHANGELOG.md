@@ -287,3 +287,9 @@
   - **Backend**: `/bpm/taskFieldRule/getByTask|upsert|listByProc` for runtime resolve + designer CRUD; `completeTask` now prefers rule table for patchData filtering (falls back to `tr_bpm_task_field_perm`).
   - **Frontend**: `/form/designer?tab=process` adds node field-rule panel (data-testid: `task-rule-panel`, `btn-task-rule-save`); `/bpm/task/:taskId/form` applies visible/editable/required via VForm schema props (no DOM hacks).
   - **Ops**: added `ops/repro_bpm_task_field_rule.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-bpm-task-field-rule`).
+
+- [2026-02-04] MVP-9B1 v0: Eliminate NO USER TASK skips + 中文化菜单/标题。
+  - **Designer**: `/form/designer?tab=process` 在无用户任务时提供“插入示例审批节点”入口（自动保存草稿），并增强 userTask 识别（兼容 `bpmn:UserTask`）。
+  - **Ops**: `ops/repro_bpm_task_field_rule.mjs` 自动插入示例节点，保存时优先等待接口响应（toast 缺失也不误判），无待办时才 SKIP。
+  - **i18n**: 更新中文路由标题与页面标题（移除“VForm”英文标识），表单运行态按钮文案中文化；补充菜单中文化 SQL patch（`20260204_cn_menu_titles.sql`）。
+  - **DB patches**: 统一修正菜单脚本中文显示（`20260129_add_form_designer_menu.sql`、`20260130_add_bpm_center_menu_stage4.sql`、`20260203_add_app_runtime_menu.sql`、`20260204_add_bpm_proc_start_perm_code.sql`）。

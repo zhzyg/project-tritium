@@ -2,17 +2,17 @@
   <PageWrapper :title="pageTitle" contentFullHeight>
     <div class="process-view-page">
       <div class="trace-container" v-if="traceData.length" style="padding: 16px; background: #fff; margin-top: 16px;">
-        <h3>Process Trace</h3>
+        <h3>流程轨迹</h3>
         <a-timeline style="margin-top: 16px;">
           <a-timeline-item v-for="(item, index) in traceData" :key="index" :color="item.type === 'END' ? 'green' : 'blue'">
             <p>{{ item.time }} - {{ item.taskName || item.type }}</p>
-            <p v-if="item.assignee" style="color: #999; font-size: 12px;">Assignee: {{ item.assignee }}</p>
+            <p v-if="item.assignee" style="color: #999; font-size: 12px;">处理人：{{ item.assignee }}</p>
             <p v-if="item.comment" style="color: #666; font-style: italic; margin-top: 4px;">{{ item.comment }}</p>
           </a-timeline-item>
         </a-timeline>
       </div>
 
-      <el-dialog v-model="varsVisible" title="Process Variables" width="50%">
+      <el-dialog v-model="varsVisible" title="流程变量" width="50%">
         <pre>{{ JSON.stringify(varsData, null, 2) }}</pre>
       </el-dialog>
     </div>
@@ -29,7 +29,7 @@
   const route = useRoute();
   
   const procInstId = ref('');
-  const pageTitle = computed(() => `Process View - ${procInstId.value}`);
+  const pageTitle = computed(() => `流程查看 - ${procInstId.value}`);
   
   const varsVisible = ref(false);
   const varsData = ref<any>(null);
@@ -38,7 +38,7 @@
   const loadProcess = async () => {
       procInstId.value = route.query.procInstId as string;
       if (!procInstId.value) {
-          ElMessage.error('Process Instance ID missing');
+          ElMessage.error('缺少流程实例ID');
           return;
       }
       
@@ -47,7 +47,7 @@
           showVars();
       } catch (e: any) {
           console.error(e);
-          ElMessage.error(e.message || 'Load failed');
+          ElMessage.error(e.message || '加载失败');
       }
   };
   

@@ -43,7 +43,7 @@ const charts: AppRouteModule = {
       name: 'Echarts',
       component: getParentLayout('Echarts'),
       meta: {
-        title: 'Echarts',
+        title: '图表',
       },
       redirect: '/charts/echarts/map',
       children: [

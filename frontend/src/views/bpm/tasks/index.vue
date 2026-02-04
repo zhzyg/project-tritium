@@ -17,7 +17,7 @@
       </template>
       <template #status="{ row }">
         <a-tag :color="row.assignee ? 'green' : 'orange'">
-          {{ row.assignee ? 'Claimed' : 'Unclaimed' }}
+          {{ row.assignee ? '已认领' : '未认领' }}
         </a-tag>
       </template>
       
@@ -61,19 +61,19 @@ const varsLoading = ref(false);
 const varsData = ref<any>(null);
 
 const statusOptions = [
-  { label: 'Unclaimed', value: 'unclaimed' },
-  { label: 'Claimed', value: 'claimed' },
+  { label: '未认领', value: 'unclaimed' },
+  { label: '已认领', value: 'claimed' },
 ];
 
 const columns = [
-  { title: 'Task ID', dataIndex: 'taskId', key: 'taskId', width: 220 },
-  { title: 'Process Name', dataIndex: 'processName', key: 'processName' },
-  { title: 'Task Name', dataIndex: 'name', key: 'name' },
-  { title: 'Create Time', dataIndex: 'createTime', key: 'createTime', width: 180 },
-  { title: 'Assignee', dataIndex: 'assignee', key: 'assignee', width: 120 },
-  { title: 'Groups', dataIndex: 'candidateGroups', key: 'candidateGroups', slot: 'groups' },
-  { title: 'Status', dataIndex: 'status', key: 'status', slot: 'status', width: 100 },
-  { title: 'Actions', dataIndex: 'action', key: 'action', slot: 'action', width: 280 },
+  { title: '任务ID', dataIndex: 'taskId', key: 'taskId', width: 220 },
+  { title: '流程名称', dataIndex: 'processName', key: 'processName' },
+  { title: '任务名称', dataIndex: 'name', key: 'name' },
+  { title: '创建时间', dataIndex: 'createTime', key: 'createTime', width: 180 },
+  { title: '处理人', dataIndex: 'assignee', key: 'assignee', width: 120 },
+  { title: '候选组', dataIndex: 'candidateGroups', key: 'candidateGroups', slot: 'groups' },
+  { title: '状态', dataIndex: 'status', key: 'status', slot: 'status', width: 100 },
+  { title: '操作', dataIndex: 'action', key: 'action', slot: 'action', width: 280 },
 ];
 
 const refresh = () => listPageRef.value?.loadData();
@@ -95,10 +95,10 @@ const handleApprove = (row: any) => executors.handleApprove(row);
 const handleReject = (row: any) => {
   let reason = '';
   Modal.confirm({
-    title: 'Reject Task',
+    title: '驳回任务',
     content: () => {
       return h('div', [
-        h('p', 'Please input reject reason:'),
+        h('p', '请输入驳回原因：'),
         h('textarea', {
           class: 'ant-input',
           rows: 3,
@@ -109,7 +109,7 @@ const handleReject = (row: any) => {
     },
     onOk: async () => {
       if (!reason.trim()) {
-        message.warning('Reason is required');
+        message.warning('请填写驳回原因');
         return Promise.reject();
       }
       return executors.handleReject(row, reason);

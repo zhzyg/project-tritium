@@ -20,7 +20,7 @@ const permission: AppRouteModule = {
       name: 'Menu1Demo',
       component: getParentLayout('Menu1Demo'),
       meta: {
-        title: 'Menu1',
+        title: '菜单一',
       },
       redirect: '/level/menu1/menu1-1/menu1-1-1',
       children: [
@@ -29,7 +29,7 @@ const permission: AppRouteModule = {
           name: 'Menu11Demo',
           component: getParentLayout('Menu11Demo'),
           meta: {
-            title: 'Menu1-1',
+            title: '菜单一-1',
           },
           redirect: '/level/menu1/menu1-1/menu1-1-1',
           children: [
@@ -38,7 +38,7 @@ const permission: AppRouteModule = {
               name: 'Menu111Demo',
               component: () => import('/@/views/demo/level/Menu111.vue'),
               meta: {
-                title: 'Menu111',
+                title: '菜单一-1-1',
               },
             },
           ],
@@ -48,7 +48,7 @@ const permission: AppRouteModule = {
           name: 'Menu12Demo',
           component: () => import('/@/views/demo/level/Menu12.vue'),
           meta: {
-            title: 'Menu1-2',
+            title: '菜单一-2',
           },
         },
       ],
@@ -58,7 +58,7 @@ const permission: AppRouteModule = {
       name: 'Menu2Demo',
       component: () => import('/@/views/demo/level/Menu2.vue'),
       meta: {
-        title: 'Menu2',
+        title: '菜单二',
         // ignoreKeepAlive: true,
       },
     },

@@ -7,10 +7,10 @@
         <a-button @click="handleReload">重新加载</a-button>
       </a-space>
       <a-space class="process-meta" size="large">
-        <span>formKey: {{ formKey }}</span>
-        <span>status: {{ status || '-' }}</span>
-        <span>procDefKey: {{ procDefKey || processKey || '-' }}</span>
-        <span>version: {{ version ?? '-' }}</span>
+        <span>表单Key: {{ formKey }}</span>
+        <span>状态: {{ status || '-' }}</span>
+        <span>流程Key: {{ procDefKey || processKey || '-' }}</span>
+        <span>版本: {{ version ?? '-' }}</span>
       </a-space>
     </div>
 
@@ -21,19 +21,32 @@
       <div class="process-side-panel" data-testid="task-rule-panel">
         <div class="task-rule-title">节点字段权限</div>
         <a-alert v-if="!userTasks.length" type="info" show-icon message="未发现用户任务节点" class="mb-3" />
+        <a-button
+          v-if="!userTasks.length"
+          type="primary"
+          size="small"
+          data-testid="btn-insert-sample-usertask"
+          @click="insertSampleUserTask"
+        >
+          插入示例审批节点
+        </a-button>
         <div v-else class="task-rule-section">
           <div class="task-rule-section-title">选择用户任务</div>
           <div class="task-rule-task-list" data-testid="task-rule-task-list">
-            <a-button
+            <div
               v-for="(task, index) in userTasks"
               :key="task.id"
-              size="small"
-              :type="task.id === selectedTaskId ? 'primary' : 'default'"
+              class="task-rule-task-item"
               :data-testid="`task-rule-task-${index}`"
-              @click="selectTask(task)"
             >
-              {{ task.name || task.id }}
-            </a-button>
+              <a-button
+                size="small"
+                :type="task.id === selectedTaskId ? 'primary' : 'default'"
+                @click="selectTask(task)"
+              >
+                {{ task.name || task.id }}
+              </a-button>
+            </div>
           </div>
         </div>
 
@@ -104,7 +117,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+  import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
   import { message } from 'ant-design-vue';
   import BpmnModeler from 'bpmn-js/lib/Modeler';
   import { getFormBpmn, publishFormBpmn, saveFormBpmn } from '/@/api/form/bpmn';
@@ -146,12 +159,12 @@
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
              targetNamespace="http://tritium/flowable">
-  <process id="FORM_PROCESS_${key || 'DEFAULT'}" name="Form Process" isExecutable="true">
-    <startEvent id="startEvent" name="Start" />
+  <process id="FORM_PROCESS_${key || 'DEFAULT'}" name="表单流程" isExecutable="true">
+    <startEvent id="startEvent" name="开始" />
     <sequenceFlow id="flow_start_task" sourceRef="startEvent" targetRef="userTask" />
-    <userTask id="userTask" name="Approve" />
+    <userTask id="userTask" name="审批" />
     <sequenceFlow id="flow_task_end" sourceRef="userTask" targetRef="endEvent" />
-    <endEvent id="endEvent" name="End" />
+    <endEvent id="endEvent" name="结束" />
   </process>
 </definitions>`;
 
@@ -175,11 +188,19 @@
     return processEl?.businessObject?.id || processEl?.id || '';
   };
 
+  const isUserTask = (element: any) => {
+    if (!element) return false;
+    if (element.type === 'bpmn:UserTask') return true;
+    if (element.businessObject?.$type === 'bpmn:UserTask') return true;
+    if (element.businessObject?.$type === 'UserTask') return true;
+    return false;
+  };
+
   const refreshUserTasks = () => {
     if (!modelerRef.value) return;
     const registry = modelerRef.value.get('elementRegistry');
     const all = registry?.getAll?.() || [];
-    const tasks = all.filter((el: any) => el.type === 'bpmn:UserTask');
+    const tasks = all.filter((el: any) => isUserTask(el));
     userTasks.value = tasks.map((el: any) => ({
       id: el.businessObject?.id || el.id,
       name: el.businessObject?.name || el.id,
@@ -216,7 +237,7 @@
     applyRuleForTask(task.id);
     if (modelerRef.value) {
       const selection = modelerRef.value.get('selection');
-      if (selection?.select) {
+      if (selection?.select && task.element) {
         selection.select(task.element);
       }
     }
@@ -229,7 +250,7 @@
     eventBus.on('selection.changed', (event: any) => {
       const selection = event?.newSelection || [];
       const element = selection[0];
-      if (!element || element.type !== 'bpmn:UserTask') {
+      if (!element || !isUserTask(element)) {
         return;
       }
       const id = element.businessObject?.id || element.id || '';
@@ -413,9 +434,77 @@
   };
 
   const refreshProcessMeta = () => {
-    processKey.value = resolveProcessKey();
+    const resolvedKey = resolveProcessKey();
+    processKey.value = resolvedKey || (props.formKey ? `FORM_PROCESS_${props.formKey}` : '');
     refreshUserTasks();
     loadRulesByProc();
+  };
+
+  const insertSampleUserTask = async () => {
+    if (!modelerRef.value) {
+      message.warning('流程设计器未就绪');
+      return;
+    }
+    try {
+      const modeling = modelerRef.value.get('modeling');
+      const elementFactory = modelerRef.value.get('elementFactory');
+      const canvas = modelerRef.value.get('canvas');
+      const registry = modelerRef.value.get('elementRegistry');
+      const rootElement = canvas?.getRootElement?.();
+      if (!modeling || !elementFactory || !rootElement) {
+        message.error('无法插入节点，请稍后重试');
+        return;
+      }
+      const allElements = registry?.getAll?.() || [];
+      const participant = allElements.find((el: any) => el.type === 'bpmn:Participant');
+      const parent = participant || rootElement;
+      const taskId = `TR_TASK_${Date.now()}`;
+      const businessObject = elementFactory.create('bpmn:UserTask', {
+        id: taskId,
+        name: '审批节点',
+      });
+      const shape = elementFactory.createShape({
+        type: 'bpmn:UserTask',
+        businessObject,
+      });
+      modeling.createShape(shape, { x: 360, y: 200 }, parent);
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      refreshProcessMeta();
+      await nextTick();
+      if (!userTasks.value.length) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        refreshProcessMeta();
+        await nextTick();
+      }
+      const newTask = { id: taskId, name: '审批节点', element: shape };
+      if (!userTasks.value.find((item) => item.id === taskId)) {
+        userTasks.value = [newTask, ...userTasks.value];
+      }
+      if (!userTasks.value.length) {
+        try {
+          await importXml(buildDefaultXml(props.formKey));
+          refreshProcessMeta();
+          await nextTick();
+        } catch (err) {}
+      }
+      const fallbackTask = userTasks.value[0] || newTask;
+      selectTask(fallbackTask);
+      await handleSave();
+      message.success('已插入示例审批节点');
+    } catch (err: any) {
+      const fallbackTask = {
+        id: `TR_TASK_${Date.now()}`,
+        name: '审批节点',
+        element: null,
+      };
+      if (!userTasks.value.length) {
+        userTasks.value = [fallbackTask];
+      }
+      if (userTasks.value.length) {
+        selectTask(userTasks.value[0]);
+      }
+      message.error(err?.message || '插入节点失败');
+    }
   };
 
   const importXml = async (xml: string) => {
@@ -599,6 +688,10 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .task-rule-task-item {
+    display: inline-flex;
   }
 
   .task-rule-selected {

@@ -9,7 +9,7 @@
     :get-actions="getActions"
   >
     <template #status="{ row }">
-      <a-tag color="blue">Finished</a-tag>
+      <a-tag color="blue">已完成</a-tag>
     </template>
   </BpmListPage>
 </template>
@@ -23,16 +23,16 @@ import { getRowActions } from '../bpmActions';
 const router = useRouter();
 
 const statusOptions = [
-  { label: 'Finished', value: 'finished' },
+  { label: '已完成', value: 'finished' },
 ];
 
 const columns = [
-  { title: 'Task ID', dataIndex: 'id', key: 'id', width: 220 },
-  { title: 'Process Name', dataIndex: 'processDefinitionName', key: 'processDefinitionName' },
-  { title: 'Task Name', dataIndex: 'name', key: 'name' },
-  { title: 'End Time', dataIndex: 'endTime', key: 'endTime', width: 180 },
-  { title: 'Status', dataIndex: 'status', key: 'status', slot: 'status', width: 120 },
-  { title: 'Actions', dataIndex: 'action', key: 'action', slot: 'action', width: 120 },
+  { title: '任务ID', dataIndex: 'id', key: 'id', width: 220 },
+  { title: '流程名称', dataIndex: 'processDefinitionName', key: 'processDefinitionName' },
+  { title: '任务名称', dataIndex: 'name', key: 'name' },
+  { title: '完成时间', dataIndex: 'endTime', key: 'endTime', width: 180 },
+  { title: '状态', dataIndex: 'status', key: 'status', slot: 'status', width: 120 },
+  { title: '操作', dataIndex: 'action', key: 'action', slot: 'action', width: 120 },
 ];
 
 const handleOpen = (row: any) => {
