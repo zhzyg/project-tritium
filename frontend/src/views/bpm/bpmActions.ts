@@ -25,7 +25,7 @@ export function getRowActions(
   if (scene === 'my') {
     actions.push({
       key: 'detail',
-      label: '详情',
+      label: '查看表单',
       type: 'link',
       visible: true,
       onClick: handlers.handleOpen,
@@ -33,7 +33,7 @@ export function getRowActions(
   } else if (scene === 'done') {
     actions.push({
       key: 'open',
-      label: 'Open',
+      label: '查看表单',
       type: 'link',
       visible: true,
       onClick: handlers.handleOpen,
@@ -68,7 +68,7 @@ export function getRowActions(
     
     actions.push({
       key: 'openForm',
-      label: 'Open Form',
+      label: '打开表单',
       type: 'link',
       visible: true,
       onClick: handlers.handleOpen,

@@ -71,3 +71,51 @@ export const ERROR_LOG_ROUTE: AppRouteRecordRaw = {
     },
   ],
 };
+
+export const BPM_TASK_FORM_ROUTE: AppRouteRecordRaw = {
+  path: '/bpm/task',
+  name: 'BpmTaskFormRoot',
+  component: LAYOUT,
+  meta: {
+    title: 'BpmTaskForm',
+    hideBreadcrumb: true,
+    hideMenu: true,
+  },
+  children: [
+    {
+      path: ':taskId/form',
+      name: 'BpmTaskForm',
+      component: () => import('/@/views/bpm/task-form/index.vue'),
+      meta: {
+        title: '表单详情',
+        hideBreadcrumb: true,
+        hideMenu: true,
+        currentActiveMenu: '/bpm/tasks',
+      },
+    },
+  ],
+};
+
+export const BPM_INSTANCE_FORM_ROUTE: AppRouteRecordRaw = {
+  path: '/bpm/instance',
+  name: 'BpmInstanceFormRoot',
+  component: LAYOUT,
+  meta: {
+    title: 'BpmInstanceForm',
+    hideBreadcrumb: true,
+    hideMenu: true,
+  },
+  children: [
+    {
+      path: ':procInsId/form',
+      name: 'BpmInstanceForm',
+      component: () => import('/@/views/bpm/task-form/index.vue'),
+      meta: {
+        title: '表单详情',
+        hideBreadcrumb: true,
+        hideMenu: true,
+        currentActiveMenu: '/bpm/my',
+      },
+    },
+  ],
+};

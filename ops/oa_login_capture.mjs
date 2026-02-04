@@ -43,7 +43,7 @@ function log(msg) {
   });
 
   try {
-    const loginUrl = `${BASE_URL}/user/login`;
+    const loginUrl = `${BASE_URL}/login`;
     log(`Navigating to ${loginUrl}...`);
     await page.goto(loginUrl, { waitUntil: 'networkidle', timeout: 30000 });
 

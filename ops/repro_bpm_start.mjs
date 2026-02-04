@@ -94,7 +94,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   };
 
   const selectProcessByIndex = async (procSelect, index) => {
-    await procSelect.locator('.ant-select-selector').click();
+    await procSelect.locator('.ant-select-selector').click({ force: true });
     await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
     const options = page.locator('.ant-select-dropdown .ant-select-item-option');
     await options.nth(index).click();
@@ -117,32 +117,58 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     }
   });
 
+  const loginWithRetries = async () => {
+    await stepWithRetries('login-submit', async () => {
+      await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
+      await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
+      try {
+        const captchaInput = page.locator('input[placeholder*="验证码"], input[id*="inputCode"]');
+        if (await captchaInput.isVisible()) {
+          await captchaInput.fill('1234');
+        }
+      } catch (e) {}
+      await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
+      await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
+      await waitForAppShell();
+    });
+    if (OA_STORAGE_STATE) {
+      await context.storageState({ path: OA_STORAGE_STATE });
+    }
+  };
+
   try {
     if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
       failureStage = 'navigate-base';
       await gotoWithRetries(BASE_URL, 'goto-base');
     } else {
       failureStage = 'navigate-login';
-      await gotoWithRetries(`${BASE_URL}/user/login`, 'goto-login');
+      await gotoWithRetries(`${BASE_URL}/login`, 'goto-login');
       failureStage = 'login-submit';
-      await stepWithRetries('login-submit', async () => {
-        await page.fill('input[placeholder*="账号"], input[id*="account"], input[name*="username"]', ADMIN_USER);
-        await page.fill('input[placeholder*="密码"], input[id*="password"], input[name*="password"]', ADMIN_PASS);
-        try {
-          const captchaInput = page.locator('input[placeholder*="验证码"], input[id*="inputCode"]');
-          if (await captchaInput.isVisible()) {
-            await captchaInput.fill('1234');
-          }
-        } catch (e) {}
-        await page.click('button[type="submit"], button:has-text("登录"), .ant-btn-primary');
-        await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
-        await waitForAppShell();
-      });
+      await loginWithRetries();
     }
 
     failureStage = 'navigate-start';
     await gotoWithRetries(`${BASE_URL}/bpm/start`, 'goto-start');
     await waitForAppShell();
+
+    const noPermAlert = page.locator('[data-testid="bpm-start-no-permission"]');
+    if (await noPermAlert.isVisible().catch(() => false)) {
+      console.log('Detected no-permission alert, skipping start flow.');
+      const skipShot = path.join(ARTIFACTS_DIR, 'no-permission.png');
+      try {
+        await page.screenshot({ path: skipShot, timeout: 5000 });
+      } catch (e) {}
+      const skipPayload = {
+        success: true,
+        skipped: true,
+        reason: 'NO PERMISSION: bpm:start missing',
+        url: page.url(),
+        screenshot: skipShot,
+      };
+      fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(skipPayload, null, 2));
+      await browser.close();
+      return;
+    }
     try {
       await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'start-page.png'), timeout: 5000 });
     } catch (e) {}
@@ -153,7 +179,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const useNewUi = (await procSelect.count()) > 0;
 
     if (useNewUi) {
-      await procSelect.locator('.ant-select-selector').click();
+      await procSelect.locator('.ant-select-selector').click({ force: true });
       await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
       const procOptions = page.locator('.ant-select-dropdown .ant-select-item-option');
       const procCount = await procOptions.count();

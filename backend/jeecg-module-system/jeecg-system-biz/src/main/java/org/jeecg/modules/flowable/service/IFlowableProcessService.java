@@ -36,6 +36,8 @@ public interface IFlowableProcessService {
 
     FlowableTaskContextResp getTaskContext(String taskId);
 
+    FlowableTaskContextResp getProcessContext(String processInstanceId);
+
     List<FlowableProcessTraceResp> getProcessTrace(String processInstanceId);
 
     List<FlowableHistoricTaskResp> queryDoneTasks(FlowableTaskQueryReq req, String username);

@@ -19,6 +19,9 @@ public class FlowableTaskContextResp {
     @ApiModelProperty("process name")
     private String processName;
 
+    @ApiModelProperty("business key")
+    private String businessKey;
+
     @ApiModelProperty("record id")
     private String recordId;
 

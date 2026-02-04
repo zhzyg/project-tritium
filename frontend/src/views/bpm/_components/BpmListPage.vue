@@ -56,6 +56,7 @@
                     :type="act.type === 'link' ? 'link' : 'primary'"
                     :danger="act.danger || act.type === 'danger'"
                     size="small"
+                    :data-testid="`bpm-action-${act.key}`"
                     @click="act.onClick(record)"
                   >
                     {{ act.label }}

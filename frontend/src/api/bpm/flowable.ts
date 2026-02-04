@@ -14,6 +14,7 @@ enum Api {
   TaskComplete = '/bpm/task/complete',
   ProcessVars = '/bpm/process/vars',
   TaskContext = '/bpm/task/context',
+  ProcessContext = '/bpm/process/context',
   TaskComments = '/bpm/task/comments',
   TaskDone = '/bpm/task/done',
   ProcessMy = '/bpm/process/my',
@@ -152,7 +153,8 @@ export const getProcessVars = (params: { processInstanceId: string }) =>
 export interface TaskContextResp {
   taskId: string;
   processInstanceId: string;
-  recordId: string;
+  businessKey?: string;
+  recordId?: string;
   formKey?: string;
   schemaVersion?: number;
   taskName?: string;
@@ -164,6 +166,9 @@ export interface TaskContextResp {
 
 export const getTaskContext = (params: { taskId: string }) =>
   defHttp.get<TaskContextResp>({ url: Api.TaskContext, params });
+
+export const getProcessContext = (params: { processInstanceId: string }) =>
+  defHttp.get<TaskContextResp>({ url: Api.ProcessContext, params });
 
 export interface ProcessTraceItem {
   time: string;

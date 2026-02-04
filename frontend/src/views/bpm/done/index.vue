@@ -36,9 +36,12 @@ const columns = [
 ];
 
 const handleOpen = (row: any) => {
+  const taskId = row?.taskId || row?.id;
+  if (!taskId) {
+    return;
+  }
   router.push({
-    path: '/bpm/approve',
-    query: { taskId: row.id }
+    path: `/bpm/task/${taskId}/form`,
   });
 };
 

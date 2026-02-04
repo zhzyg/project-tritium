@@ -5,6 +5,7 @@
         :type="act.type === 'link' ? 'link' : act.type || 'primary'"
         :danger="act.danger || act.type === 'danger'"
         size="small"
+        :data-testid="`bpm-action-${act.key}`"
         @click="act.onClick(row)"
       >
         {{ act.label }}

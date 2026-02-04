@@ -246,3 +246,11 @@
   - **Frontend**: `/bpm/start` marks locked流程,提示缺少权限并禁用提交。
   - **Ops**: `ops/repro_bpm_start.mjs` checks locked流程提示与可发起流程闭环。
   - **Verification**: `ops/oa_verify.sh` evidence in `.artifacts/repro-bpm-start`.
+
+- [2026-02-04] MVP-8A v0: BPM open-form readonly view.
+  - **Backend**: `/bpm/task/context` returns businessKey and resolves recordId/formKey via link table, businessKey, variables, and form_record; added `/bpm/process/context` for procInsId.
+  - **Frontend**: new routes `/bpm/task/:taskId/form` and `/bpm/instance/:procInsId/form` with readonly renderer + error/empty states.
+  - **BPM Lists**: “打开表单/查看表单”统一跳新路由（tasks/done 使用 taskId，my 使用 procInsId）。
+  - **Ops**: added `ops/repro_bpm_open_form.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-bpm-open-form`).
+  - **Routing**: task/instance form routes are registered in `basicRoutes` to avoid BACK-mode menu 404.
+  - **Ops**: `ops/repro_form_runtime_list.mjs` tolerates missing column settings modal (logs skip) to reduce false negatives.

@@ -243,6 +243,19 @@ public class FlowableProcessController {
         }
     }
 
+    @GetMapping("/process/context")
+    public Result<FlowableTaskContextResp> getProcessContext(String processInstanceId) {
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            return Result.error("processInstanceId is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getProcessContext(processInstanceId));
+        } catch (Exception ex) {
+            log.warn("getProcessContext failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
     @GetMapping("/task/my")
     public Result<List<FlowableTaskResp>> listTasks(FlowableTaskQueryReq req, HttpServletRequest request) {
         String username = JwtUtil.getUserNameByToken(request);

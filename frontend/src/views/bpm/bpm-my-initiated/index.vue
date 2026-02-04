@@ -39,9 +39,12 @@ const columns = [
 ];
 
 const handleOpen = (row: any) => {
+  const procInsId = row?.processInstanceId || row?.id;
+  if (!procInsId) {
+    return;
+  }
   router.push({
-    path: '/bpm/approve',
-    query: { taskId: row.taskId || row.id } // For my-initiated, it might be processInstanceId
+    path: `/bpm/instance/${procInsId}/form`,
   });
 };
 

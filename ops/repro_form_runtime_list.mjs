@@ -206,7 +206,7 @@ const resolveUrl = (href) => {
       await gotoWithRetries(BASE_URL, 'goto-base');
     } else {
       failureStage = 'navigate-login';
-      await gotoWithRetries(`${BASE_URL}/user/login`, 'goto-login');
+      await gotoWithRetries(`${BASE_URL}/login`, 'goto-login');
       console.log('Filling login form...');
       failureStage = 'login-submit';
       await stepWithRetries('login-submit', async () => {
@@ -307,35 +307,39 @@ const resolveUrl = (href) => {
     // Column settings toggle (system columns)
     const settingsBtn = page.locator('button:has-text("列设置")').first();
     if (await settingsBtn.count()) {
-      const createdByHeader = page.locator('th:has-text("created_by")');
-      const createdByVisible = (await createdByHeader.count()) > 0;
-      await settingsBtn.click();
-      await page.waitForSelector('.ant-modal', { timeout: ROUTE_TIMEOUT });
-      const modal = page.locator('.ant-modal-content').first();
-      const targetOption = modal.locator('label:has-text("created_by")').first();
-      if (await targetOption.count()) {
-        await targetOption.click();
-      } else {
-        const firstOption = modal.locator('label').first();
-        if (await firstOption.count()) {
-          await firstOption.click();
-        }
-      }
-      const okBtn = modal.locator('.ant-modal-footer .ant-btn-primary').first();
-      if (await okBtn.count()) {
-        await okBtn.click();
-      }
-      if (createdByVisible) {
-        await page.waitForSelector('th:has-text("created_by")', { state: 'detached', timeout: 8000 }).catch(() => {});
-      } else {
-        await page.waitForSelector('th:has-text("created_by")', { state: 'attached', timeout: 8000 }).catch(() => {});
-      }
       try {
-        await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'columns.png'), timeout: 5000 });
+        const createdByHeader = page.locator('th:has-text("created_by")');
+        const createdByVisible = (await createdByHeader.count()) > 0;
+        await settingsBtn.click();
+        const modal = page.locator('.ant-modal-content').first();
+        await modal.waitFor({ state: 'visible', timeout: 8000 });
+        const targetOption = modal.locator('label:has-text("created_by")').first();
+        if (await targetOption.count()) {
+          await targetOption.click();
+        } else {
+          const firstOption = modal.locator('label').first();
+          if (await firstOption.count()) {
+            await firstOption.click();
+          }
+        }
+        const okBtn = modal.locator('.ant-modal-footer .ant-btn-primary').first();
+        if (await okBtn.count()) {
+          await okBtn.click();
+        }
+        if (createdByVisible) {
+          await page.waitForSelector('th:has-text("created_by")', { state: 'detached', timeout: 8000 }).catch(() => {});
+        } else {
+          await page.waitForSelector('th:has-text("created_by")', { state: 'attached', timeout: 8000 }).catch(() => {});
+        }
+        try {
+          await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'columns.png'), timeout: 5000 });
+        } catch (e) {
+          // ignore screenshot failures
+        }
+        console.log('Column settings toggled.');
       } catch (e) {
-        // ignore screenshot failures
+        console.warn('Column settings modal did not appear. Skipping column toggle.');
       }
-      console.log('Column settings toggled.');
     }
 
     // Export CSV

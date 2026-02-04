@@ -184,7 +184,7 @@ const ARTIFACTS_DIR = path.join(ARTIFACTS_BASE, ROUTE_SLUG);
     } else {
         console.log(`[${ROUTE}] Navigating to login...`);
         failureStage = 'navigate-login';
-        await gotoWithRetries(`${BASE_URL}/user/login`, 'goto-login');
+        await gotoWithRetries(`${BASE_URL}/login`, 'goto-login');
 
         console.log(`[${ROUTE}] Attempting login...`);
         failureStage = 'login-submit';

@@ -118,9 +118,12 @@ const handleReject = (row: any) => {
 };
 
 const handleOpen = (row: any) => {
+  if (!row?.taskId) {
+    message.warning('未找到任务ID，无法打开表单');
+    return;
+  }
   router.push({
-    path: '/bpm/approve',
-    query: { taskId: row.taskId }
+    path: `/bpm/task/${row.taskId}/form`,
   });
 };
 

@@ -489,10 +489,15 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             throw new IllegalArgumentException("taskId is required");
         }
         Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        HistoricTaskInstance historicTask = null;
         if (task == null) {
-            throw new IllegalStateException("task not found");
+            historicTask = historyService.createHistoricTaskInstanceQuery().taskId(taskId).singleResult();
+            if (historicTask == null) {
+                throw new IllegalStateException("task not found");
+            }
         }
-        String processInstanceId = task.getProcessInstanceId();
+
+        String processInstanceId = task != null ? task.getProcessInstanceId() : historicTask.getProcessInstanceId();
         if (oConvertUtils.isEmpty(processInstanceId)) {
             throw new IllegalStateException("task has no process instance");
         }
@@ -500,18 +505,78 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         FlowableTaskContextResp resp = new FlowableTaskContextResp();
         resp.setTaskId(taskId);
         resp.setProcessInstanceId(processInstanceId);
-        resp.setTaskName(task.getName());
-        resp.setAssignee(task.getAssignee());
-        resp.setCreateTime(task.getCreateTime());
-        resp.setCandidateGroups(getCandidateGroups(task.getId()));
-        if (oConvertUtils.isNotEmpty(task.getProcessDefinitionId())) {
+        if (task != null) {
+            resp.setTaskName(task.getName());
+            resp.setAssignee(task.getAssignee());
+            resp.setCreateTime(task.getCreateTime());
+            resp.setCandidateGroups(getCandidateGroups(task.getId()));
+            if (oConvertUtils.isNotEmpty(task.getProcessDefinitionId())) {
+                ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                    .processDefinitionId(task.getProcessDefinitionId())
+                    .singleResult();
+                if (pd != null) {
+                    resp.setProcessName(pd.getName());
+                }
+            }
+        } else {
+            resp.setTaskName(historicTask.getName());
+            resp.setAssignee(historicTask.getAssignee());
+            resp.setCreateTime(historicTask.getCreateTime());
+            resp.setCandidateGroups(new ArrayList<>());
+            if (oConvertUtils.isNotEmpty(historicTask.getProcessDefinitionId())) {
+                ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                    .processDefinitionId(historicTask.getProcessDefinitionId())
+                    .singleResult();
+                if (pd != null) {
+                    resp.setProcessName(pd.getName());
+                }
+            }
+        }
+
+        fillProcessContext(processInstanceId, resp);
+        return resp;
+    }
+
+    @Override
+    public FlowableTaskContextResp getProcessContext(String processInstanceId) {
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            throw new IllegalArgumentException("processInstanceId is required");
+        }
+        FlowableTaskContextResp resp = new FlowableTaskContextResp();
+        resp.setProcessInstanceId(processInstanceId);
+        ProcessInstance instance = runtimeService.createProcessInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .singleResult();
+        if (instance != null && oConvertUtils.isNotEmpty(instance.getProcessDefinitionId())) {
             ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
-                .processDefinitionId(task.getProcessDefinitionId())
+                .processDefinitionId(instance.getProcessDefinitionId())
                 .singleResult();
             if (pd != null) {
                 resp.setProcessName(pd.getName());
             }
+        } else {
+            HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
+                .processInstanceId(processInstanceId)
+                .singleResult();
+            if (historic == null) {
+                throw new IllegalStateException("process instance not found");
+            }
+            if (oConvertUtils.isNotEmpty(historic.getProcessDefinitionId())) {
+                ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+                    .processDefinitionId(historic.getProcessDefinitionId())
+                    .singleResult();
+                if (pd != null) {
+                    resp.setProcessName(pd.getName());
+                }
+            }
         }
+        fillProcessContext(processInstanceId, resp);
+        return resp;
+    }
+
+    private void fillProcessContext(String processInstanceId, FlowableTaskContextResp resp) {
+        String businessKey = resolveBusinessKey(processInstanceId);
+        resp.setBusinessKey(businessKey);
 
         try {
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(
@@ -520,8 +585,8 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             );
             if (!rows.isEmpty()) {
                 Map<String, Object> row = rows.get(0);
-                resp.setRecordId((String) row.get("record_id"));
-                resp.setFormKey((String) row.get("form_key"));
+                resp.setRecordId(getString(row, "record_id"));
+                resp.setFormKey(getString(row, "form_key"));
                 Object ver = row.get("schema_version");
                 if (ver instanceof Integer) {
                     resp.setSchemaVersion((Integer) ver);
@@ -530,13 +595,109 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                 }
             }
         } catch (Exception e) {
-            log.warn("failed to query task context: {}", e.getMessage());
+            log.warn("failed to query task context link: {}", e.getMessage());
         }
 
+        Map<String, Object> variables = loadProcessVariablesRaw(processInstanceId);
         if (oConvertUtils.isEmpty(resp.getRecordId())) {
-            throw new IllegalStateException("process instance not linked to any form record");
+            String recordId = getVarString(variables, "recordId", "record_id");
+            if (oConvertUtils.isNotEmpty(recordId)) {
+                resp.setRecordId(recordId);
+            }
         }
-        return resp;
+        if (oConvertUtils.isEmpty(resp.getFormKey())) {
+            String formKey = getVarString(variables, "formKey", "form_key");
+            if (oConvertUtils.isNotEmpty(formKey)) {
+                resp.setFormKey(formKey);
+            }
+        }
+
+        if (oConvertUtils.isEmpty(resp.getRecordId()) && oConvertUtils.isNotEmpty(businessKey)) {
+            resp.setRecordId(businessKey);
+        }
+
+        if (oConvertUtils.isNotEmpty(resp.getRecordId()) && oConvertUtils.isEmpty(resp.getFormKey())) {
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "select form_key, schema_version from form_record where id = ? limit 1",
+                    resp.getRecordId()
+                );
+                if (!rows.isEmpty()) {
+                    Map<String, Object> row = rows.get(0);
+                    resp.setFormKey(getString(row, "form_key"));
+                    if (resp.getSchemaVersion() == null) {
+                        Object ver = row.get("schema_version");
+                        if (ver instanceof Integer) {
+                            resp.setSchemaVersion((Integer) ver);
+                        } else if (ver != null) {
+                            resp.setSchemaVersion(Integer.parseInt(ver.toString()));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("failed to resolve formKey by recordId: {}", e.getMessage());
+            }
+        }
+    }
+
+    private String resolveBusinessKey(String processInstanceId) {
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            return null;
+        }
+        ProcessInstance instance = runtimeService.createProcessInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .singleResult();
+        if (instance != null) {
+            return instance.getBusinessKey();
+        }
+        HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .singleResult();
+        return historic != null ? historic.getBusinessKey() : null;
+    }
+
+    private Map<String, Object> loadProcessVariablesRaw(String processInstanceId) {
+        Map<String, Object> variables = new HashMap<>();
+        if (oConvertUtils.isEmpty(processInstanceId)) {
+            return variables;
+        }
+        ProcessInstance instance = runtimeService.createProcessInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .singleResult();
+        if (instance != null) {
+            variables.putAll(runtimeService.getVariables(processInstanceId));
+            return variables;
+        }
+        List<HistoricVariableInstance> history = historyService.createHistoricVariableInstanceQuery()
+            .processInstanceId(processInstanceId)
+            .list();
+        if (history != null) {
+            for (HistoricVariableInstance item : history) {
+                variables.put(item.getVariableName(), item.getValue());
+            }
+        }
+        return variables;
+    }
+
+    private String getVarString(Map<String, Object> variables, String... keys) {
+        if (variables == null || variables.isEmpty() || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object val = variables.get(key);
+            if (val != null) {
+                return val.toString();
+            }
+        }
+        return null;
+    }
+
+    private String getString(Map<String, Object> row, String key) {
+        if (row == null) {
+            return null;
+        }
+        Object val = row.get(key);
+        return val == null ? null : val.toString();
     }
 
     @Override
