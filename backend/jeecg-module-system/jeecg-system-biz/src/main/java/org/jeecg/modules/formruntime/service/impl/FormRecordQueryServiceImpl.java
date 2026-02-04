@@ -12,6 +12,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +79,16 @@ public class FormRecordQueryServiceImpl implements IFormRecordQueryService {
         StringBuilder where = new StringBuilder(" where 1=1");
 
         if (filters != null) {
+            Timestamp startTime = parseDateTime(filters.get("startTime"), false);
+            Timestamp endTime = parseDateTime(filters.get("endTime"), true);
+            if (startTime != null) {
+                where.append(" and t.`created_time` >= ?");
+                params.add(startTime);
+            }
+            if (endTime != null) {
+                where.append(" and t.`created_time` <= ?");
+                params.add(endTime);
+            }
             // MVP-6A: Global keyword search
             String globalKeyword = filters.get("keyword");
             if (oConvertUtils.isNotEmpty(globalKeyword) && !metaByField.containsKey("keyword")) {
@@ -103,6 +119,9 @@ public class FormRecordQueryServiceImpl implements IFormRecordQueryService {
                 String fieldKey = entry.getKey();
                 String value = entry.getValue();
                 if (oConvertUtils.isEmpty(fieldKey) || oConvertUtils.isEmpty(value)) {
+                    continue;
+                }
+                if ("startTime".equals(fieldKey) || "endTime".equals(fieldKey)) {
                     continue;
                 }
                 // Skip keyword if already handled globally
@@ -157,6 +176,35 @@ public class FormRecordQueryServiceImpl implements IFormRecordQueryService {
         page.setTotal(total);
         page.setRecords(records);
         return page;
+    }
+
+    private Timestamp parseDateTime(String value, boolean endOfDay) {
+        if (oConvertUtils.isEmpty(value)) {
+            return null;
+        }
+        String text = value.trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        try {
+            LocalDateTime parsed = LocalDateTime.parse(text, DateTimeFormatter.ISO_DATE_TIME);
+            return Timestamp.valueOf(parsed);
+        } catch (DateTimeParseException ex) {
+            // ignore
+        }
+        try {
+            LocalDateTime parsed = LocalDateTime.parse(text, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            return Timestamp.valueOf(parsed);
+        } catch (DateTimeParseException ex) {
+            // ignore
+        }
+        try {
+            LocalDate date = LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalDateTime parsed = endOfDay ? date.atTime(LocalTime.of(23, 59, 59)) : date.atStartOfDay();
+            return Timestamp.valueOf(parsed);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
     }
 
     @Override

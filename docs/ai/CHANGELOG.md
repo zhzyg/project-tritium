@@ -213,3 +213,9 @@
   - **Ops**: `ops/repro_bpm_suite.sh` retries each route and soft-fails `/bpm/done` (warn + continue) while still hard-failing `/bpm/my` or `/bpm/tasks`.
   - **Ops**: `ops/repro_form_runtime_list.mjs` clicks runtime menu items to reach `/form/runtime/*/list` and captures sidebar/list/detail evidence.
   - **Verification**: `ops/oa_verify.sh` always executes runtime checks when login routes pass; evidence in `.artifacts/repro-bpm-suite` and `.artifacts/repro-form-runtime`.
+
+- [2026-02-04] MVP-6C v0: Form runtime list export/delete/columns.
+  - **Frontend**: `FormDataList.vue` adds column settings (localStorage `tritium:formCols:<formKey>`), CSV export (selected rows or current page), and batch delete with confirm.
+  - **Frontend**: Added created time range filter (`startTime`/`endTime`) alongside keyword.
+  - **Backend**: `POST /form/data/delete` removes runtime records (form_record + physical table); query now supports created_time range filters.
+  - **Ops**: `ops/repro_form_runtime_list.mjs` covers column toggle, export click, and delete attempt (skips delete if no data).

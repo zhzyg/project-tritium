@@ -304,26 +304,94 @@ const resolveUrl = (href) => {
     }
     console.log('List screenshot saved.');
 
-    const rows = page.locator('.ant-table-tbody tr');
-    const rowCount = await rows.count();
-    if (rowCount > 0) {
-      const firstRow = rows.first();
-      const viewBtn = firstRow.locator('button:has-text("查看"), a:has-text("查看")');
-      if (await viewBtn.count() > 0) {
-        await viewBtn.first().click();
+    // Column settings toggle (system columns)
+    const settingsBtn = page.locator('button:has-text("列设置")').first();
+    if (await settingsBtn.count()) {
+      const createdByHeader = page.locator('th:has-text("created_by")');
+      const createdByVisible = (await createdByHeader.count()) > 0;
+      await settingsBtn.click();
+      await page.waitForSelector('.ant-modal', { timeout: ROUTE_TIMEOUT });
+      const modal = page.locator('.ant-modal-content').first();
+      const targetOption = modal.locator('label:has-text("created_by")').first();
+      if (await targetOption.count()) {
+        await targetOption.click();
       } else {
-        await firstRow.click();
+        const firstOption = modal.locator('label').first();
+        if (await firstOption.count()) {
+          await firstOption.click();
+        }
       }
-      await page.waitForTimeout(1000);
-      await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
-      await page.waitForSelector('.ant-card, .ant-table, body', { timeout: ROUTE_TIMEOUT });
+      const okBtn = modal.locator('.ant-modal-footer .ant-btn-primary').first();
+      if (await okBtn.count()) {
+        await okBtn.click();
+      }
+      if (createdByVisible) {
+        await page.waitForSelector('th:has-text("created_by")', { state: 'detached', timeout: 8000 }).catch(() => {});
+      } else {
+        await page.waitForSelector('th:has-text("created_by")', { state: 'attached', timeout: 8000 }).catch(() => {});
+      }
       try {
-        await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'detail.png'), timeout: 5000 });
+        await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'columns.png'), timeout: 5000 });
       } catch (e) {
         // ignore screenshot failures
       }
-      console.log('Detail screenshot saved.');
+      console.log('Column settings toggled.');
+    }
+
+    // Export CSV
+    const exportBtn = page.locator('button:has-text("导出 CSV")').first();
+    if (await exportBtn.count()) {
+      await exportBtn.click();
+      await page.waitForTimeout(800);
+      try {
+        await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'export.png'), timeout: 5000 });
+      } catch (e) {
+        // ignore screenshot failures
+      }
+      console.log('Export button clicked.');
+    }
+
+    const rows = page.locator('.ant-table-tbody tr');
+    let rowCount = await rows.count();
+    if (rowCount > 0) {
+      const checkbox = page.locator('.ant-table-tbody .ant-checkbox-wrapper').first();
+      if (await checkbox.count()) {
+        await checkbox.click();
+        await page.waitForTimeout(500);
+      }
+      const deleteBtn = page.locator('button:has-text("删除")').first();
+      if (await deleteBtn.count()) {
+        await deleteBtn.click();
+        const confirmBtn = page.locator('.ant-modal .ant-btn-dangerous, .ant-modal-footer .ant-btn-primary').first();
+        if (await confirmBtn.count()) {
+          await confirmBtn.click();
+        }
+        await page.waitForTimeout(1200);
+        await page.waitForSelector('.ant-message', { timeout: 5000 }).catch(() => {});
+      }
+      rowCount = await rows.count();
+      if (rowCount > 0) {
+        const firstRow = rows.first();
+        const viewBtn = firstRow.locator('button:has-text("查看"), a:has-text("查看")');
+        if (await viewBtn.count() > 0) {
+          await viewBtn.first().click();
+        } else {
+          await firstRow.click();
+        }
+        await page.waitForTimeout(1000);
+        await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
+        await page.waitForSelector('.ant-card, .ant-table, body', { timeout: ROUTE_TIMEOUT });
+        try {
+          await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'detail.png'), timeout: 5000 });
+        } catch (e) {
+          // ignore screenshot failures
+        }
+        console.log('Detail screenshot saved.');
+      } else {
+        console.log('NO DATA: skip detail after delete.');
+      }
     } else if (formKey) {
+      console.log('NO DATA: skip delete assertion.');
       const detailUrl = `${BASE_URL}/#/form/runtime/${formKey}/view?recordId=missing`;
       console.log('No rows found. Verifying empty detail page...');
       failureStage = 'goto-empty-detail';

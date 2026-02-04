@@ -29,6 +29,7 @@ import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class FormRecordMutationServiceImpl implements IFormRecordMutationService {
@@ -135,6 +136,36 @@ public class FormRecordMutationServiceImpl implements IFormRecordMutationService
         resp.setSchemaVersion(record.getSchemaVersion());
         resp.setUpdatedTime(now);
         return resp;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int deleteBatch(String formKey, List<String> recordIds, String username) {
+        if (oConvertUtils.isEmpty(formKey)) {
+            throw new IllegalArgumentException("formKey is required");
+        }
+        if (recordIds == null || recordIds.isEmpty()) {
+            throw new IllegalArgumentException("recordIds is required");
+        }
+        List<String> cleaned = recordIds.stream()
+            .filter(oConvertUtils::isNotEmpty)
+            .distinct()
+            .collect(Collectors.toList());
+        if (cleaned.isEmpty()) {
+            throw new IllegalArgumentException("recordIds is required");
+        }
+
+        FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(formKey);
+        if (published != null && oConvertUtils.isNotEmpty(published.getTableName())) {
+            String tableName = published.getTableName();
+            if (!isSafeIdentifier(tableName)) {
+                throw new IllegalStateException("Unsafe table name: " + tableName);
+            }
+            deletePhysicalRecords(tableName, cleaned);
+        }
+
+        formRecordService.removeByIds(cleaned);
+        return cleaned.size();
     }
 
     private FormSchemaPublishedResp resolvePublished(String formKey) {
@@ -398,6 +429,15 @@ public class FormRecordMutationServiceImpl implements IFormRecordMutationService
         String sql = "UPDATE `" + tableName + "` SET " + sets + " WHERE record_id = ?";
         params.add(recordId);
         return jdbcTemplate.update(sql, params.toArray());
+    }
+
+    private int deletePhysicalRecords(String tableName, List<String> recordIds) {
+        if (recordIds == null || recordIds.isEmpty()) {
+            return 0;
+        }
+        String placeholders = recordIds.stream().map(item -> "?").collect(Collectors.joining(","));
+        String sql = "DELETE FROM `" + tableName + "` WHERE record_id IN (" + placeholders + ")";
+        return jdbcTemplate.update(sql, recordIds.toArray());
     }
 
     private String buildInsertSql(String tableName, List<String> columns) {

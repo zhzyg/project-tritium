@@ -11,6 +11,7 @@ import org.jeecg.modules.formmeta.entity.FormSchema;
 import org.jeecg.modules.formmeta.service.IFormSchemaService;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishedResp;
 import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
+import org.jeecg.modules.formruntime.dto.FormRecordDeleteReq;
 import org.jeecg.modules.formruntime.dto.FormRecordPageResp;
 import org.jeecg.modules.formruntime.dto.FormRecordMutationReq;
 import org.jeecg.modules.formruntime.dto.FormRecordMutationResp;
@@ -29,6 +30,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,10 +137,15 @@ public class FormRecordController {
                 filters);
             return Result.ok(pageData);
         }
+        Map<String, String> filters = extractFilters(request);
+        Date startTime = parseDateTime(filters.get("startTime"), false);
+        Date endTime = parseDateTime(filters.get("endTime"), true);
         Page<FormRecord> page = new Page<>(pageNo, pageSize);
         IPage<FormRecord> pageData = formRecordService.lambdaQuery()
             .eq(FormRecord::getFormKey, formKey)
             .eq(FormRecord::getStatus, 0)
+            .ge(startTime != null, FormRecord::getCreatedTime, startTime)
+            .le(endTime != null, FormRecord::getCreatedTime, endTime)
             .orderByDesc(FormRecord::getCreatedTime)
             .page(page);
 
@@ -182,6 +196,34 @@ public class FormRecordController {
         return Result.ok(resp);
     }
 
+    @PostMapping("/delete")
+    public Result<?> delete(@RequestBody FormRecordDeleteReq req, HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getFormKey())) {
+            return Result.error("formKey is required");
+        }
+        List<String> ids = new ArrayList<>();
+        if (req.getRecordIds() != null) {
+            ids.addAll(req.getRecordIds());
+        }
+        if (req.getIds() != null) {
+            ids.addAll(req.getIds());
+        }
+        ids = ids.stream().filter(oConvertUtils::isNotEmpty).distinct().collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return Result.error("recordIds is required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            int deleted = formRecordMutationService.deleteBatch(req.getFormKey(), ids, username);
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("deletedCount", deleted);
+            return Result.ok(resp);
+        } catch (RuntimeException ex) {
+            log.warn("Runtime delete failed: {}", ex.getMessage());
+            return Result.error(resolveMutationCode(ex.getMessage()), ex.getMessage());
+        }
+    }
+
     private Map<String, String> extractFilters(HttpServletRequest request) {
         Map<String, String> filters = new HashMap<>();
         Map<String, String[]> params = request.getParameterMap();
@@ -199,6 +241,14 @@ public class FormRecordController {
                 continue;
             }
             filters.put(fieldKey, values[0]);
+        }
+        String startTime = request.getParameter("startTime");
+        if (oConvertUtils.isNotEmpty(startTime)) {
+            filters.put("startTime", startTime);
+        }
+        String endTime = request.getParameter("endTime");
+        if (oConvertUtils.isNotEmpty(endTime)) {
+            filters.put("endTime", endTime);
         }
         return filters;
     }
@@ -226,5 +276,34 @@ public class FormRecordController {
             return 409;
         }
         return 400;
+    }
+
+    private Date parseDateTime(String value, boolean endOfDay) {
+        if (oConvertUtils.isEmpty(value)) {
+            return null;
+        }
+        String text = value.trim();
+        if (text.isEmpty()) {
+            return null;
+        }
+        try {
+            LocalDateTime parsed = LocalDateTime.parse(text, DateTimeFormatter.ISO_DATE_TIME);
+            return Timestamp.valueOf(parsed);
+        } catch (DateTimeParseException ex) {
+            // ignore
+        }
+        try {
+            LocalDateTime parsed = LocalDateTime.parse(text, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            return Timestamp.valueOf(parsed);
+        } catch (DateTimeParseException ex) {
+            // ignore
+        }
+        try {
+            LocalDate date = LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalDateTime parsed = endOfDay ? date.atTime(LocalTime.of(23, 59, 59)) : date.atStartOfDay();
+            return Timestamp.valueOf(parsed);
+        } catch (DateTimeParseException ex) {
+            return null;
+        }
     }
 }
