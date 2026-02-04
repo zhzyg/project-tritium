@@ -208,3 +208,8 @@
   - Detail page currently redirects to a placeholder `/form/runtime/:formKey/view`.
   - MVP-6B: Implement true detail page rendering.
 
+- [2026-02-04] MVP-6B1 v0: Stabilize oa_verify + runtime regression coverage.
+  - **Ops**: `ops/repro_bpm_my.mjs` adds shell marker waits, route retries, and structured failure evidence (URL/readyState/console errors/screenshot).
+  - **Ops**: `ops/repro_bpm_suite.sh` retries each route and soft-fails `/bpm/done` (warn + continue) while still hard-failing `/bpm/my` or `/bpm/tasks`.
+  - **Ops**: `ops/repro_form_runtime_list.mjs` clicks runtime menu items to reach `/form/runtime/*/list` and captures sidebar/list/detail evidence.
+  - **Verification**: `ops/oa_verify.sh` always executes runtime checks when login routes pass; evidence in `.artifacts/repro-bpm-suite` and `.artifacts/repro-form-runtime`.

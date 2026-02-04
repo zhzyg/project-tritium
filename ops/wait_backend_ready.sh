@@ -3,8 +3,8 @@
 # Wait for backend (/jeecg-boot/) to be ready
 
 BASE_URL=${1:-"https://oa.donaldzhu.com"}
-MAX_RETRIES=30
-RETRY_INTERVAL=3
+MAX_RETRIES=${WAIT_BACKEND_MAX_RETRIES:-30}
+RETRY_INTERVAL=${WAIT_BACKEND_RETRY_INTERVAL:-3}
 
 echo "⏳ Waiting for backend ready at $BASE_URL/jeecg-boot/ ..."
 

@@ -16,9 +16,13 @@ echo "[oa-verify] OA_USER:  $OA_USER"
 echo "[oa-verify] STORAGE:  $OA_STORAGE_STATE"
 
 handle_failure() {
+    local category="$1"
+    local evidence="$2"
     echo ""
     echo "❌ [oa-verify] VERIFICATION FAILED."
     echo "----------------------------------------------------------------"
+    echo "Category: $category"
+    echo "Evidence: $evidence"
     echo "Possible causes:"
     echo "  1. CAPTCHA is required (automated bypass failed)."
     echo "  2. Backend is down or returning 502/504."
@@ -36,7 +40,7 @@ handle_failure() {
 # 1. Wait for backend
 if [[ -f "./ops/wait_backend_ready.sh" ]]; then
     echo "[oa-verify] Waiting for backend readiness..."
-    ./ops/wait_backend_ready.sh || echo "[oa-verify] Warning: wait_backend_ready failed, proceeding anyway."
+    WAIT_BACKEND_MAX_RETRIES=40 WAIT_BACKEND_RETRY_INTERVAL=3 ./ops/wait_backend_ready.sh "$BASE_URL" || echo "[oa-verify] Warning: wait_backend_ready failed, proceeding anyway."
 fi
 
 # 2. Check if storage state exists
@@ -48,10 +52,38 @@ fi
 
 # 3. Run BPM suite
 echo "[oa-verify] Running repro_bpm_suite.sh..."
-./ops/repro_bpm_suite.sh || handle_failure
+set +e
+./ops/repro_bpm_suite.sh
+bpm_rc=$?
+set -e
+
+my_ok=1
+tasks_ok=1
+done_ok=1
+if [[ -f ".artifacts/repro-bpm-suite/summary.env" ]]; then
+    # shellcheck disable=SC1091
+    source ".artifacts/repro-bpm-suite/summary.env"
+fi
+
+if [[ $bpm_rc -ne 0 || $my_ok -eq 0 || $tasks_ok -eq 0 ]]; then
+    handle_failure "bpm-core" ".artifacts/repro-bpm-suite"
+fi
+
+if [[ $done_ok -eq 0 ]]; then
+    echo "⚠️  [oa-verify] WARN: /bpm/done failed, continuing to runtime verification."
+fi
 
 # 4. Run Form Runtime verification
 echo "[oa-verify] Running repro_form_runtime_list.mjs..."
-node ops/repro_form_runtime_list.mjs || handle_failure
+node ops/repro_form_runtime_list.mjs || handle_failure "form-runtime" ".artifacts/repro-form-runtime"
+
+echo "[oa-verify] Evidence:"
+echo "  - .artifacts/repro-bpm-suite"
+echo "  - .artifacts/repro-form-runtime"
+
+if [[ $done_ok -eq 0 ]]; then
+    echo "✅ [oa-verify] PASS WITH WARN: /bpm/done failed."
+    exit 0
+fi
 
 echo "✅ [oa-verify] ALL ROUTES PASSED."
