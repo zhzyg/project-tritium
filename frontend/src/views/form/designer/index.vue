@@ -1,39 +1,50 @@
 <template>
   <PageWrapper title="表单设计器（VForm）" contentFullHeight>
-    <div class="vform-designer-page">
-      <div class="vform-designer-toolbar">
-        <a-space>
-          <a-button type="primary" @click="handleSave">Save</a-button>
-          <a-button @click="handlePublish">Publish</a-button>
-          <a-button @click="handleLoad">Load</a-button>
-          <a-button danger @click="handleReset">Reset</a-button>
-        </a-space>
-        <a-space class="vform-designer-meta" size="large">
-          <span>formKey: {{ formKey }}</span>
-          <span>version: {{ latestVersion ?? '-' }}</span>
-          <span>table: {{ lastPublishTable || '-' }}</span>
-          <span>last saved: {{ lastSavedTime || '-' }}</span>
-        </a-space>
-      </div>
-      <div class="vform-designer-body">
-        <VFormDesigner ref="designerRef" />
-      </div>
-    </div>
+    <a-tabs v-model:activeKey="activeTab">
+      <a-tab-pane key="form" tab="表单设计">
+        <div class="vform-designer-page">
+          <div class="vform-designer-toolbar">
+            <a-space>
+              <a-button type="primary" @click="handleSave">Save</a-button>
+              <a-button @click="handlePublish">Publish</a-button>
+              <a-button @click="handleLoad">Load</a-button>
+              <a-button danger @click="handleReset">Reset</a-button>
+            </a-space>
+            <a-space class="vform-designer-meta" size="large">
+              <span>formKey: {{ formKey }}</span>
+              <span>version: {{ latestVersion ?? '-' }}</span>
+              <span>table: {{ lastPublishTable || '-' }}</span>
+              <span>last saved: {{ lastSavedTime || '-' }}</span>
+            </a-space>
+          </div>
+          <div class="vform-designer-body">
+            <VFormDesigner ref="designerRef" />
+          </div>
+        </div>
+      </a-tab-pane>
+      <a-tab-pane key="process" tab="流程设计">
+        <FormProcessDesigner :form-key="formKey" />
+      </a-tab-pane>
+    </a-tabs>
   </PageWrapper>
 </template>
 
 <script lang="ts" setup>
-  import { onMounted, ref } from 'vue';
+  import { computed, onMounted, ref, watch } from 'vue';
+  import { useRoute } from 'vue-router';
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
   import { VFormDesigner } from 'vform3-builds';
+  import FormProcessDesigner from './_components/FormProcessDesigner.vue';
   import { getLatestSchema, saveSchema, publishSchema } from './designer.api';
   import 'vform3-builds/dist/designer.style.css';
 
   const TRITIUM_FORM_KEY_DEV = 'dev';
-  const STORAGE_KEY = 'TRITIUM_VFORM_SCHEMA_DEV';
+  const route = useRoute();
+  const activeTab = ref('form');
   const designerRef = ref<any>(null);
-  const formKey = TRITIUM_FORM_KEY_DEV;
+  const formKey = computed(() => (route.query.formKey as string) || TRITIUM_FORM_KEY_DEV);
+  const storageKey = computed(() => `TRITIUM_VFORM_SCHEMA_${formKey.value}`);
   const latestVersion = ref<number | null>(null);
   const lastSavedTime = ref<string | null>(null);
   const lastPublishTable = ref<string | null>(null);
@@ -67,19 +78,19 @@
     }
     const schemaJson = JSON.stringify(schema);
     try {
-      const res = await saveSchema({ formKey, schemaJson });
+      const res = await saveSchema({ formKey: formKey.value, schemaJson });
       latestVersion.value = res?.version ?? latestVersion.value;
       lastSavedTime.value = res?.savedTime ?? lastSavedTime.value;
-      localStorage.setItem(STORAGE_KEY, schemaJson);
+      localStorage.setItem(storageKey.value, schemaJson);
       message.success('Schema saved');
     } catch (err) {
-      localStorage.setItem(STORAGE_KEY, schemaJson);
+      localStorage.setItem(storageKey.value, schemaJson);
       message.warning('Backend save failed, saved locally');
     }
   };
 
   const loadFromLocal = (silent = false) => {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey.value);
     if (!raw) {
       if (!silent) message.warning('No schema saved');
       return;
@@ -100,7 +111,7 @@
   };
 
   const loadFromBackend = async (silent = false) => {
-    const res = await getLatestSchema({ formKey });
+    const res = await getLatestSchema({ formKey: formKey.value });
     if (!res?.schemaJson) {
       if (!silent) message.warning('No schema returned');
       return;
@@ -119,7 +130,7 @@
     }
     latestVersion.value = res?.version ?? latestVersion.value;
     lastSavedTime.value = res?.savedTime ?? lastSavedTime.value;
-    localStorage.setItem(STORAGE_KEY, res.schemaJson);
+    localStorage.setItem(storageKey.value, res.schemaJson);
     if (!silent) message.success('Schema loaded');
   };
 
@@ -135,7 +146,7 @@
 
   const handlePublish = async () => {
     try {
-      const resp = await publishSchema({ formKey });
+      const resp = await publishSchema({ formKey: formKey.value });
       latestVersion.value = resp?.version ?? latestVersion.value;
       lastPublishTable.value = resp?.tableName ?? lastPublishTable.value;
       const ddlCount = resp?.ddlApplied?.length ?? 0;
@@ -146,7 +157,7 @@
   };
 
   const handleReset = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey.value);
     const api = getDesignerApi();
     if (api?.setFormJson) {
       api.setFormJson({ widgetList: [], formConfig: {} });
@@ -154,7 +165,18 @@
     message.success('Schema reset');
   };
 
+  const resetMeta = () => {
+    latestVersion.value = null;
+    lastSavedTime.value = null;
+    lastPublishTable.value = null;
+  };
+
   onMounted(() => {
+    handleLoad(true);
+  });
+
+  watch(formKey, () => {
+    resetMeta();
     handleLoad(true);
   });
 </script>
@@ -186,6 +208,14 @@
   }
 
   .vform-designer-body :deep(.main-container) {
+    height: 100%;
+  }
+
+  :deep(.ant-tabs) {
+    height: 100%;
+  }
+
+  :deep(.ant-tabs-content-holder) {
     height: 100%;
   }
 </style>

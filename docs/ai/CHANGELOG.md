@@ -268,3 +268,10 @@
   - **Backend**: `completeTask` filters patchData by whitelist and writes back best-effort (failures log warn, task completion still proceeds).
   - **Frontend**: `/bpm/task/:taskId/form` defaults to read-only, unlocks whitelist fields, and submits whitelist-only patchData.
   - **Ops**: added `ops/repro_bpm_task_field_perm.mjs` and wired into `oa_verify` (skips if no whitelist config; evidence `.artifacts/repro-bpm-task-field-perm`).
+
+- [2026-02-04] MVP-9A v0: Form-embedded BPMN designer (draft + publish + bind).
+  - **Docs alignment**: mirrored “表单内流程设计入口 + 保存/发布” interaction patterns (Jeecg/氚云参考).
+  - **Storage**: added `tr_form_bpmn` for draft/published BPMN XML with hash idempotency (`20260204_add_form_bpmn.sql`).
+  - **Backend**: `/form/bpmn/get|save|publish` endpoints with admin-only save/publish; publish deploys via Flowable RepositoryService and upserts `tr_form_proc_bind`.
+  - **Frontend**: `/form/designer` adds “流程设计” tab using bpmn-js (save draft + publish deployment + error states).
+  - **Ops**: added `ops/repro_form_process_designer.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-form-process-designer`).

@@ -81,15 +81,19 @@ node ops/repro_bpm_start.mjs || handle_failure "bpm-start" ".artifacts/repro-bpm
 echo "[oa-verify] Running repro_bpm_open_form.mjs..."
 node ops/repro_bpm_open_form.mjs || handle_failure "bpm-open-form" ".artifacts/repro-bpm-open-form"
 
-# 6. Run BPM task comment verification
+# 6. Run Form Process Designer verification
+echo "[oa-verify] Running repro_form_process_designer.mjs..."
+node ops/repro_form_process_designer.mjs || handle_failure "form-process-designer" ".artifacts/repro-form-process-designer"
+
+# 7. Run BPM task comment verification
 echo "[oa-verify] Running repro_bpm_task_comment.mjs..."
 node ops/repro_bpm_task_comment.mjs || handle_failure "bpm-task-comment" ".artifacts/repro-bpm-task-comment"
 
-# 7. Run BPM task field permission verification
+# 8. Run BPM task field permission verification
 echo "[oa-verify] Running repro_bpm_task_field_perm.mjs..."
 node ops/repro_bpm_task_field_perm.mjs || handle_failure "bpm-task-field-perm" ".artifacts/repro-bpm-task-field-perm"
 
-# 8. Run Form Runtime verification
+# 9. Run Form Runtime verification
 echo "[oa-verify] Running repro_form_runtime_list.mjs..."
 node ops/repro_form_runtime_list.mjs || handle_failure "form-runtime" ".artifacts/repro-form-runtime"
 
@@ -97,6 +101,7 @@ echo "[oa-verify] Evidence:"
 echo "  - .artifacts/repro-bpm-suite"
 echo "  - .artifacts/repro-bpm-start"
 echo "  - .artifacts/repro-bpm-open-form"
+echo "  - .artifacts/repro-form-process-designer"
 echo "  - .artifacts/repro-bpm-task-comment"
 echo "  - .artifacts/repro-bpm-task-field-perm"
 echo "  - .artifacts/repro-form-runtime"
