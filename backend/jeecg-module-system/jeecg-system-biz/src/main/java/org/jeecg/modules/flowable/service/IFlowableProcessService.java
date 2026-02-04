@@ -13,6 +13,8 @@ import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermReq;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermResp;
 
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,10 @@ public interface IFlowableProcessService {
     FlowableTaskContextResp getTaskContext(String taskId);
 
     FlowableTaskContextResp getProcessContext(String processInstanceId);
+
+    FlowableTaskFieldPermResp getTaskFieldPerm(String procDefKey, String taskDefKey, String formKey);
+
+    void upsertTaskFieldPerm(FlowableTaskFieldPermReq req, String username);
 
     List<FlowableProcessTraceResp> getProcessTrace(String processInstanceId);
 

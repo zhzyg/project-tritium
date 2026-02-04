@@ -12,7 +12,7 @@ const RETRY_MAX = Number.parseInt(process.env.RETRY_MAX || '2', 10);
 const RETRY_BASE_DELAY_MS = Number.parseInt(process.env.RETRY_DELAY_MS || '2000', 10);
 const SHELL_SELECTOR = '.ant-layout, .ant-menu, .ant-layout-sider';
 
-const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-task-comment');
+const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-task-field-perm');
 if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -110,7 +110,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       const result = {
         success: true,
         skipped: true,
-        reason: 'NO TASK DATA: SKIP task comment',
+        reason: 'NO TASK DATA: SKIP task field perm',
         url: page.url(),
         screenshot: emptyShot,
       };
@@ -130,6 +130,53 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     failureStage = 'wait-form-route';
     await page.waitForURL(/\/bpm\/task\/.+\/form/, { timeout: ROUTE_TIMEOUT, waitUntil: 'domcontentloaded' });
+
+    failureStage = 'wait-form-render';
+    const formContainer = page.locator('[data-testid="bpm-task-form-render"]').first();
+    await formContainer.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+
+    const editableCountAttr = await formContainer.getAttribute('data-editable-count');
+    const editableCount = editableCountAttr ? Number.parseInt(editableCountAttr, 10) : 0;
+    if (!Number.isFinite(editableCount) || editableCount <= 0) {
+      const skipShot = path.join(ARTIFACTS_DIR, 'no-editable-fields.png');
+      try {
+        await page.screenshot({ path: skipShot, timeout: 15000 });
+      } catch (err) {}
+      const result = {
+        success: true,
+        skipped: true,
+        reason: `NO FIELD PERM CONFIG (count=${editableCountAttr || '0'})`,
+        url: page.url(),
+        screenshot: skipShot,
+      };
+      fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(result, null, 2));
+      console.log(result.reason);
+      await browser.close();
+      return;
+    }
+
+    failureStage = 'check-editable-field';
+    const editableInput = formContainer.locator(
+      'input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly]), select:not([disabled]):not([readonly])'
+    ).first();
+    if ((await editableInput.count()) < 1) {
+      throw new Error('No editable field found in form');
+    }
+    try {
+      await editableInput.click({ timeout: 5000 });
+      const tagName = await editableInput.evaluate((el) => el.tagName.toLowerCase());
+      if (tagName === 'input' || tagName === 'textarea') {
+        await editableInput.fill(`Auto-${Date.now()}`);
+      }
+    } catch (e) {}
+
+    failureStage = 'check-readonly-field';
+    const disabledInput = formContainer.locator(
+      'input[disabled], textarea[disabled], select[disabled], input[readonly], textarea[readonly]'
+    ).first();
+    if ((await disabledInput.count()) < 1) {
+      throw new Error('No readonly/disabled field found in form');
+    }
 
     failureStage = 'fill-comment';
     const commentInput = page.locator('[data-testid="bpm-task-comment"]').first();
@@ -151,7 +198,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       successToast.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT }),
     ]);
 
-    const successShot = path.join(ARTIFACTS_DIR, 'task-comment.png');
+    const successShot = path.join(ARTIFACTS_DIR, 'task-field-perm.png');
     let screenshotError = null;
     try {
       await page.screenshot({ path: successShot, timeout: 15000 });

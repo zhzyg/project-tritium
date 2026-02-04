@@ -23,9 +23,12 @@ import org.jeecg.modules.flowable.dto.FlowableProcessTraceResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermReq;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.jeecg.modules.system.mapper.SysUserRoleMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,6 +50,9 @@ public class FlowableProcessController {
 
     @Autowired
     private IProcessRegistryService processRegistryService;
+
+    @Autowired
+    private SysUserRoleMapper sysUserRoleMapper;
 
     @GetMapping("/defs/list")
     public Result<List<FlowableProcessDefResp>> listDefs() {
@@ -243,6 +249,38 @@ public class FlowableProcessController {
         }
     }
 
+    @GetMapping("/task/fieldPerm")
+    public Result<FlowableTaskFieldPermResp> getTaskFieldPerm(String procDefKey, String taskDefKey, String formKey) {
+        if (oConvertUtils.isEmpty(procDefKey) || oConvertUtils.isEmpty(taskDefKey) || oConvertUtils.isEmpty(formKey)) {
+            return Result.error("procDefKey, taskDefKey and formKey are required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getTaskFieldPerm(procDefKey, taskDefKey, formKey));
+        } catch (RuntimeException ex) {
+            log.warn("getTaskFieldPerm failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/task/fieldPerm/upsert")
+    public Result<Object> upsertTaskFieldPerm(@RequestBody FlowableTaskFieldPermReq req,
+                                              HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getProcDefKey()) || oConvertUtils.isEmpty(req.getTaskDefKey()) || oConvertUtils.isEmpty(req.getFormKey())) {
+            return Result.error("procDefKey, taskDefKey and formKey are required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        if (!isAdmin(username)) {
+            return Result.error(403, "forbidden");
+        }
+        try {
+            flowableProcessService.upsertTaskFieldPerm(req, username);
+            return Result.ok("ok");
+        } catch (RuntimeException ex) {
+            log.warn("upsertTaskFieldPerm failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
     @GetMapping("/process/context")
     public Result<FlowableTaskContextResp> getProcessContext(String processInstanceId) {
         if (oConvertUtils.isEmpty(processInstanceId)) {
@@ -254,6 +292,14 @@ public class FlowableProcessController {
             log.warn("getProcessContext failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
+    }
+
+    private boolean isAdmin(String username) {
+        if (oConvertUtils.isEmpty(username)) {
+            return false;
+        }
+        List<String> roles = sysUserRoleMapper.getRoleByUserName(username);
+        return roles != null && roles.contains("admin");
     }
 
     @GetMapping("/task/my")

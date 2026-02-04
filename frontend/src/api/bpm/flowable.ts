@@ -14,6 +14,7 @@ enum Api {
   TaskComplete = '/bpm/task/complete',
   ProcessVars = '/bpm/process/vars',
   TaskContext = '/bpm/task/context',
+  TaskFieldPerm = '/bpm/task/fieldPerm',
   ProcessContext = '/bpm/process/context',
   TaskComments = '/bpm/task/comments',
   TaskDone = '/bpm/task/done',
@@ -156,6 +157,8 @@ export const getProcessVars = (params: { processInstanceId: string }) =>
 export interface TaskContextResp {
   taskId: string;
   processInstanceId: string;
+  processDefinitionKey?: string;
+  taskDefinitionKey?: string;
   businessKey?: string;
   recordId?: string;
   formKey?: string;
@@ -170,6 +173,17 @@ export interface TaskContextResp {
 
 export const getTaskContext = (params: { taskId: string }) =>
   defHttp.get<TaskContextResp>({ url: Api.TaskContext, params });
+
+export interface TaskFieldPermResp {
+  procDefKey?: string;
+  taskDefKey?: string;
+  formKey?: string;
+  editableFields?: string[];
+  enabled?: number;
+}
+
+export const getTaskFieldPerm = (params: { procDefKey: string; taskDefKey: string; formKey: string }) =>
+  defHttp.get<TaskFieldPermResp | null>({ url: Api.TaskFieldPerm, params });
 
 export const getProcessContext = (params: { processInstanceId: string }) =>
   defHttp.get<TaskContextResp>({ url: Api.ProcessContext, params });

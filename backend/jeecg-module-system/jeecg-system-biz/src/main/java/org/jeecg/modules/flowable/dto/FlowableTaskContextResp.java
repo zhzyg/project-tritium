@@ -19,6 +19,12 @@ public class FlowableTaskContextResp {
     @ApiModelProperty("process name")
     private String processName;
 
+    @ApiModelProperty("process definition key")
+    private String processDefinitionKey;
+
+    @ApiModelProperty("task definition key")
+    private String taskDefinitionKey;
+
     @ApiModelProperty("business key")
     private String businessKey;
 

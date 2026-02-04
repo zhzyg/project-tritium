@@ -32,6 +32,8 @@ import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermReq;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
@@ -295,23 +297,36 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         }
 
         String processInstanceId = task.getProcessInstanceId();
-        if (req.getPatchData() != null && !req.getPatchData().isEmpty()) {
+        Map<String, Object> rawPatch = req.getPatchData();
+        if (rawPatch != null && !rawPatch.isEmpty()) {
             if (oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getRecordId())) {
                 throw new IllegalArgumentException("formKey and recordId are required when patchData provided");
             }
-            FormRecordMutationReq updateReq = new FormRecordMutationReq();
-            updateReq.setFormKey(req.getFormKey());
-            updateReq.setRecordId(req.getRecordId());
-            updateReq.setData(req.getPatchData());
-            formRecordMutationService.update(updateReq, username);
+            String procDefKey = resolveProcessDefinitionKey(task.getProcessDefinitionId());
+            String taskDefKey = task.getTaskDefinitionKey();
+            Set<String> editableFields = resolveEditableFieldSet(procDefKey, taskDefKey, req.getFormKey());
+            Map<String, Object> filteredPatch = filterPatchData(rawPatch, editableFields);
+            if (filteredPatch.isEmpty()) {
+                log.warn("Task {} patchData ignored: no editable fields configured", task.getId());
+            } else {
+                try {
+                    FormRecordMutationReq updateReq = new FormRecordMutationReq();
+                    updateReq.setFormKey(req.getFormKey());
+                    updateReq.setRecordId(req.getRecordId());
+                    updateReq.setData(filteredPatch);
+                    formRecordMutationService.update(updateReq, username);
 
-            FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(req.getFormKey());
-            if (published != null) {
-                Map<String, Object> latestData = fetchFormData(req.getFormKey(), published, req.getRecordId());
-                Set<String> patchKeys = req.getPatchData().keySet();
-                Map<String, Object> patchVars = flowableVarMappingService.mapVariables(req.getFormKey(), published, latestData, patchKeys);
-                if (oConvertUtils.isNotEmpty(processInstanceId) && patchVars != null && !patchVars.isEmpty()) {
-                    runtimeService.setVariables(processInstanceId, patchVars);
+                    FormSchemaPublishedResp published = formSchemaPublishService.getLatestPublished(req.getFormKey());
+                    if (published != null) {
+                        Map<String, Object> latestData = fetchFormData(req.getFormKey(), published, req.getRecordId());
+                        Set<String> patchKeys = filteredPatch.keySet();
+                        Map<String, Object> patchVars = flowableVarMappingService.mapVariables(req.getFormKey(), published, latestData, patchKeys);
+                        if (oConvertUtils.isNotEmpty(processInstanceId) && patchVars != null && !patchVars.isEmpty()) {
+                            runtimeService.setVariables(processInstanceId, patchVars);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("Patch data update failed: {}", e.getMessage());
                 }
             }
         }
@@ -513,12 +528,14 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             resp.setAssignee(task.getAssignee());
             resp.setCreateTime(task.getCreateTime());
             resp.setCandidateGroups(getCandidateGroups(task.getId()));
+            resp.setTaskDefinitionKey(task.getTaskDefinitionKey());
             if (oConvertUtils.isNotEmpty(task.getProcessDefinitionId())) {
                 ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
                     .processDefinitionId(task.getProcessDefinitionId())
                     .singleResult();
                 if (pd != null) {
                     resp.setProcessName(pd.getName());
+                    resp.setProcessDefinitionKey(pd.getKey());
                 }
             }
         } else {
@@ -526,12 +543,14 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             resp.setAssignee(historicTask.getAssignee());
             resp.setCreateTime(historicTask.getCreateTime());
             resp.setCandidateGroups(new ArrayList<>());
+            resp.setTaskDefinitionKey(historicTask.getTaskDefinitionKey());
             if (oConvertUtils.isNotEmpty(historicTask.getProcessDefinitionId())) {
                 ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
                     .processDefinitionId(historicTask.getProcessDefinitionId())
                     .singleResult();
                 if (pd != null) {
                     resp.setProcessName(pd.getName());
+                    resp.setProcessDefinitionKey(pd.getKey());
                 }
             }
         }
@@ -556,6 +575,7 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                 .singleResult();
             if (pd != null) {
                 resp.setProcessName(pd.getName());
+                resp.setProcessDefinitionKey(pd.getKey());
             }
         } else {
             HistoricProcessInstance historic = historyService.createHistoricProcessInstanceQuery()
@@ -570,11 +590,65 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
                     .singleResult();
                 if (pd != null) {
                     resp.setProcessName(pd.getName());
+                    resp.setProcessDefinitionKey(pd.getKey());
                 }
             }
         }
         fillProcessContext(processInstanceId, resp);
         return resp;
+    }
+
+    @Override
+    public FlowableTaskFieldPermResp getTaskFieldPerm(String procDefKey, String taskDefKey, String formKey) {
+        if (oConvertUtils.isEmpty(procDefKey) || oConvertUtils.isEmpty(taskDefKey) || oConvertUtils.isEmpty(formKey)) {
+            return null;
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "select proc_def_key, task_def_key, form_key, editable_fields_json, enabled from tr_bpm_task_field_perm "
+                + "where proc_def_key=? and task_def_key=? and form_key=? and enabled=1 limit 1",
+            procDefKey,
+            taskDefKey,
+            formKey
+        );
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> row = rows.get(0);
+        FlowableTaskFieldPermResp resp = new FlowableTaskFieldPermResp();
+        resp.setProcDefKey(getString(row, "proc_def_key"));
+        resp.setTaskDefKey(getString(row, "task_def_key"));
+        resp.setFormKey(getString(row, "form_key"));
+        resp.setEnabled(getInt(row, "enabled"));
+        resp.setEditableFields(parseEditableFields(row.get("editable_fields_json")));
+        return resp;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void upsertTaskFieldPerm(FlowableTaskFieldPermReq req, String username) {
+        if (req == null || oConvertUtils.isEmpty(req.getProcDefKey()) || oConvertUtils.isEmpty(req.getTaskDefKey()) || oConvertUtils.isEmpty(req.getFormKey())) {
+            throw new IllegalArgumentException("procDefKey, taskDefKey and formKey are required");
+        }
+        List<String> editableFields = req.getEditableFields();
+        String json = editableFields == null ? "[]" : JSON.toJSONString(editableFields);
+        Integer enabled = req.getEnabled() == null ? 1 : req.getEnabled();
+        String id = IdWorker.getIdStr();
+        Date now = new Date();
+        jdbcTemplate.update(
+            "insert into tr_bpm_task_field_perm (id, proc_def_key, task_def_key, form_key, editable_fields_json, enabled, created_time, created_by) "
+                + "values (?,?,?,?,?,?,?,?) "
+                + "on duplicate key update editable_fields_json=values(editable_fields_json), enabled=values(enabled), updated_time=?, updated_by=?",
+            id,
+            req.getProcDefKey(),
+            req.getTaskDefKey(),
+            req.getFormKey(),
+            json,
+            enabled,
+            now,
+            username,
+            now,
+            username
+        );
     }
 
     private void fillProcessContext(String processInstanceId, FlowableTaskContextResp resp) {
@@ -659,6 +733,65 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         return historic != null ? historic.getBusinessKey() : null;
     }
 
+    private String resolveProcessDefinitionKey(String processDefinitionId) {
+        if (oConvertUtils.isEmpty(processDefinitionId)) {
+            return null;
+        }
+        ProcessDefinition pd = repositoryService.createProcessDefinitionQuery()
+            .processDefinitionId(processDefinitionId)
+            .singleResult();
+        return pd != null ? pd.getKey() : null;
+    }
+
+    private Set<String> resolveEditableFieldSet(String procDefKey, String taskDefKey, String formKey) {
+        Set<String> editable = new HashSet<>();
+        if (oConvertUtils.isEmpty(procDefKey) || oConvertUtils.isEmpty(taskDefKey) || oConvertUtils.isEmpty(formKey)) {
+            return editable;
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "select editable_fields_json from tr_bpm_task_field_perm "
+                    + "where proc_def_key=? and task_def_key=? and form_key=? and enabled=1 limit 1",
+                procDefKey,
+                taskDefKey,
+                formKey
+            );
+            if (rows != null && !rows.isEmpty()) {
+                List<String> fields = parseEditableFields(rows.get(0).get("editable_fields_json"));
+                if (fields != null) {
+                    editable.addAll(fields);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("failed to resolve editable fields: {}", e.getMessage());
+        }
+        return editable;
+    }
+
+    private Map<String, Object> filterPatchData(Map<String, Object> raw, Set<String> editableFields) {
+        Map<String, Object> filtered = new HashMap<>();
+        if (raw == null || raw.isEmpty() || editableFields == null || editableFields.isEmpty()) {
+            return filtered;
+        }
+        for (Map.Entry<String, Object> entry : raw.entrySet()) {
+            if (editableFields.contains(entry.getKey())) {
+                filtered.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return filtered;
+    }
+
+    private List<String> parseEditableFields(Object raw) {
+        if (raw == null) {
+            return new ArrayList<>();
+        }
+        try {
+            return JSON.parseArray(raw.toString(), String.class);
+        } catch (Exception ex) {
+            return new ArrayList<>();
+        }
+    }
+
     private Map<String, Object> loadProcessVariablesRaw(String processInstanceId) {
         Map<String, Object> variables = new HashMap<>();
         if (oConvertUtils.isEmpty(processInstanceId)) {
@@ -701,6 +834,24 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         }
         Object val = row.get(key);
         return val == null ? null : val.toString();
+    }
+
+    private Integer getInt(Map<String, Object> row, String key) {
+        if (row == null) {
+            return null;
+        }
+        Object val = row.get(key);
+        if (val == null) {
+            return null;
+        }
+        if (val instanceof Number) {
+            return ((Number) val).intValue();
+        }
+        try {
+            return Integer.parseInt(val.toString());
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private void writeFormAudit(String formKey,

@@ -83,7 +83,11 @@
         </a-space>
       </div>
 
-      <div class="form-container" data-testid="bpm-task-form-render">
+      <div
+        class="form-container"
+        data-testid="bpm-task-form-render"
+        :data-editable-count="editableFields.length"
+      >
         <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
         <a-empty v-if="contextLoaded && recordId && !schemaReady" description="未找到可渲染表单" />
       </div>
@@ -112,7 +116,7 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { completeTask, getProcessContext, getProcessTrace, getTaskContext } from '/@/api/bpm/flowable';
+  import { completeTask, getProcessContext, getProcessTrace, getTaskContext, getTaskFieldPerm } from '/@/api/bpm/flowable';
   import { getLatestPublishedSchemaJson, getRecord } from '/@/views/form/runtime/runtime.api';
 
   const route = useRoute();
@@ -129,6 +133,8 @@
 
   const taskName = ref('');
   const processName = ref('');
+  const processDefinitionKey = ref('');
+  const taskDefinitionKey = ref('');
   const businessKey = ref('');
   const recordId = ref('');
   const formKey = ref('');
@@ -142,6 +148,9 @@
   const errorMessage = ref('');
   const comment = ref('');
   const traceData = ref<any[]>([]);
+  const editableFields = ref<string[]>([]);
+  const editableFieldsLoaded = ref(false);
+  const originalData = ref<Record<string, any>>({});
 
   const commentItems = computed(() =>
     traceData.value.filter((item) => item?.comment || item?.taskName || item?.type)
@@ -156,15 +165,82 @@
 
   const resetFormData = () => {
     Object.keys(formData).forEach((key) => delete formData[key]);
+    originalData.value = {};
     if (renderRef.value?.setFormData) {
       renderRef.value.setFormData({});
     }
   };
 
-  const applyReadonly = () => {
-    if (renderRef.value?.disableForm) {
-      renderRef.value.disableForm();
+  const getChildWidgetLists = (widget: any): any[][] => {
+    const lists: any[][] = [];
+    if (Array.isArray(widget?.widgetList)) {
+      lists.push(widget.widgetList);
     }
+    if (Array.isArray(widget?.children)) {
+      lists.push(widget.children);
+    }
+    if (Array.isArray(widget?.tabs)) {
+      widget.tabs.forEach((tab: any) => {
+        if (Array.isArray(tab?.widgetList)) {
+          lists.push(tab.widgetList);
+        }
+      });
+    }
+    if (Array.isArray(widget?.rows)) {
+      widget.rows.forEach((row: any) => {
+        if (Array.isArray(row?.cols)) {
+          row.cols.forEach((col: any) => {
+            if (Array.isArray(col?.widgetList)) {
+              lists.push(col.widgetList);
+            }
+          });
+        }
+        if (Array.isArray(row?.columns)) {
+          row.columns.forEach((col: any) => {
+            if (Array.isArray(col?.widgetList)) {
+              lists.push(col.widgetList);
+            }
+          });
+        }
+      });
+    }
+    if (Array.isArray(widget?.cols)) {
+      widget.cols.forEach((col: any) => {
+        if (Array.isArray(col?.widgetList)) {
+          lists.push(col.widgetList);
+        }
+      });
+    }
+    return lists;
+  };
+
+  const applyFieldPerm = (schema: Record<string, any>) => {
+    const whitelist = new Set(editableFields.value || []);
+    const walk = (widgets: any[]) => {
+      if (!Array.isArray(widgets)) {
+        return;
+      }
+      widgets.forEach((widget) => {
+        if (!widget || typeof widget !== 'object') {
+          return;
+        }
+        const fieldKey =
+          widget?.options?.name || widget?.options?.field || widget?.field || widget?.name;
+        const isFieldWidget = widget?.formItemFlag === true || !!fieldKey;
+        if (isFieldWidget) {
+          const editable = fieldKey ? whitelist.has(fieldKey) : false;
+          if (widget.options) {
+            widget.options.disabled = !editable;
+            widget.options.readonly = !editable;
+          }
+          widget.disabled = !editable;
+          widget.readonly = !editable;
+        }
+        const childLists = getChildWidgetLists(widget);
+        childLists.forEach((list) => walk(list));
+      });
+    };
+    walk(schema?.widgetList || []);
   };
 
   const loadContext = async () => {
@@ -175,7 +251,11 @@
     businessKey.value = '';
     taskName.value = '';
     processName.value = '';
+    processDefinitionKey.value = '';
+    taskDefinitionKey.value = '';
     taskActive.value = false;
+    editableFields.value = [];
+    editableFieldsLoaded.value = false;
 
     if (taskId.value) {
       const ctx = await getTaskContext({ taskId: taskId.value });
@@ -184,6 +264,8 @@
       businessKey.value = ctx?.businessKey || '';
       taskName.value = ctx?.taskName || '';
       processName.value = ctx?.processName || '';
+      processDefinitionKey.value = ctx?.processDefinitionKey || '';
+      taskDefinitionKey.value = ctx?.taskDefinitionKey || '';
       taskActive.value = ctx?.active !== false;
       procInsId.value = ctx?.processInstanceId || '';
       contextLoaded.value = true;
@@ -197,6 +279,7 @@
       businessKey.value = ctx?.businessKey || '';
       taskName.value = ctx?.taskName || '';
       processName.value = ctx?.processName || '';
+      processDefinitionKey.value = ctx?.processDefinitionKey || '';
       taskActive.value = false;
       procInsId.value = ctx?.processInstanceId || routeProcInsId.value || '';
       contextLoaded.value = true;
@@ -204,6 +287,31 @@
     }
 
     throw new Error('taskId/procInsId 缺失');
+  };
+
+  const loadFieldPerm = async () => {
+    editableFields.value = [];
+    editableFieldsLoaded.value = false;
+    if (!isTaskView.value) {
+      editableFieldsLoaded.value = true;
+      return;
+    }
+    if (!processDefinitionKey.value || !taskDefinitionKey.value || !formKey.value) {
+      editableFieldsLoaded.value = true;
+      return;
+    }
+    try {
+      const res = await getTaskFieldPerm({
+        procDefKey: processDefinitionKey.value,
+        taskDefKey: taskDefinitionKey.value,
+        formKey: formKey.value,
+      });
+      editableFields.value = res?.editableFields || [];
+    } catch (err) {
+      // ignore
+    } finally {
+      editableFieldsLoaded.value = true;
+    }
   };
 
   const loadForm = async () => {
@@ -224,6 +332,7 @@
     }
 
     const parsed = JSON.parse(schemaRes.schemaJson);
+    applyFieldPerm(parsed);
     formJson.value = parsed;
     if (renderRef.value?.setFormJson) {
       renderRef.value.setFormJson(parsed);
@@ -232,6 +341,7 @@
     const recordRes = await getRecord({ id: recordId.value });
     if (recordRes?.dataJson) {
       const data = JSON.parse(recordRes.dataJson);
+      originalData.value = { ...data };
       Object.assign(formData, data);
       if (renderRef.value?.setFormData) {
         renderRef.value.setFormData(data);
@@ -239,7 +349,6 @@
     }
 
     schemaReady.value = true;
-    applyReadonly();
   };
 
   const loadTrace = async () => {
@@ -255,6 +364,29 @@
     }
   };
 
+  const buildPatchData = async () => {
+    if (!editableFields.value.length) {
+      return null;
+    }
+    let currentData: Record<string, any> = {};
+    if (renderRef.value?.getFormData) {
+      try {
+        currentData = await renderRef.value.getFormData();
+      } catch (err) {
+        currentData = { ...formData };
+      }
+    } else {
+      currentData = { ...formData };
+    }
+    const patch: Record<string, any> = {};
+    editableFields.value.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(currentData, key)) {
+        patch[key] = currentData[key];
+      }
+    });
+    return patch;
+  };
+
   const submitTask = async (action: 'APPROVE' | 'REJECT') => {
     if (!taskId.value) {
       return;
@@ -266,11 +398,13 @@
     }
     actionLoading.value = true;
     try {
+      const patchData = await buildPatchData();
       await completeTask({
         taskId: taskId.value,
         formKey: formKey.value,
         recordId: recordId.value,
         comment: payload,
+        patchData: patchData && Object.keys(patchData).length ? patchData : undefined,
         variables: {
           status: action === 'APPROVE' ? 'APPROVED' : 'REJECTED',
           action,
@@ -294,6 +428,7 @@
     loading.value = true;
     try {
       await loadContext();
+      await loadFieldPerm();
       await loadForm();
       await loadTrace();
     } catch (err: any) {
@@ -339,7 +474,6 @@
     background: #f9f9f9;
     padding: 12px;
     border-radius: 6px;
-    pointer-events: none;
   }
 
   .task-comment-box {

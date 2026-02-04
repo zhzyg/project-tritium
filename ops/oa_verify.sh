@@ -85,7 +85,11 @@ node ops/repro_bpm_open_form.mjs || handle_failure "bpm-open-form" ".artifacts/r
 echo "[oa-verify] Running repro_bpm_task_comment.mjs..."
 node ops/repro_bpm_task_comment.mjs || handle_failure "bpm-task-comment" ".artifacts/repro-bpm-task-comment"
 
-# 7. Run Form Runtime verification
+# 7. Run BPM task field permission verification
+echo "[oa-verify] Running repro_bpm_task_field_perm.mjs..."
+node ops/repro_bpm_task_field_perm.mjs || handle_failure "bpm-task-field-perm" ".artifacts/repro-bpm-task-field-perm"
+
+# 8. Run Form Runtime verification
 echo "[oa-verify] Running repro_form_runtime_list.mjs..."
 node ops/repro_form_runtime_list.mjs || handle_failure "form-runtime" ".artifacts/repro-form-runtime"
 
@@ -94,6 +98,7 @@ echo "  - .artifacts/repro-bpm-suite"
 echo "  - .artifacts/repro-bpm-start"
 echo "  - .artifacts/repro-bpm-open-form"
 echo "  - .artifacts/repro-bpm-task-comment"
+echo "  - .artifacts/repro-bpm-task-field-perm"
 echo "  - .artifacts/repro-form-runtime"
 
 if [[ $done_ok -eq 0 ]]; then

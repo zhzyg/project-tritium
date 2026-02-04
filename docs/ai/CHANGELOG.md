@@ -261,3 +261,10 @@
   - **Frontend**: `/bpm/task/:taskId/form` adds comment input + “通过/驳回” actions (sends formKey/recordId/status/action).
   - **Frontend**: `/bpm/instance/:procInsId/form` renders approval record list from `/bpm/process/trace`, with empty-state handling.
   - **Ops**: added `ops/repro_bpm_task_comment.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-bpm-task-comment`).
+
+- [2026-02-04] MVP-8C v0: Per-task editable field whitelist for approvals.
+  - **Storage**: added `tr_bpm_task_field_perm` (procDefKey + taskDefKey + formKey + editable_fields_json); seed patch `20260204_add_bpm_task_field_perm.sql` inserts TRITIUM_APPROVAL_V1/applyTask sample.
+  - **Backend**: `/bpm/task/context` now returns `processDefinitionKey` + `taskDefinitionKey`; added `/bpm/task/fieldPerm` + `/bpm/task/fieldPerm/upsert` (admin-only upsert).
+  - **Backend**: `completeTask` filters patchData by whitelist and writes back best-effort (failures log warn, task completion still proceeds).
+  - **Frontend**: `/bpm/task/:taskId/form` defaults to read-only, unlocks whitelist fields, and submits whitelist-only patchData.
+  - **Ops**: added `ops/repro_bpm_task_field_perm.mjs` and wired into `oa_verify` (skips if no whitelist config; evidence `.artifacts/repro-bpm-task-field-perm`).
