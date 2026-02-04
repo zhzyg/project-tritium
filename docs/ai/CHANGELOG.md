@@ -280,3 +280,10 @@
   - **Frontend entry**: `/form/designer` (`frontend/src/views/form/designer/index.vue`) keeps “流程设计” tab visible and addressable via `?tab=process`.
   - **Test IDs**: `process-designer-root`, `btn-bpmn-save`, `btn-bpmn-publish` for stable e2e targeting.
   - **Ops**: `ops/repro_form_process_designer.mjs` resolves a real formKey from runtime menu (fallback to env) and navigates deterministically to the tab.
+
+- [2026-02-04] MVP-9B v0: Per-node field rules in process designer.
+  - **Docs alignment**: adopt “节点属性面板配置字段权限”交互（对齐氚云节点字段权限思路）。
+  - **Storage**: added `tr_bpm_task_field_rule` (procDefKey + taskDefKey + formKey + visible/editable/required JSON); seed patch `20260204_add_bpm_task_field_rule.sql`.
+  - **Backend**: `/bpm/taskFieldRule/getByTask|upsert|listByProc` for runtime resolve + designer CRUD; `completeTask` now prefers rule table for patchData filtering (falls back to `tr_bpm_task_field_perm`).
+  - **Frontend**: `/form/designer?tab=process` adds node field-rule panel (data-testid: `task-rule-panel`, `btn-task-rule-save`); `/bpm/task/:taskId/form` applies visible/editable/required via VForm schema props (no DOM hacks).
+  - **Ops**: added `ops/repro_bpm_task_field_rule.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-bpm-task-field-rule`).

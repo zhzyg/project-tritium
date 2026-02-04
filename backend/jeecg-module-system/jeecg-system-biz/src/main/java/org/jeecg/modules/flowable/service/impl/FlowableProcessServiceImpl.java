@@ -34,6 +34,8 @@ import org.jeecg.modules.flowable.dto.FlowableTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskContextResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldRuleReq;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldRuleResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskCommentResp;
@@ -651,6 +653,98 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         );
     }
 
+    @Override
+    public FlowableTaskFieldRuleResp getTaskFieldRuleByTask(String taskId) {
+        if (oConvertUtils.isEmpty(taskId)) {
+            throw new IllegalArgumentException("taskId is required");
+        }
+        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) {
+            throw new IllegalStateException("task not found");
+        }
+        String procDefKey = resolveProcessDefinitionKey(task.getProcessDefinitionId());
+        String taskDefKey = task.getTaskDefinitionKey();
+        String formKey = null;
+        try {
+            FlowableTaskContextResp ctx = getTaskContext(taskId);
+            if (ctx != null) {
+                formKey = ctx.getFormKey();
+            }
+        } catch (Exception ex) {
+            log.warn("getTaskFieldRuleByTask context lookup failed: {}", ex.getMessage());
+        }
+        FlowableTaskFieldRuleResp resp = fetchTaskFieldRule(procDefKey, taskDefKey, formKey);
+        if (resp == null) {
+            resp = new FlowableTaskFieldRuleResp();
+            resp.setProcDefKey(procDefKey);
+            resp.setTaskDefKey(taskDefKey);
+            resp.setFormKey(formKey);
+            resp.setVisibleFields(new ArrayList<>());
+            resp.setEditableFields(new ArrayList<>());
+            resp.setRequiredFields(new ArrayList<>());
+        }
+        return resp;
+    }
+
+    @Override
+    public List<FlowableTaskFieldRuleResp> listTaskFieldRuleByProc(String procDefKey) {
+        if (oConvertUtils.isEmpty(procDefKey)) {
+            return new ArrayList<>();
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "select proc_def_key, task_def_key, form_key, visible_fields_json, editable_fields_json, required_fields_json, updated_time "
+                + "from tr_bpm_task_field_rule where proc_def_key=?",
+            procDefKey
+        );
+        List<FlowableTaskFieldRuleResp> list = new ArrayList<>();
+        if (rows == null) {
+            return list;
+        }
+        for (Map<String, Object> row : rows) {
+            FlowableTaskFieldRuleResp resp = new FlowableTaskFieldRuleResp();
+            resp.setProcDefKey(getString(row, "proc_def_key"));
+            resp.setTaskDefKey(getString(row, "task_def_key"));
+            resp.setFormKey(getString(row, "form_key"));
+            resp.setVisibleFields(parseFieldList(row.get("visible_fields_json")));
+            resp.setEditableFields(parseFieldList(row.get("editable_fields_json")));
+            resp.setRequiredFields(parseFieldList(row.get("required_fields_json")));
+            resp.setUpdatedTime(getString(row, "updated_time"));
+            list.add(resp);
+        }
+        return list;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void upsertTaskFieldRule(FlowableTaskFieldRuleReq req, String username) {
+        if (req == null || oConvertUtils.isEmpty(req.getProcDefKey()) || oConvertUtils.isEmpty(req.getTaskDefKey())) {
+            throw new IllegalArgumentException("procDefKey and taskDefKey are required");
+        }
+        FieldRuleSets normalized = normalizeFieldRule(req.getVisibleFields(), req.getEditableFields(), req.getRequiredFields());
+        String visibleJson = JSON.toJSONString(normalized.visibleFields);
+        String editableJson = JSON.toJSONString(normalized.editableFields);
+        String requiredJson = JSON.toJSONString(normalized.requiredFields);
+
+        String id = IdWorker.getIdStr();
+        Date now = new Date();
+        jdbcTemplate.update(
+            "insert into tr_bpm_task_field_rule (id, proc_def_key, task_def_key, form_key, visible_fields_json, editable_fields_json, required_fields_json, created_time, created_by) "
+                + "values (?,?,?,?,?,?,?,?,?) "
+                + "on duplicate key update visible_fields_json=values(visible_fields_json), editable_fields_json=values(editable_fields_json), required_fields_json=values(required_fields_json), form_key=values(form_key), updated_time=?, updated_by=?",
+            id,
+            req.getProcDefKey(),
+            req.getTaskDefKey(),
+            req.getFormKey(),
+            visibleJson,
+            editableJson,
+            requiredJson,
+            now,
+            username,
+            now,
+            username
+        );
+    }
+
     private void fillProcessContext(String processInstanceId, FlowableTaskContextResp resp) {
         String businessKey = resolveBusinessKey(processInstanceId);
         resp.setBusinessKey(businessKey);
@@ -745,6 +839,32 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
 
     private Set<String> resolveEditableFieldSet(String procDefKey, String taskDefKey, String formKey) {
         Set<String> editable = new HashSet<>();
+        editable.addAll(resolveEditableFieldSetFromRule(procDefKey, taskDefKey, formKey));
+        if (!editable.isEmpty()) {
+            return editable;
+        }
+        editable.addAll(resolveEditableFieldSetFromPerm(procDefKey, taskDefKey, formKey));
+        return editable;
+    }
+
+    private Set<String> resolveEditableFieldSetFromRule(String procDefKey, String taskDefKey, String formKey) {
+        Set<String> editable = new HashSet<>();
+        if (oConvertUtils.isEmpty(procDefKey) || oConvertUtils.isEmpty(taskDefKey)) {
+            return editable;
+        }
+        try {
+            FlowableTaskFieldRuleResp rule = fetchTaskFieldRule(procDefKey, taskDefKey, formKey);
+            if (rule != null && rule.getEditableFields() != null) {
+                editable.addAll(rule.getEditableFields());
+            }
+        } catch (Exception e) {
+            log.warn("failed to resolve editable fields from rule: {}", e.getMessage());
+        }
+        return editable;
+    }
+
+    private Set<String> resolveEditableFieldSetFromPerm(String procDefKey, String taskDefKey, String formKey) {
+        Set<String> editable = new HashSet<>();
         if (oConvertUtils.isEmpty(procDefKey) || oConvertUtils.isEmpty(taskDefKey) || oConvertUtils.isEmpty(formKey)) {
             return editable;
         }
@@ -781,7 +901,77 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
         return filtered;
     }
 
-    private List<String> parseEditableFields(Object raw) {
+    private FlowableTaskFieldRuleResp fetchTaskFieldRule(String procDefKey, String taskDefKey, String formKey) {
+        if (oConvertUtils.isEmpty(procDefKey) || oConvertUtils.isEmpty(taskDefKey)) {
+            return null;
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        try {
+            if (oConvertUtils.isNotEmpty(formKey)) {
+                rows = jdbcTemplate.queryForList(
+                    "select proc_def_key, task_def_key, form_key, visible_fields_json, editable_fields_json, required_fields_json, updated_time "
+                        + "from tr_bpm_task_field_rule where proc_def_key=? and task_def_key=? and form_key=? limit 1",
+                    procDefKey,
+                    taskDefKey,
+                    formKey
+                );
+            }
+            if (rows == null || rows.isEmpty()) {
+                rows = jdbcTemplate.queryForList(
+                    "select proc_def_key, task_def_key, form_key, visible_fields_json, editable_fields_json, required_fields_json, updated_time "
+                        + "from tr_bpm_task_field_rule where proc_def_key=? and task_def_key=? limit 1",
+                    procDefKey,
+                    taskDefKey
+                );
+            }
+        } catch (Exception e) {
+            log.warn("failed to query task field rule: {}", e.getMessage());
+            return null;
+        }
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> row = rows.get(0);
+        FlowableTaskFieldRuleResp resp = new FlowableTaskFieldRuleResp();
+        resp.setProcDefKey(getString(row, "proc_def_key"));
+        resp.setTaskDefKey(getString(row, "task_def_key"));
+        resp.setFormKey(getString(row, "form_key"));
+        resp.setVisibleFields(parseFieldList(row.get("visible_fields_json")));
+        resp.setEditableFields(parseFieldList(row.get("editable_fields_json")));
+        resp.setRequiredFields(parseFieldList(row.get("required_fields_json")));
+        resp.setUpdatedTime(getString(row, "updated_time"));
+        return resp;
+    }
+
+    private FieldRuleSets normalizeFieldRule(List<String> visibleFields,
+                                             List<String> editableFields,
+                                             List<String> requiredFields) {
+        Set<String> visible = new java.util.LinkedHashSet<>(sanitizeFieldList(visibleFields));
+        Set<String> editable = new java.util.LinkedHashSet<>(sanitizeFieldList(editableFields));
+        Set<String> required = new java.util.LinkedHashSet<>(sanitizeFieldList(requiredFields));
+
+        editable.addAll(required);
+        visible.addAll(editable);
+
+        required.retainAll(editable);
+
+        return new FieldRuleSets(new ArrayList<>(visible), new ArrayList<>(editable), new ArrayList<>(required));
+    }
+
+    private List<String> sanitizeFieldList(List<String> raw) {
+        List<String> list = new ArrayList<>();
+        if (raw == null) {
+            return list;
+        }
+        for (String item : raw) {
+            if (oConvertUtils.isNotEmpty(item)) {
+                list.add(item);
+            }
+        }
+        return list;
+    }
+
+    private List<String> parseFieldList(Object raw) {
         if (raw == null) {
             return new ArrayList<>();
         }
@@ -789,6 +979,22 @@ public class FlowableProcessServiceImpl implements IFlowableProcessService {
             return JSON.parseArray(raw.toString(), String.class);
         } catch (Exception ex) {
             return new ArrayList<>();
+        }
+    }
+
+    private List<String> parseEditableFields(Object raw) {
+        return parseFieldList(raw);
+    }
+
+    private static class FieldRuleSets {
+        private final List<String> visibleFields;
+        private final List<String> editableFields;
+        private final List<String> requiredFields;
+
+        private FieldRuleSets(List<String> visibleFields, List<String> editableFields, List<String> requiredFields) {
+            this.visibleFields = visibleFields;
+            this.editableFields = editableFields;
+            this.requiredFields = requiredFields;
         }
     }
 

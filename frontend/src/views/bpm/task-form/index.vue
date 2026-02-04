@@ -116,7 +116,14 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
-  import { completeTask, getProcessContext, getProcessTrace, getTaskContext, getTaskFieldPerm } from '/@/api/bpm/flowable';
+  import {
+    completeTask,
+    getProcessContext,
+    getProcessTrace,
+    getTaskContext,
+    getTaskFieldPerm,
+    getTaskFieldRuleByTask,
+  } from '/@/api/bpm/flowable';
   import { getLatestPublishedSchemaJson, getRecord } from '/@/views/form/runtime/runtime.api';
 
   const route = useRoute();
@@ -149,6 +156,8 @@
   const comment = ref('');
   const traceData = ref<any[]>([]);
   const editableFields = ref<string[]>([]);
+  const visibleFields = ref<string[]>([]);
+  const requiredFields = ref<string[]>([]);
   const editableFieldsLoaded = ref(false);
   const originalData = ref<Record<string, any>>({});
 
@@ -214,8 +223,12 @@
     return lists;
   };
 
-  const applyFieldPerm = (schema: Record<string, any>) => {
-    const whitelist = new Set(editableFields.value || []);
+  const applyFieldRule = (schema: Record<string, any>) => {
+    const editableSet = new Set(editableFields.value || []);
+    const visibleSet = new Set(visibleFields.value || []);
+    const requiredSet = new Set(requiredFields.value || []);
+    const hasVisibleRule = visibleSet.size > 0;
+    const hasRequiredRule = requiredSet.size > 0;
     const walk = (widgets: any[]) => {
       if (!Array.isArray(widgets)) {
         return;
@@ -228,10 +241,20 @@
           widget?.options?.name || widget?.options?.field || widget?.field || widget?.name;
         const isFieldWidget = widget?.formItemFlag === true || !!fieldKey;
         if (isFieldWidget) {
-          const editable = fieldKey ? whitelist.has(fieldKey) : false;
+          const editable = fieldKey ? editableSet.has(fieldKey) : false;
+          if (hasVisibleRule && fieldKey) {
+            const visible = visibleSet.has(fieldKey);
+            if (widget.options) {
+              widget.options.hidden = !visible;
+            }
+            widget.hidden = !visible;
+          }
           if (widget.options) {
             widget.options.disabled = !editable;
             widget.options.readonly = !editable;
+            if (hasRequiredRule && fieldKey) {
+              widget.options.required = requiredSet.has(fieldKey);
+            }
           }
           widget.disabled = !editable;
           widget.readonly = !editable;
@@ -255,6 +278,8 @@
     taskDefinitionKey.value = '';
     taskActive.value = false;
     editableFields.value = [];
+    visibleFields.value = [];
+    requiredFields.value = [];
     editableFieldsLoaded.value = false;
 
     if (taskId.value) {
@@ -289,10 +314,16 @@
     throw new Error('taskId/procInsId 缺失');
   };
 
-  const loadFieldPerm = async () => {
+  const loadFieldRule = async () => {
     editableFields.value = [];
+    visibleFields.value = [];
+    requiredFields.value = [];
     editableFieldsLoaded.value = false;
     if (!isTaskView.value) {
+      editableFieldsLoaded.value = true;
+      return;
+    }
+    if (!taskId.value) {
       editableFieldsLoaded.value = true;
       return;
     }
@@ -301,12 +332,18 @@
       return;
     }
     try {
-      const res = await getTaskFieldPerm({
-        procDefKey: processDefinitionKey.value,
-        taskDefKey: taskDefinitionKey.value,
-        formKey: formKey.value,
-      });
+      const res = await getTaskFieldRuleByTask({ taskId: taskId.value });
+      visibleFields.value = res?.visibleFields || [];
       editableFields.value = res?.editableFields || [];
+      requiredFields.value = res?.requiredFields || [];
+      if (!editableFields.value.length) {
+        const perm = await getTaskFieldPerm({
+          procDefKey: processDefinitionKey.value,
+          taskDefKey: taskDefinitionKey.value,
+          formKey: formKey.value,
+        });
+        editableFields.value = perm?.editableFields || [];
+      }
     } catch (err) {
       // ignore
     } finally {
@@ -332,7 +369,7 @@
     }
 
     const parsed = JSON.parse(schemaRes.schemaJson);
-    applyFieldPerm(parsed);
+    applyFieldRule(parsed);
     formJson.value = parsed;
     if (renderRef.value?.setFormJson) {
       renderRef.value.setFormJson(parsed);
@@ -428,7 +465,7 @@
     loading.value = true;
     try {
       await loadContext();
-      await loadFieldPerm();
+      await loadFieldRule();
       await loadForm();
       await loadTrace();
     } catch (err: any) {

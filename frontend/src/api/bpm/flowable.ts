@@ -15,6 +15,9 @@ enum Api {
   ProcessVars = '/bpm/process/vars',
   TaskContext = '/bpm/task/context',
   TaskFieldPerm = '/bpm/task/fieldPerm',
+  TaskFieldRuleByTask = '/bpm/taskFieldRule/getByTask',
+  TaskFieldRuleListByProc = '/bpm/taskFieldRule/listByProc',
+  TaskFieldRuleUpsert = '/bpm/taskFieldRule/upsert',
   ProcessContext = '/bpm/process/context',
   TaskComments = '/bpm/task/comments',
   TaskDone = '/bpm/task/done',
@@ -184,6 +187,34 @@ export interface TaskFieldPermResp {
 
 export const getTaskFieldPerm = (params: { procDefKey: string; taskDefKey: string; formKey: string }) =>
   defHttp.get<TaskFieldPermResp | null>({ url: Api.TaskFieldPerm, params });
+
+export interface TaskFieldRuleResp {
+  procDefKey?: string;
+  taskDefKey?: string;
+  formKey?: string;
+  visibleFields?: string[];
+  editableFields?: string[];
+  requiredFields?: string[];
+  updatedTime?: string;
+}
+
+export interface TaskFieldRuleUpsertReq {
+  procDefKey: string;
+  taskDefKey: string;
+  formKey?: string;
+  visibleFields?: string[];
+  editableFields?: string[];
+  requiredFields?: string[];
+}
+
+export const getTaskFieldRuleByTask = (params: { taskId: string }) =>
+  defHttp.get<TaskFieldRuleResp | null>({ url: Api.TaskFieldRuleByTask, params });
+
+export const listTaskFieldRuleByProc = (params: { procDefKey: string }) =>
+  defHttp.get<TaskFieldRuleResp[]>({ url: Api.TaskFieldRuleListByProc, params });
+
+export const upsertTaskFieldRule = (params: TaskFieldRuleUpsertReq) =>
+  defHttp.post({ url: Api.TaskFieldRuleUpsert, params });
 
 export const getProcessContext = (params: { processInstanceId: string }) =>
   defHttp.get<TaskContextResp>({ url: Api.ProcessContext, params });

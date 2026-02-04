@@ -98,10 +98,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     await waitForAppShell();
-    await page.waitForSelector('.ant-table, .ant-table-wrapper', { timeout: ROUTE_TIMEOUT });
+    await page.waitForTimeout(1200);
 
-    const rows = page.locator('.ant-table-tbody tr');
-    const rowCount = await rows.count();
+    const openButtons = page.getByTestId('bpm-action-openForm');
+    const rowCount = await openButtons.count();
     if (rowCount < 1) {
       const emptyShot = path.join(ARTIFACTS_DIR, 'no-data.png');
       try {
@@ -121,8 +121,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     }
 
     failureStage = 'open-form-click';
-    const firstRow = rows.nth(0);
-    const openButton = firstRow.locator('[data-testid="bpm-action-openForm"], button:has-text("打开表单"), button:has-text("查看表单"), button:has-text("Open Form")').first();
+    const openButton = openButtons.first();
     if (!(await openButton.count())) {
       throw new Error('Open form button not found');
     }

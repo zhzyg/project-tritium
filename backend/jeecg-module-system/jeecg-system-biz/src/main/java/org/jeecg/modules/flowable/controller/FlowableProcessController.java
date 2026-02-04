@@ -25,6 +25,8 @@ import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskFieldPermResp;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldRuleReq;
+import org.jeecg.modules.flowable.dto.FlowableTaskFieldRuleResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -277,6 +279,51 @@ public class FlowableProcessController {
             return Result.ok("ok");
         } catch (RuntimeException ex) {
             log.warn("upsertTaskFieldPerm failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/taskFieldRule/getByTask")
+    public Result<FlowableTaskFieldRuleResp> getTaskFieldRuleByTask(String taskId) {
+        if (oConvertUtils.isEmpty(taskId)) {
+            return Result.error("taskId is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.getTaskFieldRuleByTask(taskId));
+        } catch (RuntimeException ex) {
+            log.warn("getTaskFieldRuleByTask failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/taskFieldRule/listByProc")
+    public Result<List<FlowableTaskFieldRuleResp>> listTaskFieldRuleByProc(String procDefKey) {
+        if (oConvertUtils.isEmpty(procDefKey)) {
+            return Result.error("procDefKey is required");
+        }
+        try {
+            return Result.ok(flowableProcessService.listTaskFieldRuleByProc(procDefKey));
+        } catch (RuntimeException ex) {
+            log.warn("listTaskFieldRuleByProc failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/taskFieldRule/upsert")
+    public Result<Object> upsertTaskFieldRule(@RequestBody FlowableTaskFieldRuleReq req,
+                                              HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getProcDefKey()) || oConvertUtils.isEmpty(req.getTaskDefKey())) {
+            return Result.error("procDefKey and taskDefKey are required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        if (!isAdmin(username)) {
+            return Result.error(403, "forbidden");
+        }
+        try {
+            flowableProcessService.upsertTaskFieldRule(req, username);
+            return Result.ok("ok");
+        } catch (RuntimeException ex) {
+            log.warn("upsertTaskFieldRule failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

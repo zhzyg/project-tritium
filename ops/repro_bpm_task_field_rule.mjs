@@ -16,15 +16,7 @@ const FORM_KEY = process.env.FORM_PROCESS_KEY || '';
 const CACHE_CIPHER_KEY = '_11111000001111@';
 const API_PREFIX = process.env.API_PREFIX || '/jeecg-boot';
 
-const resolveUrl = (href) => {
-  if (!href) return '';
-  if (href.startsWith('http')) return href;
-  if (href.startsWith('#/')) return `${BASE_URL}/${href}`;
-  if (href.startsWith('/')) return `${BASE_URL}${href}`;
-  return `${BASE_URL}/#/${href.replace(/^#?\/?/, '')}`;
-};
-
-const ARTIFACTS_DIR = path.resolve('.artifacts/repro-form-process-designer');
+const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-task-field-rule');
 if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,6 +41,24 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const waitForAppShell = async () => {
     await page.waitForSelector(SHELL_SELECTOR, { state: 'visible', timeout: ROUTE_TIMEOUT });
+  };
+
+  const gotoWithRetries = async (url) => {
+    let lastError;
+    for (let attempt = 0; attempt <= RETRY_MAX; attempt += 1) {
+      try {
+        if (attempt > 0) {
+          await page.reload({ waitUntil: 'domcontentloaded', timeout: Math.min(20000, ROUTE_TIMEOUT) }).catch(() => {});
+          await sleep(RETRY_BASE_DELAY_MS * attempt);
+        }
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: ROUTE_TIMEOUT });
+        await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
+        return;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    throw lastError;
   };
 
   const decryptCache = (cipherText = '') => {
@@ -258,39 +268,28 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
           const data = await resp.json().catch(() => null);
           const menuList = data?.result || data?.data || data;
           const walk = (nodes = []) => {
-            for (const node of nodes) {
-              const path = node?.path || '';
-              if (path.includes('/form/runtime/')) return path;
-              const child = walk(node?.children || []);
-              if (child) return child;
+            for (const node of nodes || []) {
+              const url = node.url || node.path || '';
+              if (typeof url === 'string' && url.includes('/form/runtime/') && url.includes('/list')) {
+                const key = extractFormKey(url);
+                if (key) return key;
+              }
+              const children = node.children || node.childList || node.childMenuList || [];
+              if (Array.isArray(children)) {
+                const childKey = walk(children);
+                if (childKey) return childKey;
+              }
             }
             return '';
           };
-          const menuPath = walk(menuList || []);
-          const apiKey = extractFormKey(menuPath || '');
-          if (apiKey) return apiKey;
-        } catch (err) {}
+          const key = walk(menuList);
+          if (key) return key;
+        } catch (err) {
+          return '';
+        }
       }
     } catch (err) {}
     return '';
-  };
-
-  const gotoWithRetries = async (url) => {
-    let lastError;
-    for (let attempt = 0; attempt <= RETRY_MAX; attempt += 1) {
-      try {
-        if (attempt > 0) {
-          await page.reload({ waitUntil: 'domcontentloaded', timeout: Math.min(20000, ROUTE_TIMEOUT) }).catch(() => {});
-          await sleep(RETRY_BASE_DELAY_MS * attempt);
-        }
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: ROUTE_TIMEOUT });
-        await page.waitForLoadState('domcontentloaded', { timeout: ROUTE_TIMEOUT });
-        return;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-    throw lastError;
   };
 
   page.on('console', (msg) => {
@@ -309,6 +308,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       failedRequests.push(`${url} -> ${errText}`);
     }
   });
+
+  const writeResult = (payload) => {
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(payload, null, 2));
+  };
 
   try {
     if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
@@ -349,42 +352,149 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await waitForAppShell();
     await page.waitForTimeout(1500);
 
-    failureStage = 'open-process-tab';
-    const processTab = page.getByTestId('tab-process-designer').first();
-    await processTab.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
-    await processTab.click().catch(() => {});
-
     failureStage = 'wait-process-root';
-    const processRoot = page.locator('[data-testid="process-designer-root"], [data-testid="form-process-designer"]').first();
-    await processRoot.waitFor({ state: 'attached', timeout: ROUTE_TIMEOUT });
+    await page.getByTestId('process-designer-root').waitFor({ state: 'attached', timeout: ROUTE_TIMEOUT });
+    await page.getByTestId('task-rule-panel').waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
 
-    failureStage = 'save-draft';
-    const saveBtn = page.getByTestId('btn-bpmn-save').first();
-    if (!(await saveBtn.count())) {
-      throw new Error('保存草稿按钮未找到');
+    const taskBtn = page.getByTestId('task-rule-task-0');
+    if (!(await taskBtn.count())) {
+      const skipShot = path.join(ARTIFACTS_DIR, 'no-user-task.png');
+      try {
+        await page.screenshot({ path: skipShot, timeout: 15000 });
+      } catch (err) {}
+      writeResult({
+        success: true,
+        skipped: true,
+        reason: 'NO USER TASK NODE FOUND',
+        url: page.url(),
+        screenshot: skipShot,
+      });
+      await browser.close();
+      return;
     }
-    await saveBtn.click();
+
+    failureStage = 'select-user-task';
+    await taskBtn.click();
+
+    const fieldRow = page.getByTestId('task-rule-row-0');
+    if (!(await fieldRow.count())) {
+      const skipShot = path.join(ARTIFACTS_DIR, 'no-field-options.png');
+      try {
+        await page.screenshot({ path: skipShot, timeout: 15000 });
+      } catch (err) {}
+      writeResult({
+        success: true,
+        skipped: true,
+        reason: 'NO FIELD OPTIONS FOUND',
+        url: page.url(),
+        screenshot: skipShot,
+      });
+      await browser.close();
+      return;
+    }
+
+    const visibleToggle = page.getByTestId('task-rule-visible-0');
+    const editableToggle = page.getByTestId('task-rule-editable-0');
+
+    failureStage = 'toggle-visible';
+    const visibleInput = visibleToggle.locator('input').first();
+    const visibleChecked = await visibleInput.isChecked().catch(() => false);
+    if (!visibleChecked) {
+      await visibleToggle.click();
+    }
+
+    failureStage = 'toggle-editable';
+    const editableInput = editableToggle.locator('input').first();
+    const editableChecked = await editableInput.isChecked().catch(() => false);
+    if (!editableChecked) {
+      await editableToggle.click();
+    }
+
+    failureStage = 'save-rule';
+    const saveRuleBtn = page.getByTestId('btn-task-rule-save');
+    await saveRuleBtn.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+    await saveRuleBtn.click();
     await page.waitForSelector('.ant-message-success, .ant-message-notice', { timeout: ROUTE_TIMEOUT });
 
-    failureStage = 'publish';
-    const publishBtn = page.getByTestId('btn-bpmn-publish').first();
-    if (!(await publishBtn.count())) {
-      throw new Error('发布部署按钮未找到');
-    }
-    await publishBtn.click();
-    await page.waitForSelector('.ant-message-success, .ant-message-notice', { timeout: ROUTE_TIMEOUT });
+    const designerShot = path.join(ARTIFACTS_DIR, 'rule-saved.png');
+    try {
+      await page.screenshot({ path: designerShot, timeout: 15000 });
+    } catch (err) {}
 
-    const successShot = path.join(ARTIFACTS_DIR, 'process-designer.png');
+    failureStage = 'navigate-tasks';
+    await gotoWithRetries(`${BASE_URL}/bpm/tasks`);
+    await waitForAppShell();
+
+    const openFormBtn = page.getByTestId('bpm-action-openForm').first();
+    if (!(await openFormBtn.count())) {
+      const skipShot = path.join(ARTIFACTS_DIR, 'no-task-data.png');
+      try {
+        await page.screenshot({ path: skipShot, timeout: 15000 });
+      } catch (err) {}
+      writeResult({
+        success: true,
+        skipped: true,
+        reason: 'NO TASK DATA: SKIP runtime verify',
+        url: page.url(),
+        screenshot: skipShot,
+      });
+      await browser.close();
+      return;
+    }
+
+    failureStage = 'open-task-form';
+    await openFormBtn.click();
+    await page.waitForURL(/\/bpm\/task\/.+\/form/, { timeout: ROUTE_TIMEOUT, waitUntil: 'domcontentloaded' });
+
+    const formContainer = page.getByTestId('bpm-task-form-render');
+    await formContainer.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+
+    failureStage = 'check-editable';
+    const editableCountAttr = await formContainer.getAttribute('data-editable-count');
+    const editableCount = editableCountAttr ? Number.parseInt(editableCountAttr, 10) : 0;
+    if (!Number.isFinite(editableCount) || editableCount <= 0) {
+      throw new Error(`editable fields not applied (count=${editableCountAttr || '0'})`);
+    }
+
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-testid="bpm-task-form-render"]');
+      if (!container) return;
+      const input = container.querySelector('input:not([disabled]):not([readonly]), textarea:not([disabled]):not([readonly])');
+      if (input) {
+        input.focus();
+        input.value = `Auto-${Date.now()}`;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+
+    const commentInput = page.getByTestId('bpm-task-comment');
+    await commentInput.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+    await commentInput.fill(`Auto approve ${new Date().toISOString()}`);
+
+    const approveBtn = page.getByTestId('bpm-task-approve');
+    await approveBtn.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+    await approveBtn.click();
+
+    await Promise.race([
+      page.waitForURL(/\/bpm\/tasks/, { timeout: ROUTE_TIMEOUT }),
+      page.waitForSelector('.ant-message-success, .ant-message-notice', { timeout: ROUTE_TIMEOUT }),
+    ]);
+
+    const successShot = path.join(ARTIFACTS_DIR, 'task-field-rule.png');
+    let screenshotError = null;
     try {
       await page.screenshot({ path: successShot, timeout: 15000 });
-    } catch (err) {}
-    const resultPayload = {
+    } catch (err) {
+      screenshotError = err?.message || 'screenshot failed';
+    }
+
+    writeResult({
       success: true,
       skipped: false,
       url: page.url(),
       screenshot: successShot,
-    };
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(resultPayload, null, 2));
+      screenshotError,
+    });
   } catch (e) {
     const failureReason = e?.message || 'unknown error';
     console.error(`FAILURE: ${failureReason}`);
@@ -393,7 +503,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     } catch (screenshotErr) {}
     const currentUrl = page.url();
     const readyState = await page.evaluate(() => document.readyState).catch(() => 'unknown');
-    const resultPayload = {
+    writeResult({
       success: false,
       failureStage,
       failureReason,
@@ -402,8 +512,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       consoleErrorCount: consoleErrors.length,
       pageErrorCount: pageErrors.length,
       screenshot: lastScreenshotPath,
-    };
-    fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(resultPayload, null, 2));
+    });
     if (consoleErrors.length) console.error(`Console Errors: ${consoleErrors.slice(-10).join(' | ')}`);
     if (pageErrors.length) console.error(`Page Errors: ${pageErrors[0]}`);
     if (failedRequests.length) console.error(`Failed Requests: ${failedRequests[0]}`);
