@@ -6,6 +6,7 @@ import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.flowable.dto.FlowableFormBindReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefRegReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefResp;
+import org.jeecg.modules.flowable.dto.FlowableProcFormBindResp;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -124,6 +125,27 @@ public class ProcessRegistryServiceImpl implements IProcessRegistryService {
             return null;
         }
         return list.get(0);
+    }
+
+    @Override
+    public FlowableProcFormBindResp getDefaultBindByProcessKey(String processKey) {
+        if (oConvertUtils.isEmpty(processKey)) {
+            return null;
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+            "select b.form_key, b.enabled from tr_form_proc_bind b "
+                + "join tr_proc_def_registry r on r.process_definition_key=b.process_definition_key "
+                + "where b.process_definition_key=? and b.enabled=1 and b.is_default=1 and r.enabled=1 limit 1",
+            new Object[]{processKey});
+        if (rows == null || rows.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> row = rows.get(0);
+        FlowableProcFormBindResp resp = new FlowableProcFormBindResp();
+        resp.setProcessKey(processKey);
+        resp.setFormKey(getString(row, "form_key"));
+        resp.setEnabled(getInt(row, "enabled"));
+        return resp;
     }
 
     private String getString(Map<String, Object> row, String key) {

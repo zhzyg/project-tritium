@@ -4,6 +4,8 @@ enum Api {
   DefList = '/bpm/defs/list',
   DefRegister = '/bpm/defs/register',
   BindSetDefault = '/bpm/bind/setDefault',
+  BindGetByProcDefKey = '/bpm/procFormBind/getByProcDefKey',
+  BindUpsert = '/bpm/procFormBind/upsert',
   Start = '/bpm/process/start',
   StartByForm = '/bpm/process/startByForm',
   ProcessStatus = '/bpm/process/status',
@@ -36,6 +38,13 @@ export interface ProcessDefRegisterReq {
 export interface FormBindReq {
   formKey: string;
   processKey: string;
+}
+
+export interface ProcFormBindResp {
+  processKey: string;
+  formKey?: string;
+  formName?: string;
+  enabled?: number;
 }
 
 export interface StartProcessReq {
@@ -83,6 +92,11 @@ export const registerProcessDef = (params: ProcessDefRegisterReq) =>
   defHttp.post({ url: Api.DefRegister, params });
 
 export const setDefaultBind = (params: FormBindReq) => defHttp.post({ url: Api.BindSetDefault, params });
+
+export const upsertProcFormBind = (params: FormBindReq) => defHttp.post({ url: Api.BindUpsert, params });
+
+export const getProcFormBind = (params: { procDefKey?: string; processKey?: string }) =>
+  defHttp.get<ProcFormBindResp | null>({ url: Api.BindGetByProcDefKey, params });
 
 export const startProcess = (params: StartProcessReq) =>
   defHttp.post<StartProcessResp>({ url: Api.Start, params });

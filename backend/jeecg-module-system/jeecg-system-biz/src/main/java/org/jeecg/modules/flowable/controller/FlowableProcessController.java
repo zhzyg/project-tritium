@@ -13,6 +13,7 @@ import org.jeecg.modules.flowable.dto.FlowableProcessVarsReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefRegReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefResp;
 import org.jeecg.modules.flowable.dto.FlowableFormBindReq;
+import org.jeecg.modules.flowable.dto.FlowableProcFormBindResp;
 import org.jeecg.modules.flowable.dto.FlowableTaskClaimReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskCompleteReq;
 import org.jeecg.modules.flowable.dto.FlowableTaskQueryReq;
@@ -84,6 +85,36 @@ public class FlowableProcessController {
             return Result.ok("ok");
         } catch (RuntimeException ex) {
             log.warn("Flowable bind failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/procFormBind/upsert")
+    public Result<Object> upsertProcFormBind(@RequestBody FlowableFormBindReq req,
+                                             HttpServletRequest request) {
+        if (req == null || oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getProcessKey())) {
+            return Result.error("formKey and processKey are required");
+        }
+        String username = JwtUtil.getUserNameByToken(request);
+        try {
+            processRegistryService.setDefaultBinding(req, username);
+            return Result.ok("ok");
+        } catch (RuntimeException ex) {
+            log.warn("Flowable bind upsert failed: {}", ex.getMessage());
+            return Result.error(ex.getMessage());
+        }
+    }
+
+    @GetMapping("/procFormBind/getByProcDefKey")
+    public Result<FlowableProcFormBindResp> getProcFormBindByKey(String procDefKey, String processKey) {
+        String key = oConvertUtils.isNotEmpty(procDefKey) ? procDefKey : processKey;
+        if (oConvertUtils.isEmpty(key)) {
+            return Result.error("procDefKey is required");
+        }
+        try {
+            return Result.ok(processRegistryService.getDefaultBindByProcessKey(key));
+        } catch (RuntimeException ex) {
+            log.warn("Flowable bind query failed: {}", ex.getMessage());
             return Result.error(ex.getMessage());
         }
     }

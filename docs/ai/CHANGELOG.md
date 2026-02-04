@@ -225,3 +225,9 @@
   - **Backend**: added published schema list/json endpoints for form selection; start variables now include `formKey`/`recordId`/`businessKey`.
   - **Flow**: submit form → `form_record` + physical insert → start process with `businessKey=recordId` → redirect to `/bpm/my`.
   - **Ops**: `ops/repro_bpm_start.mjs` added and wired into `oa_verify` to cover start regression.
+
+- [2026-02-04] MVP-7B v0: ProcDef ↔ form binding lookup and one-click start.
+  - **Backend**: reuse `tr_form_proc_bind` with `/bpm/procFormBind/getByProcDefKey` and `/bpm/procFormBind/upsert`.
+  - **Frontend**: `/bpm/start` auto-loads bound formKey, warns when unbound, and allows manual form selection fallback.
+  - **Ops**: `ops/repro_bpm_start.mjs` detects bound/unbound branches and records skip when no unbound proc exists.
+  - **Verification**: `ops/oa_verify.sh` evidence in `.artifacts/repro-bpm-start`.

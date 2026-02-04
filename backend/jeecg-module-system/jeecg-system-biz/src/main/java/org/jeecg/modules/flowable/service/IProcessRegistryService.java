@@ -3,6 +3,7 @@ package org.jeecg.modules.flowable.service;
 import org.jeecg.modules.flowable.dto.FlowableFormBindReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefRegReq;
 import org.jeecg.modules.flowable.dto.FlowableProcessDefResp;
+import org.jeecg.modules.flowable.dto.FlowableProcFormBindResp;
 
 import java.util.List;
 
@@ -14,4 +15,6 @@ public interface IProcessRegistryService {
     void setDefaultBinding(FlowableFormBindReq req, String username);
 
     String resolveDefaultProcessKey(String formKey);
+
+    FlowableProcFormBindResp getDefaultBindByProcessKey(String processKey);
 }

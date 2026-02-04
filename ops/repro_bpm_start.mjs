@@ -11,6 +11,9 @@ const ROUTE_TIMEOUT = Number.isFinite(ROUTE_TIMEOUT_MS) ? ROUTE_TIMEOUT_MS : 900
 const RETRY_MAX = Number.parseInt(process.env.RETRY_MAX || '2', 10);
 const RETRY_BASE_DELAY_MS = Number.parseInt(process.env.RETRY_DELAY_MS || '2000', 10);
 const SHELL_SELECTOR = '.ant-layout, .ant-menu, .ant-layout-sider';
+const BIND_OK_SELECTOR = '[data-testid="bpm-start-bind-ok"]';
+const BIND_MISSING_SELECTOR = '[data-testid="bpm-start-bind-missing"]';
+const MANUAL_TOGGLE_SELECTOR = '[data-testid="bpm-start-manual-toggle"]';
 
 const ARTIFACTS_DIR = path.resolve('.artifacts/repro-bpm-start');
 if (!fs.existsSync(ARTIFACTS_DIR)) fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
@@ -35,6 +38,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let failureStage = 'init';
   let failureReason = '';
   let lastScreenshotPath = path.join(ARTIFACTS_DIR, 'error.png');
+  let bindingStatus = 'unknown';
+  let boundProcFound = false;
+  let unboundProcFound = false;
 
   const waitForAppShell = async () => {
     await page.waitForSelector(SHELL_SELECTOR, { state: 'visible', timeout: ROUTE_TIMEOUT });
@@ -72,6 +78,24 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       }
     }
     throw lastError;
+  };
+
+  const waitForBindingStatus = async () => {
+    const boundAlert = page.locator(BIND_OK_SELECTOR);
+    const missingAlert = page.locator(BIND_MISSING_SELECTOR);
+    for (let i = 0; i < 10; i += 1) {
+      if (await boundAlert.isVisible().catch(() => false)) return 'bound';
+      if (await missingAlert.isVisible().catch(() => false)) return 'missing';
+      await page.waitForTimeout(400);
+    }
+    return 'unknown';
+  };
+
+  const selectProcessByIndex = async (procSelect, index) => {
+    await procSelect.locator('.ant-select-selector').click();
+    await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
+    const options = page.locator('.ant-select-dropdown .ant-select-item-option');
+    await options.nth(index).click();
   };
 
   page.on('console', (msg) => {
@@ -130,24 +154,55 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await procSelect.locator('.ant-select-selector').click();
       await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
       const procOptions = page.locator('.ant-select-dropdown .ant-select-item-option');
-      if ((await procOptions.count()) < 1) {
+      const procCount = await procOptions.count();
+      if (procCount < 1) {
         throw new Error('No process definitions available');
       }
-      await procOptions.first().click();
+      await page.keyboard.press('Escape').catch(() => {});
+
+      let boundIndex = null;
+      let missingIndex = null;
+      const maxCheck = Math.min(procCount, 5);
+      for (let i = 0; i < maxCheck; i += 1) {
+        await selectProcessByIndex(procSelect, i);
+        const status = await waitForBindingStatus();
+        if (status === 'bound' && boundIndex === null) boundIndex = i;
+        if (status === 'missing' && missingIndex === null) missingIndex = i;
+        if (boundIndex !== null && missingIndex !== null) break;
+      }
+
+      const targetIndex = boundIndex ?? missingIndex ?? 0;
+      if (targetIndex !== null) {
+        await selectProcessByIndex(procSelect, targetIndex);
+      }
+      bindingStatus = await waitForBindingStatus();
+      boundProcFound = boundIndex !== null;
+      unboundProcFound = missingIndex !== null;
+      if (!boundProcFound) {
+        console.log('NO BOUND PROC FOUND: fallback to manual form select');
+      }
+      if (!unboundProcFound) {
+        console.log('NO UNBOUND PROC FOUND: skip unbound branch');
+      }
 
       const formSelect = page
         .locator('[data-testid="bpm-start-form"], .ant-form-item:has-text("业务表单") .ant-select')
         .first();
-      if (!(await formSelect.count())) {
-        throw new Error('Form select not found');
+      if (bindingStatus !== 'bound') {
+        if ((await page.locator(MANUAL_TOGGLE_SELECTOR).count()) > 0) {
+          await page.locator(MANUAL_TOGGLE_SELECTOR).click();
+        }
+        if (!(await formSelect.count())) {
+          throw new Error('Form select not found');
+        }
+        await formSelect.locator('.ant-select-selector').click();
+        await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
+        const formOptions = page.locator('.ant-select-dropdown .ant-select-item-option');
+        if ((await formOptions.count()) < 1) {
+          throw new Error('No published forms available');
+        }
+        await formOptions.first().click();
       }
-      await formSelect.locator('.ant-select-selector').click();
-      await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
-      const formOptions = page.locator('.ant-select-dropdown .ant-select-item-option');
-      if ((await formOptions.count()) < 1) {
-        throw new Error('No published forms available');
-      }
-      await formOptions.first().click();
 
       const formContainer = page.locator('[data-testid="bpm-start-render"]').first();
       await formContainer.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
@@ -166,6 +221,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await submitBtn.click();
       await page.waitForURL(/\/bpm\/my/, { timeout: ROUTE_TIMEOUT });
     } else {
+      bindingStatus = 'legacy';
       const formKeyInput = page.locator('input[placeholder*="formKey"]').first();
       const recordIdInput = page.locator('input[placeholder*="recordId"]').first();
       const createBtn = page.locator('button:has-text("创建测试记录")').first();
@@ -195,6 +251,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       success: true,
       url: page.url(),
       screenshot: path.join(ARTIFACTS_DIR, 'bpm-start.png'),
+      bindingStatus,
+      boundProcFound,
+      unboundProcFound,
     };
     fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(successPayload, null, 2));
   } catch (e) {
