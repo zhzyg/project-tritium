@@ -1,9 +1,9 @@
 <template>
-  <div class="process-designer" data-testid="form-process-designer">
+  <div class="process-designer" data-testid="process-designer-root">
     <div class="process-toolbar">
       <a-space>
-        <a-button type="primary" :loading="saving" @click="handleSave">保存草稿</a-button>
-        <a-button :loading="publishing" @click="handlePublish">发布部署</a-button>
+        <a-button type="primary" :loading="saving" data-testid="btn-bpmn-save" @click="handleSave">保存草稿</a-button>
+        <a-button :loading="publishing" data-testid="btn-bpmn-publish" @click="handlePublish">发布部署</a-button>
         <a-button @click="handleReload">重新加载</a-button>
       </a-space>
       <a-space class="process-meta" size="large">

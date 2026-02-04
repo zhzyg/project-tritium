@@ -275,3 +275,8 @@
   - **Backend**: `/form/bpmn/get|save|publish` endpoints with admin-only save/publish; publish deploys via Flowable RepositoryService and upserts `tr_form_proc_bind`.
   - **Frontend**: `/form/designer` adds “流程设计” tab using bpmn-js (save draft + publish deployment + error states).
   - **Ops**: added `ops/repro_form_process_designer.mjs` and wired into `oa_verify` (evidence `.artifacts/repro-form-process-designer`).
+
+- [2026-02-04] MVP-9A v0 follow-up: Surface process designer entry (no more NO PROCESS TAB).
+  - **Frontend entry**: `/form/designer` (`frontend/src/views/form/designer/index.vue`) keeps “流程设计” tab visible and addressable via `?tab=process`.
+  - **Test IDs**: `process-designer-root`, `btn-bpmn-save`, `btn-bpmn-publish` for stable e2e targeting.
+  - **Ops**: `ops/repro_form_process_designer.mjs` resolves a real formKey from runtime menu (fallback to env) and navigates deterministically to the tab.

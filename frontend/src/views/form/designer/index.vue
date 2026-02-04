@@ -22,7 +22,10 @@
           </div>
         </div>
       </a-tab-pane>
-      <a-tab-pane key="process" tab="流程设计">
+      <a-tab-pane key="process" force-render>
+        <template #tab>
+          <span data-testid="tab-process-designer">流程设计</span>
+        </template>
         <FormProcessDesigner :form-key="formKey" />
       </a-tab-pane>
     </a-tabs>
@@ -41,9 +44,10 @@
 
   const TRITIUM_FORM_KEY_DEV = 'dev';
   const route = useRoute();
-  const activeTab = ref('form');
+  const resolveTab = (value?: string) => (value === 'process' ? 'process' : 'form');
+  const activeTab = ref(resolveTab(route.query.tab as string));
   const designerRef = ref<any>(null);
-  const formKey = computed(() => (route.query.formKey as string) || TRITIUM_FORM_KEY_DEV);
+  const formKey = computed(() => (route.query.formKey as string) || (route.params.formKey as string) || TRITIUM_FORM_KEY_DEV);
   const storageKey = computed(() => `TRITIUM_VFORM_SCHEMA_${formKey.value}`);
   const latestVersion = ref<number | null>(null);
   const lastSavedTime = ref<string | null>(null);
@@ -179,6 +183,13 @@
     resetMeta();
     handleLoad(true);
   });
+
+  watch(
+    () => route.query.tab,
+    (tab) => {
+      activeTab.value = resolveTab(tab as string);
+    }
+  );
 </script>
 
 <style scoped>
