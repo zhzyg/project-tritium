@@ -231,3 +231,10 @@
   - **Frontend**: `/bpm/start` auto-loads bound formKey, warns when unbound, and allows manual form selection fallback.
   - **Ops**: `ops/repro_bpm_start.mjs` detects bound/unbound branches and records skip when no unbound proc exists.
   - **Verification**: `ops/oa_verify.sh` evidence in `.artifacts/repro-bpm-start`.
+
+- [2026-02-04] MVP-7C v0: BPM start permission gate.
+  - **Permission**: added `bpm:start` button permission under `/bpm/start` with admin default grant.
+  - **Backend**: `@RequiresPermissions("bpm:start")` enforced on `/bpm/process/start` and `/bpm/process/startByForm`.
+  - **Frontend**: `/bpm/start` shows no-permission alert and disables submit when lacking `bpm:start`.
+  - **Ops**: `ops/repro_bpm_start.mjs` asserts start button is present and enabled for admin.
+  - **Verification**: `ops/oa_verify.sh` evidence in `.artifacts/repro-bpm-start`.

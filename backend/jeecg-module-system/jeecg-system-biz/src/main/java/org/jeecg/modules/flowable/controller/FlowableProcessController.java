@@ -25,6 +25,7 @@ import org.jeecg.modules.flowable.dto.FlowableHistoricTaskResp;
 import org.jeecg.modules.flowable.dto.FlowableHistoricProcessInstanceResp;
 import org.jeecg.modules.flowable.service.IFlowableProcessService;
 import org.jeecg.modules.flowable.service.IProcessRegistryService;
+import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -120,6 +121,7 @@ public class FlowableProcessController {
     }
 
     @PostMapping("/process/start")
+    @RequiresPermissions("bpm:start")
     public Result<FlowableProcessStartResp> startProcess(@RequestBody FlowableProcessStartReq req,
                                                          HttpServletRequest request) {
         if (req == null || oConvertUtils.isEmpty(req.getProcessKey())) {
@@ -135,6 +137,7 @@ public class FlowableProcessController {
     }
 
     @PostMapping("/process/startByForm")
+    @RequiresPermissions("bpm:start")
     public Result<FlowableProcessStartByFormResp> startProcessByForm(@RequestBody FlowableProcessStartByFormReq req,
                                                                      HttpServletRequest request) {
         if (req == null || oConvertUtils.isEmpty(req.getFormKey()) || oConvertUtils.isEmpty(req.getRecordId())) {

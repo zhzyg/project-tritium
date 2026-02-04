@@ -218,6 +218,21 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       }
 
       const submitBtn = page.locator('[data-testid="bpm-start-submit"]').first();
+      if (!(await submitBtn.count())) {
+        throw new Error('NO PERMISSION UI: start button missing');
+      }
+      try {
+        await page.waitForFunction(
+          (selector) => {
+            const btn = document.querySelector(selector);
+            return btn && !btn.hasAttribute('disabled');
+          },
+          '[data-testid="bpm-start-submit"]',
+          { timeout: 10000 }
+        );
+      } catch (err) {
+        throw new Error('NO PERMISSION UI: start button disabled');
+      }
       await submitBtn.click();
       await page.waitForURL(/\/bpm\/my/, { timeout: ROUTE_TIMEOUT });
     } else {

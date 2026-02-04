@@ -50,11 +50,20 @@
         />
 
         <a-alert
+          v-if="!canStart"
+          class="mb-4"
+          type="warning"
+          show-icon
+          data-testid="bpm-start-no-permission"
+          message="当前账号没有发起权限，请联系管理员授权。"
+        />
+
+        <a-alert
           class="mb-4"
           type="info"
           show-icon
           message="选择流程与表单后填写数据，提交即发起流程并跳转到“我发起的”。"
-      />
+        />
 
       <div class="bpm-start-form" data-testid="bpm-start-render">
         <VFormRender ref="renderRef" :form-json="formJson" :form-data="formData" :option-data="optionData" />
@@ -65,7 +74,7 @@
         <a-button
           type="primary"
           :loading="submitting"
-          :disabled="!schemaReady || !processKey"
+          :disabled="!schemaReady || !processKey || !canStart"
           data-testid="bpm-start-submit"
           @click="handleSubmit"
         >
@@ -83,10 +92,13 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormRender } from 'vform3-builds';
   import 'vform3-builds/dist/render.style.css';
+  import { usePermission } from '/@/hooks/web/usePermission';
   import { getProcFormBind, listProcessDefs, startProcess } from '/@/api/bpm/flowable';
   import { getLatestPublishedSchemaJson, insertRecord, listPublishedSchemas } from '/@/views/form/runtime/runtime.api';
 
   const router = useRouter();
+  const { hasPermission } = usePermission();
+  const START_PERMISSION = 'bpm:start';
   const renderRef = ref<any>(null);
   const formJson = ref<Record<string, any>>({ widgetList: [], formConfig: {} });
   const formData = reactive<Record<string, any>>({});
@@ -123,6 +135,8 @@
       value: item.formKey,
     }))
   );
+
+  const canStart = computed(() => hasPermission(START_PERMISSION));
 
   const boundFormLabel = computed(() =>
     boundFormName.value ? `${boundFormName.value} (${boundFormKey.value})` : boundFormKey.value
@@ -229,6 +243,10 @@
   };
 
   const handleSubmit = async () => {
+    if (!canStart.value) {
+      message.warning('无发起权限');
+      return;
+    }
     if (!processKey.value || !formKey.value) {
       message.warning('请选择流程与表单');
       return;
