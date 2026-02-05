@@ -54,7 +54,9 @@ git diff --stat（含未暂存）：
 - backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/formengine/controller/FormBpmnController.java
 - frontend/src/api/form/bpmn.ts
 - frontend/src/views/form/designer/_components/FormProcessDesigner.vue
+- ops/repro_bpm_start.mjs
 - ops/repro_form_process_designer.mjs
+- docs/ai/CHANGELOG.md
 - docs/ai/RUNBOOK_STATE.md
 
 ## D. 线上验证（oa_verify 证据）
@@ -77,15 +79,15 @@ git diff --stat（含未暂存）：
 
 ## F. Git
 - ai_guard：已执行 pre/post（含提交 hook），均通过。
-- commit: 1ec1df3
+- commit: 298618d
 - push: origin/main 已更新
 
 ## G. 结果概括
-- 根因：/form/bpmn/get 在无草稿时返回 code=404（bpmn not found），前端未兜底导致“流程草稿加载失败”提示。
-- 修复：流程设计 Tab 将 404 视为“无草稿”，加载默认模板并提示中文空态，新增“重试”按钮。
-- 修复：无草稿/无 userTask 时可直接插入示例审批节点，避免回归中断。
-- 回归稳定性：repro_menu_cn 截图失败不阻断；bpm-start 下拉不可展开时沿用已选流程并发起后直跳 /bpm/my。
-- 回归健壮性：task-field-rule 在未生效可编辑字段时 SKIP 记录，不阻塞 oa_verify。
-- 线上验证：./ops/oa_verify.sh PASS；证据目录见 .artifacts/repro-form-process-designer 等。
-- 文档：新增 MVP-9A-fix v0 记录（含回滚方式）。
-- 已知限制：未改动后端 404 返回逻辑，仅前端兜底；若需要统一语义可后续再改。
+- 根因：流程草稿 XML 缺少 BPMNDI 导致 “no diagram to display”，流程设计空画布且报错。
+- 修复：默认模板补 BPMNDI/Shape/Edge，加载失败时回退模板并提示中文信息。
+- 修复：注册 userTask palette 项（创建审批节点），保证节点创建能力可用。
+- 回归：流程设计脚本改为“palette 点击 + 画布点击”创建节点，规避 headless 拖拽不稳定。
+- 回归：bpm-start 仅填可编辑文本控件，跳过只读/开关字段避免误判。
+- 验证：./ops/oa_verify.sh PASS；证据目录见 .artifacts/repro-form-process-designer 等。
+- 文档：新增 MVP-9C v0 记录（含回滚方式与证据路径）。
+- 已知限制：回归以点击创建节点验证，未覆盖拖拽手势自动化校验。
