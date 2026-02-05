@@ -180,7 +180,12 @@ const writeResult = (payload) => {
 
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     lastScreenshotPath = path.join(ARTIFACTS_DIR, `designer-basic-${ts}.png`);
-    await page.screenshot({ path: lastScreenshotPath, fullPage: true });
+    try {
+      await page.screenshot({ path: lastScreenshotPath, fullPage: true, timeout: 45000 });
+    } catch (err) {
+      lastScreenshotPath = path.join(ARTIFACTS_DIR, `designer-basic-fallback-${ts}.png`);
+      await page.screenshot({ path: lastScreenshotPath, fullPage: false, timeout: 45000 }).catch(() => {});
+    }
 
     writeResult({
       success: true,
@@ -197,8 +202,10 @@ const writeResult = (payload) => {
   } catch (err) {
     const message = err?.message || 'unknown error';
     try {
-      await page.screenshot({ path: lastScreenshotPath, fullPage: true });
-    } catch (e) {}
+      await page.screenshot({ path: lastScreenshotPath, fullPage: true, timeout: 45000 });
+    } catch (e) {
+      await page.screenshot({ path: lastScreenshotPath, fullPage: false, timeout: 45000 }).catch(() => {});
+    }
     writeResult({
       success: false,
       error: message,

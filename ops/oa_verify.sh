@@ -97,6 +97,10 @@ node ops/repro_form_designer_basic.mjs || handle_failure "form-designer-basic" "
 echo "[oa-verify] Running repro_form_designer_list.mjs..."
 node ops/repro_form_designer_list.mjs || handle_failure "form-designer-list" ".artifacts/mvp-9d"
 
+# 6.7 Run Form Designer publish menu verification
+echo "[oa-verify] Running repro_form_designer_publish_menu.mjs..."
+node ops/repro_form_designer_publish_menu.mjs || handle_failure "form-designer-publish-menu" ".artifacts/mvp-9d"
+
 # 7. Run BPM task comment verification
 echo "[oa-verify] Running repro_bpm_task_comment.mjs..."
 node ops/repro_bpm_task_comment.mjs || handle_failure "bpm-task-comment" ".artifacts/repro-bpm-task-comment"

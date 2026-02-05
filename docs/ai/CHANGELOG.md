@@ -326,3 +326,9 @@
   - **Frontend**: `/form/designer` 新增“表单列表”Tab + 列表加载/编辑回填；新增 data-testid（`tab-form-list`、`btn-form-list-edit-*`）。
   - **Ops**: 新增 `ops/repro_form_designer_list.mjs` 覆盖“表单列表→编辑→回填”，接入 `oa_verify`（证据 `.artifacts/mvp-9d/<run_id>/repro-form-designer-list`）。
   - **Verification**: `./ops/oa_verify.sh` 通过；若环境无列表数据记录 SKIP + 截图说明。
+
+- [2026-02-05] MVP-9D Step-3: 发布后侧边栏自动菜单。
+  - **Backend**: 发布时从 schemaJson 解析表单名称写入菜单；名称含英文时改为“运行表单：xxx”中文前缀。
+  - **Frontend**: 发布成功后触发菜单刷新（重建后台菜单列表），无需重新登录即可更新侧边栏。
+  - **Ops**: 新增 `ops/repro_form_designer_publish_menu.mjs` 覆盖“发布→菜单出现→进入运行态”链路。
+  - **Verification**: `./ops/oa_verify.sh` 通过，证据见 `.artifacts/mvp-9d/<run_id>/repro-form-designer-publish-menu`。

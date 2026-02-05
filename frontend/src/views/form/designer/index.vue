@@ -83,6 +83,7 @@
   import { message } from 'ant-design-vue';
   import { PageWrapper } from '/@/components/Page';
   import { VFormDesigner } from 'vform3-builds';
+  import { usePermissionStore } from '/@/store/modules/permission';
   import FormProcessDesigner from './_components/FormProcessDesigner.vue';
   import { getLatestSchema, saveSchema, publishSchema, getSchemaList, FormSchemaListResp } from './designer.api';
   import 'vform3-builds/dist/designer.style.css';
@@ -99,6 +100,7 @@
   const formKey = ref<string>('');
   const formName = ref<string>('');
   const isEmpty = ref(true);
+  const permissionStore = usePermissionStore();
   const storageKey = computed(() => (formKey.value ? `TRITIUM_VFORM_SCHEMA_${formKey.value}` : 'TRITIUM_VFORM_SCHEMA_NEW'));
   const latestVersion = ref<number | null>(null);
   const lastSavedTime = ref<string | null>(null);
@@ -273,9 +275,18 @@
       latestVersion.value = resp?.version ?? latestVersion.value;
       lastPublishTable.value = resp?.tableName ?? lastPublishTable.value;
       const ddlCount = resp?.ddlApplied?.length ?? 0;
+      await refreshMenu();
       message.success(`发布成功：${resp?.tableName || '数据表'}（DDL: ${ddlCount}）`);
     } catch (err) {
       message.error('发布失败');
+    }
+  };
+
+  const refreshMenu = async () => {
+    try {
+      await permissionStore.buildRoutesAction();
+    } catch (err) {
+      message.warning('侧边栏刷新失败，请稍后刷新页面');
     }
   };
 

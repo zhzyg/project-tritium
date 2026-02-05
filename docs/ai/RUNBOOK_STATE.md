@@ -211,3 +211,51 @@ git diff --stat（含未暂存/新文件）：
 - 新增列表接口 /form/schema/listLatest，解析 schemaJson 得到表单名称。
 - 回归脚本 repro_form_designer_list 接入 oa_verify，并产出证据目录。
 - oa_verify 通过，证据见 .artifacts/mvp-9d/20260205_113147/。
+
+# MVP-9D Step-3（发布后侧边栏自动菜单）
+
+## A. 四站必查要点（摘要）
+- 氚云：未检索到“发布后自动生成菜单”的明确专题页，作为交互对齐参考仅记录入口聚合理念。
+- Jeecg：菜单来源 sys_permission，支持 SQL 配置菜单并与角色授权关联；本次仅更新发布时菜单名称与生成逻辑。
+- VForm：vform3-builds 支持设计器动态加载 schema；formConfig 适合作为表单名称来源用于菜单标题。
+- Flowable：流程部署不受本次影响，本次仅改表单发布后菜单联动。
+- 详细记录：.artifacts/mvp-9d/20260205_121753/doc_notes_mvp9d_step3.md
+
+## B. Plan
+1) 发布时解析 schemaJson 的 formName/title 作为菜单名称；若含英文则前缀“运行表单：”。
+2) 前端发布成功后触发权限菜单刷新，侧边栏即时可见新菜单。
+3) 新增回归脚本：发布→菜单出现→进入运行态列表。
+4) oa_verify 接入新脚本，证据落 .artifacts/mvp-9d/<run_id>/。
+5) 文档更新 CHANGELOG + RUNBOOK_STATE，记录证据与回滚点。
+
+## C. 实施改动（含 git diff --stat）
+- Backend：FormSchemaPublishServiceImpl 发布时解析表单名称并写入菜单。
+- Frontend：发布成功后调用 permissionStore.buildRoutesAction 刷新侧边栏。
+- Ops：新增 repro_form_designer_publish_menu.mjs，接入 oa_verify。
+
+git diff --stat（含未暂存/新文件）：
+- backend/.../FormSchemaPublishServiceImpl.java
+- frontend/src/views/form/designer/index.vue
+- ops/repro_form_designer_publish_menu.mjs（新增）
+- ops/oa_verify.sh
+- docs/ai/CHANGELOG.md
+- docs/ai/RUNBOOK_STATE.md
+
+## D. 线上验证（oa_verify 证据）
+- 命令：BASE_URL=https://oa.donaldzhu.com OA_USER=admin OA_PASS=*** MVP9D_RUN_ID=20260205_121753 ./ops/oa_verify.sh
+- 结果：PASS（MVP-9D Step-3）
+- 证据目录：.artifacts/mvp-9d/20260205_121753/repro-form-designer-publish-menu
+
+## E. 文档更新
+- docs/ai/CHANGELOG.md：新增“[2026-02-05] MVP-9D Step-3”。
+- docs/ai/RUNBOOK_STATE.md：记录 Step-3 计划与证据路径。
+
+## F. Git
+- ai_guard：pre/post 均通过。
+- commit：待本轮提交后填写。
+- push：待本轮提交后填写。
+
+## G. 结果概括
+- 发布后侧边栏自动生成该表单入口（中文标题）。
+- 前端发布成功后刷新菜单，无需重新登录。
+- 回归脚本覆盖发布→菜单→运行态列表链路。

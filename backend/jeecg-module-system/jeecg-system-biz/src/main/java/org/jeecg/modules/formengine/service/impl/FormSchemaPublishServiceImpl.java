@@ -1,6 +1,8 @@
 package org.jeecg.modules.formengine.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.formengine.ddl.DdlColumnDefinition;
 import org.jeecg.modules.formengine.ddl.DdlExecutor;
@@ -115,7 +117,7 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
         ddlApplied.addAll(ddlExecutor.ensureIndexes(tableName, buildIndexes(fieldMetas)));
 
         // MVP-6A: Generate/Update Menu
-        ensureFormMenu(formKey, formKey);
+        ensureFormMenu(formKey, resolveFormTitle(latest));
 
         FormSchemaPublishResp resp = new FormSchemaPublishResp();
         resp.setFormKey(formKey);
@@ -151,8 +153,12 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
         }
 
         String resolvedTitle = oConvertUtils.isEmpty(formTitle) ? formKey : formTitle;
-        if (oConvertUtils.isEmpty(resolvedTitle) || resolvedTitle.matches(".*[A-Za-z].*")) {
+        if (oConvertUtils.isEmpty(resolvedTitle)) {
             resolvedTitle = "运行表单";
+        }
+        if (resolvedTitle.matches(".*[A-Za-z].*")) {
+            String suffix = oConvertUtils.isEmpty(formTitle) ? formKey : formTitle;
+            resolvedTitle = "运行表单：" + (oConvertUtils.isEmpty(suffix) ? formKey : suffix);
         }
         permission.setName(resolvedTitle);
         permission.setUpdateBy("admin");
@@ -160,13 +166,35 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
 
         if (isNew) {
             sysPermissionService.save(permission);
-            // Bind to admin role by default
-            String adminRoleId = getAdminRoleId();
-            if (oConvertUtils.isNotEmpty(adminRoleId)) {
-                sysRolePermissionService.save(new SysRolePermission(adminRoleId, permission.getId()));
-            }
         } else {
             sysPermissionService.updateById(permission);
+        }
+        ensureAdminRolePermission(permission.getId());
+    }
+
+    private String resolveFormTitle(FormSchema schema) {
+        if (schema == null) {
+            return "";
+        }
+        if (oConvertUtils.isEmpty(schema.getSchemaJson())) {
+            return "";
+        }
+        try {
+            JSONObject root = JSON.parseObject(schema.getSchemaJson());
+            if (root == null) {
+                return "";
+            }
+            JSONObject formConfig = root.getJSONObject("formConfig");
+            if (formConfig == null) {
+                return "";
+            }
+            String name = formConfig.getString("formName");
+            if (oConvertUtils.isEmpty(name)) {
+                name = formConfig.getString("title");
+            }
+            return oConvertUtils.isEmpty(name) ? "" : name;
+        } catch (Exception ex) {
+            return "";
         }
     }
 
@@ -180,6 +208,23 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
             // ignore
         }
         return null;
+    }
+
+    private void ensureAdminRolePermission(String permissionId) {
+        if (oConvertUtils.isEmpty(permissionId)) {
+            return;
+        }
+        String adminRoleId = getAdminRoleId();
+        if (oConvertUtils.isEmpty(adminRoleId)) {
+            return;
+        }
+        long count = sysRolePermissionService.lambdaQuery()
+            .eq(SysRolePermission::getRoleId, adminRoleId)
+            .eq(SysRolePermission::getPermissionId, permissionId)
+            .count();
+        if (count == 0) {
+            sysRolePermissionService.save(new SysRolePermission(adminRoleId, permissionId));
+        }
     }
 
 
