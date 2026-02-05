@@ -1,5 +1,11 @@
 <template>
-  <MenuItem :name="item.path" v-if="!menuHasChildren(item) && getShowMenu" v-bind="$props" :class="getLevelClass">
+  <MenuItem
+    :name="item.path"
+    v-if="!menuHasChildren(item) && getShowMenu"
+    v-bind="$props"
+    :class="getLevelClass"
+    :data-testid="menuTestId"
+  >
     <Icon v-if="getIcon" :icon="getIcon" :size="16" />
     <div v-if="collapsedShowTitle && getIsCollapseParent" class="mt-1 collapse-title">
       {{ getI18nName }}
@@ -11,7 +17,13 @@
       <SimpleMenuTag :item="item" :collapseParent="getIsCollapseParent" />
     </template>
   </MenuItem>
-  <SubMenu :name="item.path" v-if="menuHasChildren(item) && getShowMenu" :class="[getLevelClass, theme]" :collapsedShowTitle="collapsedShowTitle">
+  <SubMenu
+    :name="item.path"
+    v-if="menuHasChildren(item) && getShowMenu"
+    :class="[getLevelClass, theme]"
+    :collapsedShowTitle="collapsedShowTitle"
+    :data-testid="menuTestId"
+  >
     <template #title>
       <Icon v-if="getIcon" :icon="getIcon" :size="16" />
 
@@ -66,6 +78,10 @@
       const { prefixCls } = useDesign('simple-menu');
 
       const getShowMenu = computed(() => !props.item?.meta?.hideMenu);
+      const menuTestId = computed(() => {
+        const raw = props.item?.path || props.item?.name || props.item?.title || 'menu';
+        return `menu-item-${String(raw).replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
+      });
       const getIcon = computed(() => props.item?.icon);
       const getI18nName = computed(() => t(props.item?.name));
       const getShowSubTitle = computed(() => !props.collapse || !props.parent);
@@ -94,6 +110,7 @@
         menuHasChildren,
         checkChildrenHidden,
         getShowMenu,
+        menuTestId,
         getIcon,
         getI18nName,
         getShowSubTitle,

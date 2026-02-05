@@ -23,6 +23,17 @@ const resolveUrl = (href) => {
   return `${BASE_URL}/#/${href.replace(/^#?\/?/, '')}`;
 };
 
+const pickVisible = async (locator) => {
+  const count = await locator.count();
+  for (let i = 0; i < count; i += 1) {
+    const candidate = locator.nth(i);
+    if (await candidate.isVisible()) {
+      return candidate;
+    }
+  }
+  return null;
+};
+
 (async () => {
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   
@@ -224,18 +235,23 @@ const resolveUrl = (href) => {
       });
     }
 
-    console.log('Checking for "App Runtime" menu...');
+    console.log('Checking for "应用运行" menu...');
     failureStage = 'wait-shell';
     await waitForAppShell();
 
     const sidebar = page.locator('.ant-layout-sider').first();
-    let runtimeMenu = sidebar.locator(':text-matches("App Runtime|应用运行", "i")').first();
-    if (!(await runtimeMenu.isVisible().catch(() => false))) {
-      runtimeMenu = page.locator(':text-matches("App Runtime|应用运行", "i")').first();
+    let runtimeMenu = null;
+    const runtimeByTestId = sidebar.locator('[data-testid="menu-item--form-runtime"]');
+    runtimeMenu = (await pickVisible(runtimeByTestId)) || (await runtimeByTestId.count() ? runtimeByTestId.first() : null);
+    if (!runtimeMenu) {
+      const runtimeByText = sidebar.locator(':text-matches("App Runtime|应用运行", "i")');
+      runtimeMenu = (await pickVisible(runtimeByText)) || (await runtimeByText.count() ? runtimeByText.first() : null);
     }
-    if (!(await runtimeMenu.isVisible().catch(() => false))) {
-      throw new Error('Parent menu "App Runtime" not found in sidebar.');
+    if (!runtimeMenu) {
+      throw new Error('父菜单“应用运行”未找到');
     }
+    await runtimeMenu.scrollIntoViewIfNeeded().catch(() => {});
+    await runtimeMenu.click({ timeout: Math.min(20000, ROUTE_TIMEOUT), force: true }).catch(() => {});
     console.log('Parent menu found.');
 
     await runtimeMenu.click();

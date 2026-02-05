@@ -150,7 +150,11 @@ public class FormSchemaPublishServiceImpl implements IFormSchemaPublishService {
             isNew = true;
         }
 
-        permission.setName(oConvertUtils.isEmpty(formTitle) ? formKey : formTitle);
+        String resolvedTitle = oConvertUtils.isEmpty(formTitle) ? formKey : formTitle;
+        if (oConvertUtils.isEmpty(resolvedTitle) || resolvedTitle.matches(".*[A-Za-z].*")) {
+            resolvedTitle = "运行表单";
+        }
+        permission.setName(resolvedTitle);
         permission.setUpdateBy("admin");
         permission.setUpdateTime(new Date());
 

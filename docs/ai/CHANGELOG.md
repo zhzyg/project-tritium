@@ -293,3 +293,10 @@
   - **Ops**: `ops/repro_bpm_task_field_rule.mjs` 自动插入示例节点，保存时优先等待接口响应（toast 缺失也不误判），无待办时才 SKIP。
   - **i18n**: 更新中文路由标题与页面标题（移除“VForm”英文标识），表单运行态按钮文案中文化；补充菜单中文化 SQL patch（`20260204_cn_menu_titles.sql`）。
   - **DB patches**: 统一修正菜单脚本中文显示（`20260129_add_form_designer_menu.sql`、`20260130_add_bpm_center_menu_stage4.sql`、`20260203_add_app_runtime_menu.sql`、`20260204_add_bpm_proc_start_perm_code.sql`）。
+
+- [2026-02-04] MVP-9B2 v0: 侧边栏菜单全中文化 + 防回归门禁。
+  - **DB**: 新增中文化补丁 `20260205_cn_sidebar_menu_titles.sql`，覆盖仪表盘/应用运行及 demo/online/监控等 URL 映射。
+  - **Backend**: `ensureFormMenu` 默认将英文 formKey 映射为“运行表单”，避免运行态菜单出现英文。
+  - **Frontend**: 菜单 `data-testid` 注入（`menu-item-<path>`），仪表盘中文化；新增侧边栏中文截图回归脚本。
+  - **Ops**: 新增 `ops/check_menu_cn.sh`，接入 `ai_guard` 强制检测 `sys_permission.name` 英文残留（白名单可选）。
+  - **Ops**: `ops/repro_menu_cn.mjs` + `ops/oa_verify.sh` 输出证据目录 `.artifacts/menu-cn`；运行态/流程设计/字段权限回归脚本优先用 `data-testid` 解析 formKey（减少环境依赖）。

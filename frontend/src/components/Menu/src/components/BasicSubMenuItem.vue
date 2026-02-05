@@ -1,6 +1,12 @@
 <template>
   <BasicMenuItem v-if="!menuHasChildren(item) && getShowMenu" v-bind="$props" />
-  <SubMenu v-if="menuHasChildren(item) && getShowMenu" :class="[theme]" :key="`submenu-${item.path}`" popupClassName="app-top-menu-popup">
+  <SubMenu
+    v-if="menuHasChildren(item) && getShowMenu"
+    :class="[theme]"
+    :key="`submenu-${item.path}`"
+    :data-testid="menuTestId"
+    popupClassName="app-top-menu-popup"
+  >
     <template #title>
       <MenuItemContent v-bind="$props" :item="item" />
     </template>
@@ -31,6 +37,10 @@
     props: itemProps,
     setup(props) {
       const { prefixCls } = useDesign('basic-menu-item');
+      const menuTestId = computed(() => {
+        const raw = props.item?.path || props.item?.name || props.item?.title || 'menu';
+        return `menu-item-${String(raw).replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
+      });
 
       const getShowMenu = computed(() => !props.item.meta?.hideMenu);
       function menuHasChildren(menuTreeItem: MenuType): boolean {
@@ -44,6 +54,7 @@
       }
       return {
         prefixCls,
+        menuTestId,
         menuHasChildren,
         checkChildrenHidden,
         getShowMenu,

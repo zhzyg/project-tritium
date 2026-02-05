@@ -22,5 +22,5 @@ UPDATE sys_permission SET name = '我的待办'
 UPDATE sys_permission SET name = '表单设计器'
   WHERE id = '6312b6f5fd1011f0a332d6fe3cabb6d4' OR name = 'Form Designer';
 
-UPDATE sys_permission SET name = '首页'
+UPDATE sys_permission SET name = '仪表盘'
   WHERE name = 'Dashboard';

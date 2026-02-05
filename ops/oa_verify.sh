@@ -73,6 +73,10 @@ if [[ $done_ok -eq 0 ]]; then
     echo "⚠️  [oa-verify] WARN: /bpm/done failed, continuing to runtime verification."
 fi
 
+# 3.5 Run sidebar CN check
+echo "[oa-verify] Running repro_menu_cn.mjs..."
+node ops/repro_menu_cn.mjs || handle_failure "menu-cn" ".artifacts/menu-cn"
+
 # 4. Run Form Runtime verification
 echo "[oa-verify] Running repro_bpm_start.mjs..."
 node ops/repro_bpm_start.mjs || handle_failure "bpm-start" ".artifacts/repro-bpm-start"
@@ -103,6 +107,7 @@ node ops/repro_form_runtime_list.mjs || handle_failure "form-runtime" ".artifact
 
 echo "[oa-verify] Evidence:"
 echo "  - .artifacts/repro-bpm-suite"
+echo "  - .artifacts/menu-cn"
 echo "  - .artifacts/repro-bpm-start"
 echo "  - .artifacts/repro-bpm-open-form"
 echo "  - .artifacts/repro-form-process-designer"

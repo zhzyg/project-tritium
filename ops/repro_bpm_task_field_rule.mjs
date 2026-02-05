@@ -108,6 +108,26 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const resolveFormKeyFromMenu = async () => {
     try {
       const sidebar = page.locator('.ant-layout-sider').first();
+      await page
+        .waitForSelector('[data-testid="menu-item--form-runtime"]', {
+          state: 'attached',
+          timeout: Math.min(20000, ROUTE_TIMEOUT),
+        })
+        .catch(() => {});
+      const directLink = sidebar.locator('a[href*="/form/runtime/"][href*="/list"]').first();
+      if (await directLink.count()) {
+        const href = (await directLink.getAttribute('href')) || '';
+        const key = extractFormKey(href);
+        if (key) return key;
+      }
+      const runtimeTestIdItem = sidebar
+        .locator('[data-testid^="menu-item--form-runtime-"][data-testid$="-list"]')
+        .first();
+      if (await runtimeTestIdItem.count()) {
+        const testId = (await runtimeTestIdItem.getAttribute('data-testid')) || '';
+        const match = testId.match(/menu-item--form-runtime-(.+)-list$/);
+        if (match?.[1]) return match[1];
+      }
       let runtimeMenu = sidebar.locator(':text-matches("App Runtime|应用运行", "i")').first();
       if (!(await runtimeMenu.isVisible().catch(() => false))) {
         runtimeMenu = page.locator(':text-matches("App Runtime|应用运行", "i")').first();
@@ -115,7 +135,25 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       if (await runtimeMenu.count()) {
         await runtimeMenu.click().catch(() => {});
       }
+      const runtimeMenuByTestId = sidebar.locator('[data-testid="menu-item--form-runtime"]').first();
+      if (await runtimeMenuByTestId.count()) {
+        await runtimeMenuByTestId.click().catch(() => {});
+      }
       await page.waitForTimeout(800);
+      const openedLink = sidebar.locator('a[href*="/form/runtime/"][href*="/list"]').first();
+      if (await openedLink.count()) {
+        const href = (await openedLink.getAttribute('href')) || '';
+        const key = extractFormKey(href);
+        if (key) return key;
+      }
+      const runtimeTestIdOpened = sidebar
+        .locator('[data-testid^="menu-item--form-runtime-"][data-testid$="-list"]')
+        .first();
+      if (await runtimeTestIdOpened.count()) {
+        const testId = (await runtimeTestIdOpened.getAttribute('data-testid')) || '';
+        const match = testId.match(/menu-item--form-runtime-(.+)-list$/);
+        if (match?.[1]) return match[1];
+      }
       const runtimeSubmenu = page
         .locator('.ant-layout-sider li.jeecg-menu-submenu, .ant-layout-sider .ant-menu-submenu')
         .filter({ hasText: /App Runtime|应用运行/i })
