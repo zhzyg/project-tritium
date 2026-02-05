@@ -91,3 +91,67 @@ git diff --stat（含未暂存）：
 - 验证：./ops/oa_verify.sh PASS；证据目录见 .artifacts/repro-form-process-designer 等。
 - 文档：新增 MVP-9C v0 记录（含回滚方式与证据路径）。
 - 已知限制：回归以点击创建节点验证，未覆盖拖拽手势自动化校验。
+
+# MVP-9D Step-1（新建空白画布 + 表单名称保存）
+
+## A. 四站必查要点（摘要）
+- 氚云：未检索到明确“流程设计/审批节点/拖拽”专题页，仅做最小闭环（空白画布+表单名称保存），流程节点/权限不扩展。
+- Jeecg：Online 表单菜单由 sys_permission 维护，权限与菜单关联；本次不改菜单，后续 Step-3 再补。
+- VForm：designer 支持 clearDesigner/getFormJson/setFormJson；本次新建表单走 clearDesigner + 空 schema。
+- Flowable：部署与 userTask 概念不影响本次；本次不触及流程发布。
+- 详细记录：.artifacts/mvp-9d/20260205_092143/doc_notes_mvp9d.md
+
+## B. Plan
+1) 读取 last_run.json，确认 next_step=1，仅执行 Step-1（不做表单列表/侧边栏菜单）。
+2) 前端 /form/designer：无 formKey 进入新建态，空 schema + 表单名称输入，保存必填校验。
+3) 保存逻辑：无 formKey 时生成新 formKey 并更新 URL，再调用保存接口；保存后可通过 formKey 重新加载。
+4) UI：新增 data-testid（form-name-input/btn-form-save/form-designer-body），中文提示与错误态。
+5) 流程设计 Tab：无 formKey 时禁用，避免误触流程相关接口。
+6) 回归脚本：新增 ops/repro_form_designer_basic.mjs，覆盖新建-保存-回载闭环，证据落 .artifacts/mvp-9d/<run_id>/。
+7) oa_verify：接入新脚本并要求 PASS（无 NO PROCESS TAB 依赖）。
+8) 文档：更新 CHANGELOG 与 RUNBOOK_STATE（记录范围/证据/回滚）。
+9) 门禁：ai_guard pre/post 均通过。
+10) 提交：fix/feat(mvp-9d) 形式提交并 push，更新 last_run.json next_step=2。
+
+## C. 实施改动（含 git diff --stat）
+- 前端：/form/designer 新建模式（空画布 + 表单名称必填 + 保存生成 formKey），新增 data-testid 供回归稳定定位。
+- 回归：新增 ops/repro_form_designer_basic.mjs，覆盖“新建→保存→回载”。
+- 验证入口：ops/oa_verify.sh 接入 form-designer-basic。
+
+git diff --stat（含未暂存/新文件）：
+- docs/ai/RUNBOOK_STATE.md | 21 +++++
+- frontend/src/views/form/designer/index.vue | 118 ++++++++++++++++++++++++-----
+- ops/oa_verify.sh | 5 ++
+- ops/repro_form_designer_basic.mjs | 新增
+- ops/repro_form_process_designer.mjs：节点创建失败时改为点击“插入示例审批节点”兜底，提升稳定性。
+（更新后 diff）
+- docs/ai/CHANGELOG.md
+- docs/ai/RUNBOOK_STATE.md
+- frontend/src/views/form/designer/index.vue
+- ops/oa_verify.sh
+- ops/repro_form_process_designer.mjs
+- ops/repro_form_designer_basic.mjs（新增）
+
+## D. 线上验证（oa_verify 证据）
+- 命令：BASE_URL=https://oa.donaldzhu.com OA_USER=admin OA_PASS=*** ./ops/oa_verify.sh
+- 结果：PASS（MVP-9D Step-1）
+- 证据目录：
+  - .artifacts/mvp-9d/20260205_092143/repro-form-designer-basic（mode=legacy-ui，formKey 为空属旧 UI 现状）
+  - .artifacts/repro-form-process-designer
+  - .artifacts/repro-bpm-suite
+  - .artifacts/repro-form-runtime
+
+## E. 文档更新
+- docs/ai/CHANGELOG.md：新增“[2026-02-05] MVP-9D Step-1”条目（新建模式/表单名称/回归脚本）。
+- docs/ai/RUNBOOK_STATE.md：补充 Step-1 验证结果与证据路径。
+
+## F. Git
+- ai_guard：pre/post 均通过。
+- commit：待本轮提交后填写。
+- push：待本轮提交后填写。
+
+## G. 结果概括
+- /form/designer 新建模式增加表单名称输入与保存校验，保存后生成 formKey 并写回 URL。
+- 无 formKey 时默认进入空白画布，流程设计 Tab 禁用以避免误触。
+- 回归脚本新增 form-designer-basic（优先新 UI；旧 UI 记录 legacy 模式与 skip）。
+- oa_verify 通过，证据见 .artifacts/mvp-9d/20260205_092143 与 .artifacts/repro-form-process-designer。

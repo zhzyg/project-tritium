@@ -89,6 +89,10 @@ node ops/repro_bpm_open_form.mjs || handle_failure "bpm-open-form" ".artifacts/r
 echo "[oa-verify] Running repro_form_process_designer.mjs..."
 node ops/repro_form_process_designer.mjs || handle_failure "form-process-designer" ".artifacts/repro-form-process-designer"
 
+# 6.5 Run Form Designer basic verification
+echo "[oa-verify] Running repro_form_designer_basic.mjs..."
+node ops/repro_form_designer_basic.mjs || handle_failure "form-designer-basic" ".artifacts/mvp-9d"
+
 # 7. Run BPM task comment verification
 echo "[oa-verify] Running repro_bpm_task_comment.mjs..."
 node ops/repro_bpm_task_comment.mjs || handle_failure "bpm-task-comment" ".artifacts/repro-bpm-task-comment"
@@ -111,6 +115,7 @@ echo "  - .artifacts/menu-cn"
 echo "  - .artifacts/repro-bpm-start"
 echo "  - .artifacts/repro-bpm-open-form"
 echo "  - .artifacts/repro-form-process-designer"
+echo "  - .artifacts/mvp-9d"
 echo "  - .artifacts/repro-bpm-task-comment"
 echo "  - .artifacts/repro-bpm-task-field-perm"
 echo "  - .artifacts/repro-bpm-task-field-rule"

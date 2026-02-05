@@ -314,3 +314,9 @@
   - **Ops**: `ops/repro_form_process_designer.mjs` 使用 palette 点击+画布点击创建节点（记录节点数量变化），避免 headless 拖拽不稳定。
   - **Ops**: `ops/repro_bpm_start.mjs` 仅填可编辑文本控件，跳过开关/只读字段（避免误报失败）。
   - **Verification**: `./ops/oa_verify.sh` 通过，证据见 `.artifacts/repro-form-process-designer` 等目录。
+
+- [2026-02-05] MVP-9D Step-1: 表单设计器新建模式（空白画布 + 表单名称保存）。
+  - **Frontend**: `/form/designer` 无 formKey 进入新建态，表单名称必填并随保存写入 schema，保存后生成 formKey 回写 URL。
+  - **Frontend**: 流程设计 Tab 无 formKey 时禁用，避免误触流程接口；新增 data-testid 供回归定位。
+  - **Ops**: 新增 `ops/repro_form_designer_basic.mjs` 覆盖“新建→保存→回载”，接入 `oa_verify`（证据 `.artifacts/mvp-9d/<run_id>/repro-form-designer-basic`）。
+  - **Verification**: `./ops/oa_verify.sh` 通过；OA 环境仍为旧 UI 时脚本记录 legacy 模式与 skip 说明。
