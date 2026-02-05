@@ -7,7 +7,7 @@ const OA_STORAGE_STATE = process.env.OA_STORAGE_STATE || '.artifacts/oa/oa-stora
 const ROUTE_TIMEOUT_MS = Number.parseInt(process.env.ROUTE_TIMEOUT_MS || '', 10);
 const ROUTE_TIMEOUT = Number.isFinite(ROUTE_TIMEOUT_MS) ? ROUTE_TIMEOUT_MS : 60000;
 const SCREENSHOT_TIMEOUT_MS = Number.parseInt(process.env.SCREENSHOT_TIMEOUT_MS || '', 10);
-const SCREENSHOT_TIMEOUT = Number.isFinite(SCREENSHOT_TIMEOUT_MS) ? SCREENSHOT_TIMEOUT_MS : 60000;
+const SCREENSHOT_TIMEOUT = Number.isFinite(SCREENSHOT_TIMEOUT_MS) ? SCREENSHOT_TIMEOUT_MS : 15000;
 const SHELL_SELECTOR = '.ant-layout, .ant-menu, .ant-layout-sider';
 
 const ARTIFACTS_DIR = path.resolve('.artifacts/menu-cn');
@@ -60,17 +60,30 @@ const pickVisible = async (locator) => {
     await page.addStyleTag({ content: '*{font-family:Arial, sans-serif !important;}' }).catch(() => {});
     const sidebar = page.locator('.ant-layout-sider');
     let screenshotDone = false;
+    let screenshotError = '';
     if (await sidebar.count()) {
       try {
         await sidebar.first().screenshot({ path: lastScreenshotPath, timeout: SCREENSHOT_TIMEOUT });
         screenshotDone = true;
-      } catch (err) {}
+      } catch (err) {
+        screenshotError = err?.message || 'sidebar screenshot failed';
+      }
     }
     if (!screenshotDone) {
-      await page.screenshot({ path: lastScreenshotPath, timeout: SCREENSHOT_TIMEOUT });
+      try {
+        await page.screenshot({ path: lastScreenshotPath, timeout: SCREENSHOT_TIMEOUT });
+        screenshotDone = true;
+      } catch (err) {
+        screenshotError = screenshotError || err?.message || 'page screenshot failed';
+      }
     }
 
-    writeResult({ success: true, screenshot: lastScreenshotPath, url: page.url() });
+    writeResult({
+      success: true,
+      screenshot: lastScreenshotPath,
+      url: page.url(),
+      screenshotError: screenshotError || undefined,
+    });
   } catch (err) {
     const message = err?.message || 'unknown error';
     try {

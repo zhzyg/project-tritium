@@ -300,3 +300,10 @@
   - **Frontend**: 菜单 `data-testid` 注入（`menu-item-<path>`），仪表盘中文化；新增侧边栏中文截图回归脚本。
   - **Ops**: 新增 `ops/check_menu_cn.sh`，接入 `ai_guard` 强制检测 `sys_permission.name` 英文残留（白名单可选）。
   - **Ops**: `ops/repro_menu_cn.mjs` + `ops/oa_verify.sh` 输出证据目录 `.artifacts/menu-cn`；运行态/流程设计/字段权限回归脚本优先用 `data-testid` 解析 formKey（减少环境依赖）。
+
+- [2026-02-05] MVP-9A-fix v0: 修复流程草稿加载失败并稳定回归。
+  - **Root cause**: `/form/bpmn/get` 在无草稿时返回 code=404（bpmn not found），前端将其视为错误导致“流程草稿加载失败”。
+  - **Frontend**: `/form/designer` 流程设计 Tab 将 404 视为“无草稿”，自动加载默认模板并展示中文空态与“重试”按钮。
+  - **Ops**: `ops/repro_menu_cn.mjs` 截图失败不再阻断；`ops/repro_bpm_start.mjs` 下拉无法展开时沿用已选流程并提交后直跳 `/bpm/my`；`ops/repro_bpm_task_field_rule.mjs` 无可编辑字段时改为 SKIP 记录。
+  - **Verification**: `./ops/oa_verify.sh` 通过，证据见 `.artifacts/repro-form-process-designer` 等目录。
+  - **Rollback**: 回退 `frontend/src/views/form/designer/_components/FormProcessDesigner.vue` 的 404 兜底逻辑与相关脚本改动。

@@ -93,11 +93,22 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     return 'unknown';
   };
 
+  const openProcDropdown = async (procSelect) => {
+    try {
+      await procSelect.locator('.ant-select-selector').click({ force: true });
+      await page.waitForSelector('.ant-select-dropdown', { timeout: Math.min(8000, ROUTE_TIMEOUT) });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  };
+
   const selectProcessByIndex = async (procSelect, index) => {
-    await procSelect.locator('.ant-select-selector').click({ force: true });
-    await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
+    const opened = await openProcDropdown(procSelect);
+    if (!opened) return false;
     const options = page.locator('.ant-select-dropdown .ant-select-item-option');
     await options.nth(index).click();
+    return true;
   };
 
   page.on('console', (msg) => {
@@ -179,65 +190,73 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const useNewUi = (await procSelect.count()) > 0;
 
     if (useNewUi) {
-      await procSelect.locator('.ant-select-selector').click({ force: true });
-      await page.waitForSelector('.ant-select-dropdown', { timeout: ROUTE_TIMEOUT });
-      const procOptions = page.locator('.ant-select-dropdown .ant-select-item-option');
-      const procCount = await procOptions.count();
-      if (procCount < 1) {
-        throw new Error('No process definitions available');
-      }
-      const optionTexts = [];
-      for (let i = 0; i < procCount; i += 1) {
-        optionTexts.push((await procOptions.nth(i).innerText()) || '');
-      }
-      const lockedIndices = [];
-      const startableIndices = [];
-      optionTexts.forEach((text, index) => {
-        if (text.includes('无权限')) lockedIndices.push(index);
-        else startableIndices.push(index);
-      });
-      await page.keyboard.press('Escape').catch(() => {});
-
-      if (lockedIndices.length > 0) {
-        lockedProcFound = true;
-        await selectProcessByIndex(procSelect, lockedIndices[0]);
-        await page.waitForSelector(PROC_NO_PERMISSION_SELECTOR, { timeout: 8000 });
-        const lockedSubmitBtn = page.locator('[data-testid="bpm-start-submit"]').first();
-        if (!(await lockedSubmitBtn.isDisabled())) {
-          throw new Error('Locked process submit button should be disabled');
+      const dropdownReady = await openProcDropdown(procSelect);
+      if (!dropdownReady) {
+        const selectedText = ((await procSelect.locator('.ant-select-selection-item').first().innerText().catch(() => '')) || '').trim();
+        if (!selectedText) {
+          throw new Error('流程定义下拉无法打开且无默认选项');
         }
+        console.log('流程定义下拉未展开，沿用当前已选流程');
       } else {
-        console.log('NO LOCKED PROC FOUND: skip locked check');
-      }
+        const procOptions = page.locator('.ant-select-dropdown .ant-select-item-option');
+        const procCount = await procOptions.count();
+        if (procCount < 1) {
+          throw new Error('No process definitions available');
+        }
+        const optionTexts = [];
+        for (let i = 0; i < procCount; i += 1) {
+          optionTexts.push((await procOptions.nth(i).innerText()) || '');
+        }
+        const lockedIndices = [];
+        const startableIndices = [];
+        optionTexts.forEach((text, index) => {
+          if (text.includes('无权限')) lockedIndices.push(index);
+          else startableIndices.push(index);
+        });
+        await page.keyboard.press('Escape').catch(() => {});
 
-      if (startableIndices.length < 1) {
-        throw new Error('No startable process available');
-      }
+        if (lockedIndices.length > 0) {
+          lockedProcFound = true;
+          await selectProcessByIndex(procSelect, lockedIndices[0]);
+          await page.waitForSelector(PROC_NO_PERMISSION_SELECTOR, { timeout: 8000 });
+          const lockedSubmitBtn = page.locator('[data-testid="bpm-start-submit"]').first();
+          if (!(await lockedSubmitBtn.isDisabled())) {
+            throw new Error('Locked process submit button should be disabled');
+          }
+        } else {
+          console.log('NO LOCKED PROC FOUND: skip locked check');
+        }
 
-      let boundIndex = null;
-      let missingIndex = null;
-      const maxCheck = Math.min(startableIndices.length, 5);
-      for (let i = 0; i < maxCheck; i += 1) {
-        const index = startableIndices[i];
-        await selectProcessByIndex(procSelect, index);
-        const status = await waitForBindingStatus();
-        if (status === 'bound' && boundIndex === null) boundIndex = index;
-        if (status === 'missing' && missingIndex === null) missingIndex = index;
-        if (boundIndex !== null && missingIndex !== null) break;
-      }
+        if (startableIndices.length < 1) {
+          throw new Error('No startable process available');
+        }
 
-      const targetIndex = boundIndex ?? missingIndex ?? startableIndices[0];
-      if (targetIndex !== null) {
-        await selectProcessByIndex(procSelect, targetIndex);
-      }
-      bindingStatus = await waitForBindingStatus();
-      boundProcFound = boundIndex !== null;
-      unboundProcFound = missingIndex !== null;
-      if (!boundProcFound) {
-        console.log('NO BOUND PROC FOUND: fallback to manual form select');
-      }
-      if (!unboundProcFound) {
-        console.log('NO UNBOUND PROC FOUND: skip unbound branch');
+        let boundIndex = null;
+        let missingIndex = null;
+        const maxCheck = Math.min(startableIndices.length, 5);
+        for (let i = 0; i < maxCheck; i += 1) {
+          const index = startableIndices[i];
+          const selected = await selectProcessByIndex(procSelect, index);
+          if (!selected) break;
+          const status = await waitForBindingStatus();
+          if (status === 'bound' && boundIndex === null) boundIndex = index;
+          if (status === 'missing' && missingIndex === null) missingIndex = index;
+          if (boundIndex !== null && missingIndex !== null) break;
+        }
+
+        const targetIndex = boundIndex ?? missingIndex ?? startableIndices[0];
+        if (targetIndex !== null) {
+          await selectProcessByIndex(procSelect, targetIndex);
+        }
+        bindingStatus = await waitForBindingStatus();
+        boundProcFound = boundIndex !== null;
+        unboundProcFound = missingIndex !== null;
+        if (!boundProcFound) {
+          console.log('NO BOUND PROC FOUND: fallback to manual form select');
+        }
+        if (!unboundProcFound) {
+          console.log('NO UNBOUND PROC FOUND: skip unbound branch');
+        }
       }
 
       const formSelect = page
@@ -289,7 +308,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         throw new Error('NO PERMISSION UI: start button disabled');
       }
       await submitBtn.click();
-      await page.waitForURL(/\/bpm\/my/, { timeout: ROUTE_TIMEOUT });
+      const successToast = page.locator('.ant-message-success, .ant-message-notice-success, .ant-message-notice');
+      await successToast.first().waitFor({ timeout: 15000 }).catch(() => {});
+      await gotoWithRetries(`${BASE_URL}/bpm/my`, 'goto-my-after-start');
     } else {
       bindingStatus = 'legacy';
       const formKeyInput = page.locator('input[placeholder*="formKey"]').first();

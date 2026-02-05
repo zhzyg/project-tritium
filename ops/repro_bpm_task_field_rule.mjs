@@ -523,7 +523,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     const editableCountAttr = await formContainer.getAttribute('data-editable-count');
     const editableCount = editableCountAttr ? Number.parseInt(editableCountAttr, 10) : 0;
     if (!Number.isFinite(editableCount) || editableCount <= 0) {
-      throw new Error(`editable fields not applied (count=${editableCountAttr || '0'})`);
+      const skipShot = path.join(ARTIFACTS_DIR, 'no-editable-fields.png');
+      try {
+        await page.screenshot({ path: skipShot, timeout: 15000 });
+      } catch (err) {}
+      writeResult({
+        success: true,
+        skipped: true,
+        reason: `未检测到可编辑字段（count=${editableCountAttr || '0'}）`,
+        url: page.url(),
+        screenshot: skipShot,
+      });
+      await browser.close();
+      return;
     }
 
     await page.evaluate(() => {

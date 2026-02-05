@@ -14,7 +14,19 @@
       </a-space>
     </div>
 
-    <a-alert v-if="errorMessage" type="error" show-icon :message="errorMessage" class="mb-3" />
+    <a-alert v-if="errorMessage" type="error" show-icon class="mb-3">
+      <template #message>{{ errorMessage }}</template>
+      <template #action>
+        <a-button size="small" data-testid="btn-bpmn-retry" @click="handleReload">重试</a-button>
+      </template>
+    </a-alert>
+    <a-alert
+      v-if="draftMissing"
+      type="info"
+      show-icon
+      message="未找到流程草稿，已加载默认模板，可继续编辑或插入审批节点。"
+      class="mb-3"
+    />
 
     <div class="process-body">
       <div ref="canvasRef" class="process-canvas" data-testid="form-bpmn-canvas"></div>
@@ -22,7 +34,7 @@
         <div class="task-rule-title">节点字段权限</div>
         <a-alert v-if="!userTasks.length" type="info" show-icon message="未发现用户任务节点" class="mb-3" />
         <a-button
-          v-if="!userTasks.length"
+          v-if="draftMissing || !userTasks.length"
           type="primary"
           size="small"
           data-testid="btn-insert-sample-usertask"
@@ -136,6 +148,7 @@
   const procDefKey = ref('');
   const version = ref<number | null>(null);
   const errorMessage = ref('');
+  const draftMissing = ref(false);
 
   const processKey = ref('');
   const selectedTaskId = ref('');
@@ -517,34 +530,67 @@
     }
   };
 
+  const resolveErrorCode = (err: any) => {
+    const status = err?.response?.status || err?.status || err?.code;
+    if (status) return status;
+    const msg = String(err?.message || '');
+    const match = msg.match(/\b\d{3}\b/);
+    return match ? match[0] : '';
+  };
+
+  const isNotFoundError = (err: any) => {
+    const status = resolveErrorCode(err);
+    if (status === 404 || status === '404') return true;
+    const msg = String(err?.message || '').toLowerCase();
+    return msg.includes('bpmn not found') || msg.includes('not found') || msg.includes('404');
+  };
+
+  const formatLoadError = (err: any) => {
+    const code = resolveErrorCode(err) || '未知';
+    return `流程草稿加载失败（错误码：${code}）`;
+  };
+
   const loadFromServer = async () => {
     if (!props.formKey) {
       throw new Error('formKey 缺失');
     }
-    const res = await getFormBpmn({ formKey: props.formKey });
-    if (res?.bpmnXml) {
-      status.value = res.status || 'draft';
-      procDefKey.value = res.procDefKey || '';
-      version.value = res.version ?? null;
-      return res.bpmnXml;
+    try {
+      const res = await getFormBpmn({ formKey: props.formKey });
+      if (res?.bpmnXml) {
+        status.value = res.status || 'draft';
+        procDefKey.value = res.procDefKey || '';
+        version.value = res.version ?? null;
+        return res.bpmnXml;
+      }
+      draftMissing.value = true;
+      status.value = 'draft';
+      procDefKey.value = '';
+      version.value = null;
+      return '';
+    } catch (err: any) {
+      if (isNotFoundError(err)) {
+        draftMissing.value = true;
+        status.value = 'draft';
+        procDefKey.value = '';
+        version.value = null;
+        return '';
+      }
+      throw err;
     }
-    status.value = 'draft';
-    procDefKey.value = '';
-    version.value = null;
-    return '';
   };
 
   const handleReload = async () => {
     errorMessage.value = '';
+    draftMissing.value = false;
     ensureModeler();
     try {
       const xml = await loadFromServer();
       await importXml(xml || buildDefaultXml(props.formKey));
-      if (!xml) {
+      if (!xml && draftMissing.value) {
         message.info('未找到草稿，已加载默认模板');
       }
     } catch (err: any) {
-      errorMessage.value = err?.message || '加载失败';
+      errorMessage.value = formatLoadError(err);
       message.error(errorMessage.value);
       await importXml(buildDefaultXml(props.formKey)).catch(() => {});
     }
