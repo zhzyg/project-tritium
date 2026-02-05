@@ -338,3 +338,9 @@
   - **Frontend**: Ensure `data-testid` anchors (`btn-form-new`, `input-form-name`, `form-designer-root`) are present.
   - **Ops**: Added `ops/repro_form_designer_step1.mjs` and isolated verification in `oa_verify.sh`.
   - **Verification**: `oa_verify.sh` PASS (Step 1 only). Evidence: `.artifacts/mvp-9d-repair`.
+
+- [2026-02-05] MVP-9D-REPAIR Step-2: Form Designer List Tab (Draft/Published).
+  - **Frontend**: Added status column (Draft/Published tag) and filter radio group to `FormList` tab in `/form/designer`.
+  - **Backend**: Verified `FormSchemaController` has `/listLatest` endpoint. Triggered rebuild (`mvn clean install`) and restart (`systemctl restart tritium-backend`) to ensure deployed backend exposes this endpoint.
+  - **Ops**: Added `ops/repro_form_designer_list.mjs` covering "Create Draft -> Switch to List -> Filter -> Edit -> Verify".
+  - **Verification**: `oa_verify.sh` PASS (Step 2 only). Evidence: `.artifacts/mvp-9d-repair` (screenshots of success).

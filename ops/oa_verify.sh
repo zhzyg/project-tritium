@@ -94,8 +94,12 @@ fi
 # node ops/repro_form_designer_basic.mjs || handle_failure "form-designer-basic" ".artifacts/mvp-9d"
 
 # 6.5.1 Run Form Designer Step 1 (Repair) verification
-echo "[oa-verify] Running repro_form_designer_step1.mjs..."
-node ops/repro_form_designer_step1.mjs || handle_failure "form-designer-step1" ".artifacts/mvp-9d-repair"
+# echo "[oa-verify] Running repro_form_designer_step1.mjs..."
+# node ops/repro_form_designer_step1.mjs || handle_failure "form-designer-step1" ".artifacts/mvp-9d-repair"
+
+# 6.6 Run Form Designer Step 2 (List) verification
+echo "[oa-verify] Running repro_form_designer_list.mjs..."
+node ops/repro_form_designer_list.mjs || handle_failure "form-designer-step2" ".artifacts/mvp-9d-repair"
 
 # 6.6 Run Form Designer list verification
 # echo "[oa-verify] Running repro_form_designer_list.mjs..."

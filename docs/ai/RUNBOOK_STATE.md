@@ -9,3 +9,8 @@
 - **目标**: /form/designer 默认空白；必须有“表单名称”输入框；保存后生成 formKey。
 - **状态**: Completed.
 - **证据**: .artifacts/mvp-9d-repair/20260205_REPAIR/step1/
+
+## Step-2 (表单列表 Tab)
+- **目标**: 设计器内查看表单列表（草稿/已发布）；筛选状态；点击编辑回显。
+- **状态**: Completed.
+- **证据**: .artifacts/mvp-9d-repair/20260205_REPAIR/step2/

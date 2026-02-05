@@ -42,6 +42,11 @@
         <div class="vform-designer-list" data-testid="form-list-root">
           <div class="vform-designer-list-toolbar">
             <a-space>
+              <a-radio-group v-model:value="listFilter" button-style="solid">
+                <a-radio-button value="all" data-testid="filter-status-all">全部</a-radio-button>
+                <a-radio-button value="draft" data-testid="filter-status-draft">草稿</a-radio-button>
+                <a-radio-button value="published" data-testid="filter-status-published">已发布</a-radio-button>
+              </a-radio-group>
               <a-button @click="fetchFormList" data-testid="btn-form-list-refresh">刷新</a-button>
               <a-button type="primary" @click="handleNewForm" data-testid="btn-form-list-new">新建表单</a-button>
             </a-space>
@@ -49,12 +54,17 @@
           <a-table
             size="middle"
             :columns="listColumns"
-            :data-source="formList"
+            :data-source="filteredFormList"
             :loading="listLoading"
             row-key="formKey"
             :pagination="{ pageSize: 8, showSizeChanger: false }"
           >
             <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'status'">
+                <a-tag :color="record.status === 1 ? 'green' : 'orange'">
+                  {{ record.status === 1 ? '已发布' : '草稿' }}
+                </a-tag>
+              </template>
               <template v-if="column.key === 'action'">
                 <a-button
                   type="link"
@@ -108,13 +118,21 @@
   const lastPublishTable = ref<string | null>(null);
   const listLoading = ref(false);
   const formList = ref<FormSchemaListResp[]>([]);
+  const listFilter = ref('all');
   const listColumns = [
     { title: '表单名称', dataIndex: 'formName', key: 'formName' },
+    { title: '状态', key: 'status', width: 100 },
     { title: '表单Key', dataIndex: 'formKey', key: 'formKey' },
     { title: '更新时间', dataIndex: 'updatedTime', key: 'updatedTime' },
     { title: '版本', dataIndex: 'version', key: 'version' },
     { title: '操作', key: 'action' },
   ];
+
+  const filteredFormList = computed(() => {
+    if (listFilter.value === 'all') return formList.value;
+    const target = listFilter.value === 'published' ? 1 : 0;
+    return formList.value.filter((item) => (item.status ?? 0) === target);
+  });
 
   const getDesignerApi = () => designerRef.value;
   const resolveFormKey = () => {
