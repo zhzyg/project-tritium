@@ -195,7 +195,7 @@ git diff --stat（含未暂存/新文件）：
 - 结果：PASS（MVP-9D Step-2）
 - 证据目录：
   - .artifacts/mvp-9d/20260205_113147/repro-form-designer-basic
-  - .artifacts/mvp-9d/20260205_113147/repro-form-designer-list
+  - .artifacts/mvp-9d/20260205_113147/repro-form-designer-list（legacy UI 未出现“表单列表”Tab，脚本记录 skip）
 
 ## E. 文档更新
 - docs/ai/CHANGELOG.md：新增“[2026-02-05] MVP-9D Step-2”。
