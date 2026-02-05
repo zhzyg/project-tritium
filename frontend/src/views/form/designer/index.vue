@@ -11,6 +11,7 @@
               <a-button type="primary" @click="handleSave" data-testid="btn-form-save">保存</a-button>
               <a-button @click="handlePublish">发布</a-button>
               <a-button @click="handleLoad">加载</a-button>
+              <a-button @click="handleNewForm" data-testid="btn-form-new">新建表单</a-button>
               <a-button danger @click="handleReset">重置</a-button>
             </a-space>
             <a-space class="vform-designer-name">
@@ -18,7 +19,7 @@
               <a-input
                 v-model:value="formName"
                 placeholder="请输入表单名称"
-                data-testid="form-name-input"
+                data-testid="input-form-name"
                 style="width: 220px"
               />
             </a-space>
@@ -29,7 +30,7 @@
               <span>最近保存: {{ lastSavedTime || '-' }}</span>
             </a-space>
           </div>
-          <div class="vform-designer-body" data-testid="form-designer-body" :data-empty="isEmpty ? 'true' : 'false'">
+          <div class="vform-designer-body" data-testid="designer-canvas-root" :data-empty="isEmpty ? 'true' : 'false'">
             <VFormDesigner ref="designerRef" />
           </div>
         </div>

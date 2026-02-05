@@ -7,4 +7,5 @@
 
 ## Step-1 (新建空白画布 + 表单名称)
 - **目标**: /form/designer 默认空白；必须有“表单名称”输入框；保存后生成 formKey。
-- **状态**: 待执行.
+- **状态**: Completed.
+- **证据**: .artifacts/mvp-9d-repair/20260205_REPAIR/step1/

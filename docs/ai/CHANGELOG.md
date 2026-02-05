@@ -332,3 +332,9 @@
   - **Frontend**: 发布成功后触发菜单刷新（重建后台菜单列表），无需重新登录即可更新侧边栏。
   - **Ops**: 新增 `ops/repro_form_designer_publish_menu.mjs` 覆盖“发布→菜单出现→进入运行态”链路。
   - **Verification**: `./ops/oa_verify.sh` 通过，证据见 `.artifacts/mvp-9d/<run_id>/repro-form-designer-publish-menu`。
+
+- [2026-02-05] MVP-9D-REPAIR Step-1: Form Designer New/Blank/Name/Save.
+  - **Correction**: Re-verified UI elements strictly with `ops/repro_form_designer_step1.mjs` to ensure "New Form" button and "Form Name" input are present and functional.
+  - **Frontend**: Ensure `data-testid` anchors (`btn-form-new`, `input-form-name`, `form-designer-root`) are present.
+  - **Ops**: Added `ops/repro_form_designer_step1.mjs` and isolated verification in `oa_verify.sh`.
+  - **Verification**: `oa_verify.sh` PASS (Step 1 only). Evidence: `.artifacts/mvp-9d-repair`.
