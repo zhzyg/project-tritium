@@ -9,7 +9,7 @@
           <div class="vform-designer-toolbar">
             <a-space>
               <a-button type="primary" @click="handleSave" data-testid="btn-form-save">保存</a-button>
-              <a-button @click="handlePublish">发布</a-button>
+              <a-button @click="handlePublish" data-testid="btn-form-publish">发布</a-button>
               <a-button @click="handleLoad">加载</a-button>
               <a-button @click="handleNewForm" data-testid="btn-form-new">新建表单</a-button>
               <a-button danger @click="handleReset">重置</a-button>
@@ -96,7 +96,7 @@
   import { VFormDesigner } from 'vform3-builds';
   import { usePermissionStore } from '/@/store/modules/permission';
   import FormProcessDesigner from './_components/FormProcessDesigner.vue';
-  import { getLatestSchema, saveSchema, publishSchema, getSchemaList, FormSchemaListResp } from './designer.api';
+  import { getLatestSchema, getLatestPublishedSchemaJson, saveSchema, publishSchema, getSchemaList, FormSchemaListResp } from './designer.api';
   import 'vform3-builds/dist/designer.style.css';
 
   const route = useRoute();
@@ -245,7 +245,21 @@
   };
 
   const loadFromBackend = async (silent = false) => {
-    const res = await getLatestSchema({ formKey: formKey.value });
+    let res = null;
+    try {
+      res = await getLatestSchema({ formKey: formKey.value });
+    } catch (err) {
+      console.warn('Failed to load latest schema:', err);
+    }
+
+    if (!res?.schemaJson) {
+      try {
+        res = await getLatestPublishedSchemaJson({ formKey: formKey.value });
+      } catch (err) {
+        console.warn('Failed to load published schema:', err);
+      }
+    }
+
     if (!res?.schemaJson) {
       if (!silent) message.warning('未获取到表单数据，已加载空白画布');
       resetToEmptySchema(true);

@@ -2,6 +2,10 @@
   <div class="p-4">
     <a-card :title="formTitle" :bordered="false">
       <template #extra>
+        <a-button @click="goDesigner" style="margin-right: 8px" data-testid="btn-go-designer">
+          <template #icon><EditOutlined /></template>
+          设计表单
+        </a-button>
         <a-button type="primary" @click="loadData" :loading="loading">
           <template #icon><ReloadOutlined /></template>
           刷新
@@ -73,7 +77,7 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ReloadOutlined, SettingOutlined, DownloadOutlined, DeleteOutlined } from '@ant-design/icons-vue';
+import { ReloadOutlined, SettingOutlined, DownloadOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { Modal } from 'ant-design-vue';
 import { useMessage } from '/@/hooks/web/useMessage';
 import { getLatestPublishedSchema, getFormDataPage, deleteFormData } from '/@/api/form/engine';
@@ -82,7 +86,14 @@ const route = useRoute();
 const router = useRouter();
 const { createMessage } = useMessage();
 
-const formKey = computed(() => route.params.formKey as string);
+const formKey = computed(() => {
+  const paramKey = route.params.formKey as string;
+  if (paramKey && paramKey !== ':formKey') return paramKey;
+  // Fallback for dynamic menus where the URL is literal
+  const path = route.path;
+  const match = path.match(/\/form\/runtime\/([^/]+)\//);
+  return match ? match[1] : '';
+});
 const formTitle = ref('表单数据');
 const loading = ref(false);
 const tableData = ref<any[]>([]);
@@ -182,6 +193,10 @@ const buildColumns = () => {
     ...systemCols,
     { title: '操作', key: 'action', fixed: 'right', width: 100 },
   ];
+};
+
+const goDesigner = () => {
+  router.push({ path: '/form/designer', query: { formKey: formKey.value, tab: 'form' } });
 };
 
 const openColumnSettings = () => {

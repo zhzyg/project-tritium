@@ -10,7 +10,10 @@
 - **状态**: Completed.
 - **证据**: .artifacts/mvp-9d-repair/20260205_REPAIR/step1/
 
-## Step-2 (表单列表 Tab)
-- **目标**: 设计器内查看表单列表（草稿/已发布）；筛选状态；点击编辑回显。
+## Step-3 (发布 + 菜单生成 + 设计入口)
+- **目标**: 发布表单后侧边栏出现菜单；运行页支持跳回设计器并加载数据。
 - **状态**: Completed.
-- **证据**: .artifacts/mvp-9d-repair/20260205_REPAIR/step2/
+- **证据**: .artifacts/mvp-9d-repair/20260205_REPAIR/step3/
+- **关键修复**: 
+    - 修复了运行时页面 `formKey` 解析失效导致跳回设计器显示空白的问题。
+    - 增加了设计器加载发布态表单的 fallback 逻辑。

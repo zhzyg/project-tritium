@@ -344,3 +344,13 @@
   - **Backend**: Verified `FormSchemaController` has `/listLatest` endpoint. Triggered rebuild (`mvn clean install`) and restart (`systemctl restart tritium-backend`) to ensure deployed backend exposes this endpoint.
   - **Ops**: Added `ops/repro_form_designer_list.mjs` covering "Create Draft -> Switch to List -> Filter -> Edit -> Verify".
   - **Verification**: `oa_verify.sh` PASS (Step 2 only). Evidence: `.artifacts/mvp-9d-repair` (screenshots of success).
+
+- [2026-02-05] MVP-9D-REPAIR Step-3: Form Publish, Menu Generation & Entry Point Fix.
+  - **Frontend**: 
+    - Added "Design Form" button to Runtime Data List.
+    - Fixed `formKey` resolution in Runtime page to correctly pass it to Designer.
+    - Implemented fallback loading in Designer to fetch schema from published state if draft is missing.
+    - Added `data-testid="btn-form-publish"` for automation.
+  - **Backend**: Verified `ensureFormMenu` logic correctly upserts menus and grants admin permissions.
+  - **Ops**: Created `ops/repro_form_publish_menu.mjs` and updated `oa_verify.sh`.
+  - **Verification**: `oa_verify.sh` PASS. Verified "Publish -> Runtime -> Design Entry -> Loaded Content" closure. Evidence: `.artifacts/mvp-9d-repair`.
