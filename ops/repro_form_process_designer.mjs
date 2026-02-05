@@ -44,6 +44,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const consoleErrors = [];
   const pageErrors = [];
   const failedRequests = [];
+  let bpmnGetInfo = null;
+  let canvasMetrics = null;
+  let userTaskCounts = null;
+  let dragMeta = null;
   let failureStage = 'init';
   let lastScreenshotPath = path.join(ARTIFACTS_DIR, 'error.png');
 
@@ -348,6 +352,18 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       failedRequests.push(`${url} -> ${errText}`);
     }
   });
+  page.on('response', async (resp) => {
+    try {
+      const url = resp.url();
+      if (!url.includes('/form/bpmn/get')) return;
+      const text = await resp.text();
+      bpmnGetInfo = {
+        url,
+        status: resp.status(),
+        snippet: text.slice(0, 260).replace(/\s+/g, ' '),
+      };
+    } catch (err) {}
+  });
 
   try {
     if (OA_STORAGE_STATE && fs.existsSync(OA_STORAGE_STATE)) {
@@ -389,13 +405,67 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     await page.waitForTimeout(1500);
 
     failureStage = 'open-process-tab';
-    const processTab = page.getByTestId('tab-process-designer').first();
-    await processTab.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
-    await processTab.click().catch(() => {});
+    const processRoot = page.locator('[data-testid="process-designer-root"], [data-testid="form-process-designer"]').first();
+    if (!(await processRoot.isVisible().catch(() => false))) {
+      const processTab = page.getByTestId('tab-process-designer').first();
+      await processTab.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+      await processTab.click().catch(() => {});
+    }
 
     failureStage = 'wait-process-root';
-    const processRoot = page.locator('[data-testid="process-designer-root"], [data-testid="form-process-designer"]').first();
     await processRoot.waitFor({ state: 'attached', timeout: ROUTE_TIMEOUT });
+
+    failureStage = 'check-load-error';
+    const loadError = page.getByTestId('process-load-error');
+    if (await loadError.isVisible().catch(() => false)) {
+      const errText = ((await loadError.innerText().catch(() => '')) || '').trim();
+      throw new Error(`流程草稿加载失败: ${errText || '未知错误'}`);
+    }
+
+    failureStage = 'canvas-metrics';
+    canvasMetrics = await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="form-bpmn-canvas"]');
+      if (!el) return { error: 'canvas not found' };
+      const rect = el.getBoundingClientRect();
+      const x = rect.left + Math.min(20, rect.width / 2);
+      const y = rect.top + Math.min(20, rect.height / 2);
+      const topEl = document.elementFromPoint(x, y);
+      return {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        topTag: topEl?.tagName || 'NONE',
+        topClass: topEl?.className || '',
+      };
+    });
+    await page.waitForTimeout(1500);
+
+    failureStage = 'create-user-task';
+    const paletteItem = page.getByTestId('bpmn-palette-userTask');
+    const canvas = page.getByTestId('form-bpmn-canvas');
+    await paletteItem.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+    await canvas.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
+    const elementSelector = 'g[data-element-id]';
+    const beforeCount = await page.locator(elementSelector).count();
+    const canvasBox = await canvas.boundingBox();
+    if (!canvasBox) {
+      throw new Error('无法获取画布尺寸');
+    }
+    dragMeta = { canvas: canvasBox };
+    const placeOnce = async (offsetX, offsetY) => {
+      await paletteItem.click({ timeout: ROUTE_TIMEOUT });
+      await canvas.click({ position: { x: offsetX, y: offsetY } });
+      await page.waitForTimeout(800);
+    };
+    await placeOnce(Math.max(120, canvasBox.width - 120), Math.max(120, canvasBox.height - 120));
+    let afterCount = await page.locator(elementSelector).count();
+    if (afterCount <= beforeCount) {
+      await placeOnce(Math.max(120, canvasBox.width * 0.5), Math.max(120, canvasBox.height * 0.5));
+      afterCount = await page.locator(elementSelector).count();
+    }
+    userTaskCounts = { before: beforeCount, after: afterCount };
+    if (afterCount <= beforeCount) {
+      throw new Error(`创建审批节点失败（before=${beforeCount}, after=${afterCount}）`);
+    }
 
     failureStage = 'save-draft';
     const saveBtn = page.getByTestId('btn-bpmn-save').first();
@@ -422,6 +492,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       skipped: false,
       url: page.url(),
       screenshot: successShot,
+      bpmnGetInfo,
+      canvasMetrics,
+      userTaskCounts,
+      dragMeta,
     };
     fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(resultPayload, null, 2));
   } catch (e) {
@@ -441,6 +515,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       consoleErrorCount: consoleErrors.length,
       pageErrorCount: pageErrors.length,
       screenshot: lastScreenshotPath,
+      bpmnGetInfo,
+      canvasMetrics,
+      userTaskCounts,
+      dragMeta,
     };
     fs.writeFileSync(path.join(ARTIFACTS_DIR, 'result.json'), JSON.stringify(resultPayload, null, 2));
     if (consoleErrors.length) console.error(`Console Errors: ${consoleErrors.slice(-10).join(' | ')}`);

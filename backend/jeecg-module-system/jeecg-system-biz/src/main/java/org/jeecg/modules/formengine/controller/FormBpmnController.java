@@ -40,7 +40,10 @@ public class FormBpmnController {
         try {
             FormBpmnGetResp resp = formBpmnService.getByFormKey(formKey);
             if (resp == null) {
-                return Result.error(404, "bpmn not found");
+                FormBpmnGetResp empty = new FormBpmnGetResp();
+                empty.setFormKey(formKey);
+                empty.setStatus("draft");
+                return Result.ok(empty);
             }
             return Result.ok(resp);
         } catch (RuntimeException ex) {

@@ -14,7 +14,7 @@
       </a-space>
     </div>
 
-    <a-alert v-if="errorMessage" type="error" show-icon class="mb-3">
+    <a-alert v-if="errorMessage" type="error" show-icon class="mb-3" data-testid="process-load-error">
       <template #message>{{ errorMessage }}</template>
       <template #action>
         <a-button size="small" data-testid="btn-bpmn-retry" @click="handleReload">重试</a-button>
@@ -142,6 +142,7 @@
 
   const canvasRef = ref<HTMLDivElement | null>(null);
   const modelerRef = ref<any>(null);
+  const resizeObserver = ref<ResizeObserver | null>(null);
   const saving = ref(false);
   const publishing = ref(false);
   const status = ref('');
@@ -167,19 +168,104 @@
 
   const canSaveRule = computed(() => !!selectedTaskId.value && !!processKey.value && !!props.formKey && !savingRule.value);
 
-  const buildDefaultXml = (key: string) => `<?xml version="1.0" encoding="UTF-8"?>
+  const buildDefaultXml = (key: string) => {
+    const processId = `FORM_PROCESS_${key || 'DEFAULT'}`;
+    return `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
              xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
              targetNamespace="http://tritium/flowable">
-  <process id="FORM_PROCESS_${key || 'DEFAULT'}" name="表单流程" isExecutable="true">
-    <startEvent id="startEvent" name="开始" />
-    <sequenceFlow id="flow_start_task" sourceRef="startEvent" targetRef="userTask" />
-    <userTask id="userTask" name="审批" />
-    <sequenceFlow id="flow_task_end" sourceRef="userTask" targetRef="endEvent" />
-    <endEvent id="endEvent" name="结束" />
+  <process id="${processId}" name="表单流程" isExecutable="true">
+    <startEvent id="StartEvent_1" name="开始" />
+    <sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="UserTask_1" />
+    <userTask id="UserTask_1" name="审批" />
+    <sequenceFlow id="Flow_2" sourceRef="UserTask_1" targetRef="EndEvent_1" />
+    <endEvent id="EndEvent_1" name="结束" />
   </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="${processId}">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_1_di" bpmnElement="UserTask_1">
+        <dc:Bounds x="260" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="412" y="102" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="260" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="360" y="120" />
+        <di:waypoint x="412" y="120" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </definitions>`;
+  };
+
+  let paletteRegistered = false;
+
+  const registerUserTaskPalette = () => {
+    if (!modelerRef.value || paletteRegistered) return;
+    try {
+      const palette = modelerRef.value.get('palette');
+      const create = modelerRef.value.get('create');
+      const elementFactory = modelerRef.value.get('elementFactory');
+      if (!palette || !create || !elementFactory) return;
+      palette.registerProvider({
+        getPaletteEntries: () => {
+          const createUserTask = (event: any) => {
+            const shape = elementFactory.createShape({ type: 'bpmn:UserTask' });
+            create.start(event, shape);
+          };
+          return {
+            'create.user-task': {
+              group: 'activity',
+              className: 'bpmn-icon-user-task',
+              title: '创建审批节点',
+              action: {
+                dragstart: createUserTask,
+                click: createUserTask,
+              },
+            },
+          };
+        },
+      });
+      paletteRegistered = true;
+    } catch (err) {}
+  };
+
+  const resizeCanvas = () => {
+    const canvas = modelerRef.value?.get?.('canvas');
+    if (canvas?.resized) {
+      canvas.resized();
+    }
+  };
+
+  const attachPaletteTestIds = (attempt = 0) => {
+    if (!canvasRef.value) return;
+    const palette = canvasRef.value.querySelector('.djs-palette');
+    if (palette && !palette.getAttribute('data-testid')) {
+      palette.setAttribute('data-testid', 'bpmn-palette');
+    }
+    const entries = Array.from(canvasRef.value.querySelectorAll('.djs-palette [data-action]'));
+    const userTaskEntry = entries.find((entry) => {
+      const action = entry.getAttribute('data-action') || '';
+      return /user[-_]?task/i.test(action);
+    });
+    if (userTaskEntry && !userTaskEntry.getAttribute('data-testid')) {
+      userTaskEntry.setAttribute('data-testid', 'bpmn-palette-userTask');
+    }
+    if (!userTaskEntry && attempt < 5) {
+      setTimeout(() => attachPaletteTestIds(attempt + 1), 200);
+    }
+  };
 
   const ensureModeler = () => {
     if (modelerRef.value || !canvasRef.value) return;
@@ -187,6 +273,11 @@
       container: canvasRef.value,
     });
     bindSelectionEvents();
+    registerUserTaskPalette();
+    setTimeout(() => {
+      resizeCanvas();
+      attachPaletteTestIds();
+    }, 120);
   };
 
   const resolveProcessKey = () => {
@@ -525,6 +616,8 @@
     try {
       await modelerRef.value.importXML(xml);
       refreshProcessMeta();
+      resizeCanvas();
+      attachPaletteTestIds();
     } catch (err: any) {
       throw new Error(err?.message || 'BPMN XML 导入失败');
     }
@@ -546,8 +639,16 @@
   };
 
   const formatLoadError = (err: any) => {
-    const code = resolveErrorCode(err) || '未知';
-    return `流程草稿加载失败（错误码：${code}）`;
+    const code = resolveErrorCode(err);
+    if (code) {
+      return `流程草稿加载失败（错误码：${code}）`;
+    }
+    return err?.message || '流程草稿加载失败';
+  };
+
+  const isNoDiagramError = (err: any) => {
+    const msg = String(err?.message || '').toLowerCase();
+    return msg.includes('no diagram to display');
   };
 
   const loadFromServer = async () => {
@@ -590,6 +691,13 @@
         message.info('未找到草稿，已加载默认模板');
       }
     } catch (err: any) {
+      if (isNoDiagramError(err)) {
+        errorMessage.value = '';
+        draftMissing.value = true;
+        await importXml(buildDefaultXml(props.formKey)).catch(() => {});
+        message.warning('草稿缺少流程图，已加载默认模板');
+        return;
+      }
       errorMessage.value = formatLoadError(err);
       message.error(errorMessage.value);
       await importXml(buildDefaultXml(props.formKey)).catch(() => {});
@@ -640,11 +748,17 @@
 
   onMounted(() => {
     ensureModeler();
+    if (canvasRef.value && typeof ResizeObserver !== 'undefined') {
+      resizeObserver.value = new ResizeObserver(() => resizeCanvas());
+      resizeObserver.value.observe(canvasRef.value);
+    }
     handleReload();
     loadSchemaFields();
   });
 
   onBeforeUnmount(() => {
+    resizeObserver.value?.disconnect?.();
+    resizeObserver.value = null;
     if (modelerRef.value?.destroy) {
       modelerRef.value.destroy();
     }
@@ -698,6 +812,15 @@
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     background: #fff;
+    position: relative;
+  }
+
+  .process-canvas :deep(.djs-container) {
+    pointer-events: auto;
+  }
+
+  .process-canvas :deep(.djs-palette) {
+    z-index: 2;
   }
 
   .process-side-panel {

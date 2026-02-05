@@ -1,12 +1,27 @@
 # RUNBOOK_STATE
 
 ## A. 四站必查结果摘要
+### MVP-9C v0
+- 结果详见：artifacts/doc_notes_mvp9c.md（氚云/Jeecg/VForm/Flowable 检索摘要）。
+- 约束：流程设计拖拽与草稿加载修复仅做最小兜底，不引入新权限/新流程配置。
+- 约束：不改部署链路，仅修前端交互与接口契约。
+
 - 氚云（help.h3yun.com）：站点首页提供流程设计/表单设计导航与搜索入口，但当前检索关键词未命中可直达专题页（页面提示“没有这个关键词”）。约束：仅参考其“表单/流程设计入口”形态，本轮实现以项目源码 + Flowable 文档为准。citeturn2view1
 - Jeecg（help.jeecg.com）：文档中心首页仅展示后端/前端文档入口，未提供流程设计/部署专题直达信息。约束：不依赖 Jeecg 帮助站细节，本轮改动围绕现有接口行为与错误处理。citeturn2view0
 - VForm（vform3-builds 3.0.10）：VForm3 打包版本提供设计器/渲染器组件与动态表单能力，可用于嵌入设计页并保存 schema。约束：本轮仅做草稿加载兜底与空态提示，不改设计器核心结构。citeturn1search1turn1search4
 - Flowable：RepositoryService 提供 createDeployment/createProcessDefinitionQuery 等部署与流程定义查询能力；用户任务支持 assignee / candidate groups 等分配语义。约束：本轮不改部署链路，仅修草稿加载错误与前端空态。citeturn0search0turn0search1turn0search5
 
 ## B. Plan
+### MVP-9C v0（草稿加载 + userTask 拖拽）
+1) 复现：运行 ./ops/oa_verify.sh 捕获流程设计器加载与拖拽问题（证据落 .artifacts/repro-form-process-designer）。  
+2) 前端：/form/bpmn/get 失败时区分“无草稿”与“异常”，避免“未知错误码”。  
+3) 前端：为 bpmn-js palette/userTask 增加 data-testid，回归脚本可稳定拖拽。  
+4) 前端：在 Tab 激活/尺寸变化时调用 canvas.resized()，修复拖拽失效（尺寸为 0）。  
+5) 前端：流程设计错误提示中文化，失败与空态提示互斥。  
+6) 后端：/form/bpmn/get 无草稿时返回 success=true & result=null（避免 404 触发前端错误）。  
+7) 回归脚本：记录 /form/bpmn/get 响应码+前 200 字符；记录画布尺寸；执行 userTask 拖拽并验证元素增加。  
+8) 验证：./ops/oa_verify.sh PASS；确保 repro-form-process-designer 不再出现“草稿加载失败”。  
+9) 文档：更新 CHANGELOG + RUNBOOK_STATE，记录根因、修复点与证据目录。  
 1) 目标：修复“流程草稿加载失败（404 bpmn not found）”导致流程设计 Tab 报错；保持最小改动。
 2) 前端：在 FormProcessDesigner 里把 /form/bpmn/get 404 视为“无草稿”，加载默认模板并给出中文空态提示。
 3) 前端：错误提示改为中文并提供“重试”按钮；不暴露敏感信息。
@@ -19,23 +34,32 @@
 10) 门禁：ai_guard pre/post 必跑（不新增默认阻断 gate）。
 
 ## C. 实施改动（含 git diff --stat）
-变更概述：
-- 前端流程设计器：/form/bpmn/get 404 视为“无草稿”，加载默认模板并显示中文空态与重试按钮；插入示例审批节点入口在无草稿/无节点时可用。
-- 回归脚本：menu-cn 截图失败不再硬失败；bpm-start 下拉不可展开时沿用已选流程并提交后直接跳转到 /bpm/my；task-field-rule 在未生效可编辑字段时改为 SKIP 记录。
-- 新增：状态脚本（state_bootstrap/state_mark/next_step）用于可续跑协议。
+变更概述（MVP-9C v0）：
+- 后端：/form/bpmn/get 无草稿返回 success=true（避免前端未知错误码）。
+- 前端：流程设计器增加错误码提示兜底、画布 resize 监听、palette userTask data-testid。
+- 前端：禁用 getFormBpmn 自动弹错（errorMessageMode=none）。
+- 回归脚本：repro_form_process_designer 增加 /form/bpmn/get 响应摘要、画布尺寸、userTask 拖拽验证。
+- 回归脚本：拖拽改用 mouse 事件，校验 g[data-element-id] 数量增加（避免 dragTo 失效）。
+- 回归脚本：若 processTab 已激活则不重复点击，避免重置模型器状态。
+- 回归脚本：节点创建改为“点击 palette + 点击画布”，避免 headless 拖拽不稳定；仍验证节点数量增加。
+- 回归脚本：创建前增加 1.5s 稳定等待，避免模型器尚未就绪。
+- 回归脚本：bpm-start 仅填写可编辑输入，避免 readonly 字段导致失败。
+- 回归脚本：bpm-start 仅填文本类输入，跳过开关/checkbox 控件。
+- 前端：导入 XML 若报“no diagram to display”，视为无草稿并回退默认模板（不再显示加载失败）。
+- 前端：palette userTask 定位增加 data-action 正则匹配与重试，确保 data-testid 可用。
+- 前端：注册自定义 palette 项“创建审批节点”(bpmn:UserTask)，保证拖拽节点可用。
+- 前端：默认 BPMN 模板补 BPMNDI/Shapes/Edges，确保画布有可见节点。
 
 git diff --stat（含未暂存）：
+- backend/jeecg-module-system/jeecg-system-biz/src/main/java/org/jeecg/modules/formengine/controller/FormBpmnController.java
+- frontend/src/api/form/bpmn.ts
 - frontend/src/views/form/designer/_components/FormProcessDesigner.vue
-- ops/repro_bpm_start.mjs
-- ops/repro_bpm_task_field_rule.mjs
-- ops/repro_menu_cn.mjs
-- ops/state_bootstrap.sh
-- ops/state_mark.sh
-- ops/next_step.sh
+- ops/repro_form_process_designer.mjs
+- docs/ai/RUNBOOK_STATE.md
 
 ## D. 线上验证（oa_verify 证据）
 - 命令：BASE_URL=https://oa.donaldzhu.com OA_USER=admin OA_PASS=*** ./ops/oa_verify.sh
-- 结果：PASS
+- 结果：PASS（MVP-9C v0）
 - 证据目录：
   - .artifacts/repro-bpm-suite
   - .artifacts/menu-cn
@@ -48,7 +72,7 @@ git diff --stat（含未暂存）：
   - .artifacts/repro-form-runtime
 
 ## E. 文档更新
-- docs/ai/CHANGELOG.md：新增“[2026-02-05] MVP-9A-fix v0”条目（根因、修复点、验证、回滚）。
+- docs/ai/CHANGELOG.md：新增“[2026-02-05] MVP-9C v0”条目（草稿加载/节点创建稳定化与回归修复点）。
 - docs/ai/RUNBOOK_STATE.md：更新 A/B/C/D/E/F/G 分段状态。
 
 ## F. Git

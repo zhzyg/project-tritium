@@ -282,11 +282,15 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
       await formContainer.waitFor({ state: 'visible', timeout: ROUTE_TIMEOUT });
       await page.waitForTimeout(800);
 
-      const textInput = formContainer.locator('input:not([type="hidden"])').first();
+      const textInput = formContainer
+        .locator(
+          'input:not([type]):not([readonly]):not([disabled]), input[type="text"]:not([readonly]):not([disabled]), input[type="number"]:not([readonly]):not([disabled]), input[type="search"]:not([readonly]):not([disabled]), input[type="email"]:not([readonly]):not([disabled]), input[type="tel"]:not([readonly]):not([disabled]), input[type="url"]:not([readonly]):not([disabled])'
+        )
+        .first();
       if (await textInput.count()) {
         await textInput.fill('auto-start');
       }
-      const textArea = formContainer.locator('textarea').first();
+      const textArea = formContainer.locator('textarea:not([readonly]):not([disabled])').first();
       if (await textArea.count()) {
         await textArea.fill('auto-start');
       }

@@ -41,7 +41,7 @@ export interface FormBpmnPublishResp {
 }
 
 export const getFormBpmn = (params: { formKey: string }) =>
-  defHttp.get<FormBpmnGetResp>({ url: Api.Get, params });
+  defHttp.get<FormBpmnGetResp>({ url: Api.Get, params }, { errorMessageMode: 'none' });
 
 export const saveFormBpmn = (params: FormBpmnSaveReq) =>
   defHttp.post<FormBpmnSaveResp>({ url: Api.Save, params });

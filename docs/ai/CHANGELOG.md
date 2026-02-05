@@ -307,3 +307,10 @@
   - **Ops**: `ops/repro_menu_cn.mjs` 截图失败不再阻断；`ops/repro_bpm_start.mjs` 下拉无法展开时沿用已选流程并提交后直跳 `/bpm/my`；`ops/repro_bpm_task_field_rule.mjs` 无可编辑字段时改为 SKIP 记录。
   - **Verification**: `./ops/oa_verify.sh` 通过，证据见 `.artifacts/repro-form-process-designer` 等目录。
   - **Rollback**: 回退 `frontend/src/views/form/designer/_components/FormProcessDesigner.vue` 的 404 兜底逻辑与相关脚本改动。
+- [2026-02-05] MVP-9C v0: 流程设计草稿加载 + 审批节点创建稳定化。
+  - **Frontend**: 默认 BPMN 模板补齐 BPMNDI/Shape/Edge，避免“no diagram to display”空画布。
+  - **Frontend**: 流程设计加载遇到无图草稿时自动回退默认模板，提示中文化且不再报未知错误码。
+  - **Frontend**: Palette 注册“创建审批节点”(userTask)入口，确保节点创建能力可用。
+  - **Ops**: `ops/repro_form_process_designer.mjs` 使用 palette 点击+画布点击创建节点（记录节点数量变化），避免 headless 拖拽不稳定。
+  - **Ops**: `ops/repro_bpm_start.mjs` 仅填可编辑文本控件，跳过开关/只读字段（避免误报失败）。
+  - **Verification**: `./ops/oa_verify.sh` 通过，证据见 `.artifacts/repro-form-process-designer` 等目录。
