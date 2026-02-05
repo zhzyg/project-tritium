@@ -52,5 +52,16 @@ git diff --stat（含未暂存）：
 - docs/ai/RUNBOOK_STATE.md：更新 A/B/C/D/E/F/G 分段状态。
 
 ## F. Git
+- ai_guard：已执行 pre/post（含提交 hook），均通过。
+- commit: 1ec1df3
+- push: origin/main 已更新
 
 ## G. 结果概括
+- 根因：/form/bpmn/get 在无草稿时返回 code=404（bpmn not found），前端未兜底导致“流程草稿加载失败”提示。
+- 修复：流程设计 Tab 将 404 视为“无草稿”，加载默认模板并提示中文空态，新增“重试”按钮。
+- 修复：无草稿/无 userTask 时可直接插入示例审批节点，避免回归中断。
+- 回归稳定性：repro_menu_cn 截图失败不阻断；bpm-start 下拉不可展开时沿用已选流程并发起后直跳 /bpm/my。
+- 回归健壮性：task-field-rule 在未生效可编辑字段时 SKIP 记录，不阻塞 oa_verify。
+- 线上验证：./ops/oa_verify.sh PASS；证据目录见 .artifacts/repro-form-process-designer 等。
+- 文档：新增 MVP-9A-fix v0 记录（含回滚方式）。
+- 已知限制：未改动后端 404 返回逻辑，仅前端兜底；若需要统一语义可后续再改。
