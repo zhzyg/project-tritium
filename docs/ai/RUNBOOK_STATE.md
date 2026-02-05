@@ -155,3 +155,59 @@ git diff --stat（含未暂存/新文件）：
 - 无 formKey 时默认进入空白画布，流程设计 Tab 禁用以避免误触。
 - 回归脚本新增 form-designer-basic（优先新 UI；旧 UI 记录 legacy 模式与 skip）。
 - oa_verify 通过，证据见 .artifacts/mvp-9d/20260205_092143 与 .artifacts/repro-form-process-designer。
+
+# MVP-9D Step-2（表单列表 Tab + 编辑回填）
+
+## A. 四站必查要点（摘要）
+- 氚云：未检索到“表单列表/流程设计入口”明确专题，仅记录更新日志类条目；本次仅做列表入口与回填。
+- Jeecg：菜单/权限仍以 sys_permission 为主，本次不新增菜单、不改权限码，仅新增列表接口与前端 Tab。
+- VForm：vform3-builds 支持设计器动态加载 schema，本次用列表选中→加载 schema → 回填名称的最小路径。
+- Flowable：流程部署/用户任务不涉及本次 Step-2，本次不改流程发布链路。
+- 详细记录：.artifacts/mvp-9d/20260205_113147/doc_notes_mvp9d_step2.md
+
+## B. Plan
+1) 新增后端列表接口（/form/schema/listLatest）返回每个 formKey 的最新版本与表单名称（从 schemaJson 提取）。
+2) 前端 /form/designer 增加 Tab：新建表单｜表单列表（保留流程设计 Tab）。
+3) 表单列表加载与刷新；点击“编辑”回到新建表单 Tab 并加载 schema，名称回填。
+4) 新增 data-testid（tab-form-list / btn-form-list-edit-* / form-list-root）用于回归脚本定位。
+5) 新增回归脚本 repro_form_designer_list.mjs 并接入 oa_verify。
+6) 验证：./ops/oa_verify.sh PASS，证据落 .artifacts/mvp-9d/<run_id>/。
+7) 文档：更新 CHANGELOG 与 RUNBOOK_STATE。
+8) 门禁：ai_guard pre/post 通过。
+
+## C. 实施改动（含 git diff --stat）
+- Backend：/form/schema/listLatest 列表接口（解析 schemaJson 得到 formName）。
+- Frontend：/form/designer 增加“表单列表”Tab + 编辑回填 + data-testid。
+- Ops：新增 repro_form_designer_list.mjs 并接入 oa_verify。
+
+git diff --stat（含未暂存/新文件）：
+- backend/.../FormSchemaController.java
+- backend/.../FormSchemaListResp.java（新增）
+- frontend/src/views/form/designer/index.vue
+- frontend/src/views/form/designer/designer.api.ts
+- ops/repro_form_designer_list.mjs（新增）
+- ops/oa_verify.sh
+- docs/ai/CHANGELOG.md
+- docs/ai/RUNBOOK_STATE.md
+
+## D. 线上验证（oa_verify 证据）
+- 命令：BASE_URL=https://oa.donaldzhu.com OA_USER=admin OA_PASS=*** MVP9D_RUN_ID=20260205_113147 ./ops/oa_verify.sh
+- 结果：PASS（MVP-9D Step-2）
+- 证据目录：
+  - .artifacts/mvp-9d/20260205_113147/repro-form-designer-basic
+  - .artifacts/mvp-9d/20260205_113147/repro-form-designer-list
+
+## E. 文档更新
+- docs/ai/CHANGELOG.md：新增“[2026-02-05] MVP-9D Step-2”。
+- docs/ai/RUNBOOK_STATE.md：记录 Step-2 计划、改动、证据与结果。
+
+## F. Git
+- ai_guard：pre/post 均通过（前置超时后已复跑成功）。
+- commit：待本轮提交后填写。
+- push：待本轮提交后填写。
+
+## G. 结果概括
+- 表单设计器新增“表单列表”Tab，支持加载与编辑回填。
+- 新增列表接口 /form/schema/listLatest，解析 schemaJson 得到表单名称。
+- 回归脚本 repro_form_designer_list 接入 oa_verify，并产出证据目录。
+- oa_verify 通过，证据见 .artifacts/mvp-9d/20260205_113147/。

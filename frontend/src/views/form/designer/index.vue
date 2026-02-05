@@ -1,7 +1,10 @@
 <template>
   <PageWrapper title="表单设计器" contentFullHeight>
     <a-tabs v-model:activeKey="activeTab">
-      <a-tab-pane key="form" tab="表单设计">
+      <a-tab-pane key="form">
+        <template #tab>
+          <span data-testid="tab-form-create">新建表单</span>
+        </template>
         <div class="vform-designer-page" data-testid="form-designer-root">
           <div class="vform-designer-toolbar">
             <a-space>
@@ -31,6 +34,39 @@
           </div>
         </div>
       </a-tab-pane>
+      <a-tab-pane key="list">
+        <template #tab>
+          <span data-testid="tab-form-list">表单列表</span>
+        </template>
+        <div class="vform-designer-list" data-testid="form-list-root">
+          <div class="vform-designer-list-toolbar">
+            <a-space>
+              <a-button @click="fetchFormList" data-testid="btn-form-list-refresh">刷新</a-button>
+              <a-button type="primary" @click="handleNewForm" data-testid="btn-form-list-new">新建表单</a-button>
+            </a-space>
+          </div>
+          <a-table
+            size="middle"
+            :columns="listColumns"
+            :data-source="formList"
+            :loading="listLoading"
+            row-key="formKey"
+            :pagination="{ pageSize: 8, showSizeChanger: false }"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'action'">
+                <a-button
+                  type="link"
+                  @click="handleEditFromList(record)"
+                  :data-testid="`btn-form-list-edit-${record.formKey}`"
+                >
+                  编辑
+                </a-button>
+              </template>
+            </template>
+          </a-table>
+        </div>
+      </a-tab-pane>
       <a-tab-pane key="process" :disabled="!formKey">
         <template #tab>
           <span data-testid="tab-process-designer">流程设计（保存后可用）</span>
@@ -48,12 +84,16 @@
   import { PageWrapper } from '/@/components/Page';
   import { VFormDesigner } from 'vform3-builds';
   import FormProcessDesigner from './_components/FormProcessDesigner.vue';
-  import { getLatestSchema, saveSchema, publishSchema } from './designer.api';
+  import { getLatestSchema, saveSchema, publishSchema, getSchemaList, FormSchemaListResp } from './designer.api';
   import 'vform3-builds/dist/designer.style.css';
 
   const route = useRoute();
   const router = useRouter();
-  const resolveTab = (value?: string) => (value === 'process' ? 'process' : 'form');
+  const resolveTab = (value?: string) => {
+    if (value === 'process') return 'process';
+    if (value === 'list') return 'list';
+    return 'form';
+  };
   const activeTab = ref(resolveTab(route.query.tab as string));
   const designerRef = ref<any>(null);
   const formKey = ref<string>('');
@@ -63,6 +103,15 @@
   const latestVersion = ref<number | null>(null);
   const lastSavedTime = ref<string | null>(null);
   const lastPublishTable = ref<string | null>(null);
+  const listLoading = ref(false);
+  const formList = ref<FormSchemaListResp[]>([]);
+  const listColumns = [
+    { title: '表单名称', dataIndex: 'formName', key: 'formName' },
+    { title: '表单Key', dataIndex: 'formKey', key: 'formKey' },
+    { title: '更新时间', dataIndex: 'updatedTime', key: 'updatedTime' },
+    { title: '版本', dataIndex: 'version', key: 'version' },
+    { title: '操作', key: 'action' },
+  ];
 
   const getDesignerApi = () => designerRef.value;
   const resolveFormKey = () => {
@@ -72,7 +121,9 @@
   const syncFormKeyFromRoute = () => {
     formKey.value = resolveFormKey();
     if (!formKey.value) {
-      activeTab.value = 'form';
+      if (activeTab.value !== 'list') {
+        activeTab.value = 'form';
+      }
       formName.value = '';
     }
   };
@@ -235,6 +286,43 @@
     message.success('表单已重置');
   };
 
+  const fetchFormList = async () => {
+    listLoading.value = true;
+    try {
+      const list = await getSchemaList();
+      formList.value = (list || []).map((item) => ({
+        ...item,
+        formName: item.formName || item.formKey,
+      }));
+    } catch (err) {
+      message.error('表单列表加载失败');
+    } finally {
+      listLoading.value = false;
+    }
+  };
+
+  const handleEditFromList = async (record: FormSchemaListResp) => {
+    if (!record?.formKey) {
+      return;
+    }
+    formName.value = record.formName || record.formKey || '';
+    activeTab.value = 'form';
+    const nextQuery = { ...route.query, formKey: record.formKey, tab: 'form' };
+    delete nextQuery.mode;
+    await router.replace({ query: nextQuery });
+  };
+
+  const handleNewForm = async () => {
+    formKey.value = '';
+    formName.value = '';
+    resetMeta();
+    resetToEmptySchema(true);
+    activeTab.value = 'form';
+    const nextQuery = { ...route.query, tab: 'form', mode: 'new' };
+    delete nextQuery.formKey;
+    await router.replace({ query: nextQuery });
+  };
+
   const resetMeta = () => {
     latestVersion.value = null;
     lastSavedTime.value = null;
@@ -243,6 +331,9 @@
 
   onMounted(() => {
     syncFormKeyFromRoute();
+    if (activeTab.value === 'list') {
+      fetchFormList();
+    }
     if (!formKey.value) {
       resetToEmptySchema(true);
     } else {
@@ -263,9 +354,20 @@
     () => route.query.tab,
     (tab) => {
       const nextTab = resolveTab(tab as string);
+      if (nextTab === 'list') {
+        activeTab.value = 'list';
+        fetchFormList();
+        return;
+      }
       activeTab.value = formKey.value ? nextTab : 'form';
     }
   );
+
+  watch(activeTab, (tab) => {
+    if (tab === 'list') {
+      fetchFormList();
+    }
+  });
 
   watch(
     () => [route.query.formKey, route.params.formKey, route.query.mode],
@@ -326,6 +428,16 @@
 
   .vform-designer-body :deep(.main-container) {
     height: 100%;
+  }
+
+  .vform-designer-list {
+    padding: 8px 4px;
+  }
+
+  .vform-designer-list-toolbar {
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
   }
 
   :deep(.ant-tabs) {

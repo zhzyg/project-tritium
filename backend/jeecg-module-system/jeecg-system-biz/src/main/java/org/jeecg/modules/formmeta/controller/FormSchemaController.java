@@ -6,6 +6,7 @@ import org.jeecg.common.system.util.JwtUtil;
 import org.jeecg.common.util.oConvertUtils;
 import org.jeecg.modules.formengine.service.IFormSchemaPublishService;
 import org.jeecg.modules.formmeta.dto.FormSchemaLatestResp;
+import org.jeecg.modules.formmeta.dto.FormSchemaListResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishReq;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishResp;
 import org.jeecg.modules.formmeta.dto.FormSchemaPublishedResp;
@@ -29,6 +30,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 
 @Slf4j
 @RestController
@@ -149,6 +152,34 @@ public class FormSchemaController {
         return Result.ok(respList);
     }
 
+    @GetMapping("/listLatest")
+    public Result<List<FormSchemaListResp>> listLatest() {
+        List<FormSchema> schemas = formSchemaService.lambdaQuery()
+            .orderByDesc(FormSchema::getUpdatedTime)
+            .orderByDesc(FormSchema::getCreatedTime)
+            .list();
+        Map<String, FormSchema> latestMap = new LinkedHashMap<>();
+        if (schemas != null) {
+            for (FormSchema item : schemas) {
+                if (item == null || oConvertUtils.isEmpty(item.getFormKey())) {
+                    continue;
+                }
+                latestMap.putIfAbsent(item.getFormKey(), item);
+            }
+        }
+        List<FormSchemaListResp> respList = new ArrayList<>();
+        for (FormSchema item : latestMap.values()) {
+            FormSchemaListResp resp = new FormSchemaListResp();
+            resp.setFormKey(item.getFormKey());
+            resp.setVersion(item.getVersion());
+            resp.setStatus(item.getStatus());
+            resp.setUpdatedTime(item.getUpdatedTime() != null ? item.getUpdatedTime() : item.getCreatedTime());
+            resp.setFormName(resolveFormName(item));
+            respList.add(resp);
+        }
+        return Result.ok(respList);
+    }
+
     @PostMapping("/publish")
     public Result<FormSchemaPublishResp> publish(@RequestBody FormSchemaPublishReq req, HttpServletRequest request) {
         if (req == null || oConvertUtils.isEmpty(req.getFormKey())) {
@@ -168,5 +199,33 @@ public class FormSchemaController {
         }
         List<String> roles = sysUserRoleMapper.getRoleByUserName(username);
         return roles != null && roles.contains("admin");
+    }
+
+    private String resolveFormName(FormSchema schema) {
+        if (schema == null || oConvertUtils.isEmpty(schema.getFormKey())) {
+            return "";
+        }
+        String fallback = schema.getFormKey();
+        if (oConvertUtils.isEmpty(schema.getSchemaJson())) {
+            return fallback;
+        }
+        try {
+            JSONObject root = JSON.parseObject(schema.getSchemaJson());
+            if (root == null) {
+                return fallback;
+            }
+            JSONObject formConfig = root.getJSONObject("formConfig");
+            if (formConfig == null) {
+                return fallback;
+            }
+            String name = formConfig.getString("formName");
+            if (oConvertUtils.isEmpty(name)) {
+                name = formConfig.getString("title");
+            }
+            return oConvertUtils.isEmpty(name) ? fallback : name;
+        } catch (Exception ex) {
+            log.debug("resolveFormName failed for formKey={}", schema.getFormKey());
+            return fallback;
+        }
     }
 }

@@ -5,6 +5,7 @@ enum Api {
   Latest = '/form/schema/latest',
   Versions = '/form/schema/versions',
   Publish = '/form/schema/publish',
+  ListLatest = '/form/schema/listLatest',
 }
 
 export interface FormSchemaSaveReq {
@@ -40,6 +41,14 @@ export interface FormSchemaPublishResp {
   ddlApplied?: string[];
 }
 
+export interface FormSchemaListResp {
+  formKey: string;
+  formName?: string;
+  version?: number;
+  status?: number;
+  updatedTime?: string;
+}
+
 export const saveSchema = (params: FormSchemaSaveReq) => defHttp.post<FormSchemaSaveResp>({ url: Api.Save, params });
 
 export const getLatestSchema = (params: { formKey: string }) => defHttp.get<FormSchemaLatestResp>({ url: Api.Latest, params });
@@ -49,3 +58,5 @@ export const getSchemaVersions = (params: { formKey: string }) =>
 
 export const publishSchema = (params: { formKey: string }) =>
   defHttp.post<FormSchemaPublishResp>({ url: Api.Publish, params });
+
+export const getSchemaList = () => defHttp.get<FormSchemaListResp[]>({ url: Api.ListLatest });

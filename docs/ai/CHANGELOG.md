@@ -320,3 +320,9 @@
   - **Frontend**: 流程设计 Tab 无 formKey 时禁用，避免误触流程接口；新增 data-testid 供回归定位。
   - **Ops**: 新增 `ops/repro_form_designer_basic.mjs` 覆盖“新建→保存→回载”，接入 `oa_verify`（证据 `.artifacts/mvp-9d/<run_id>/repro-form-designer-basic`）。
   - **Verification**: `./ops/oa_verify.sh` 通过；OA 环境仍为旧 UI 时脚本记录 legacy 模式与 skip 说明。
+
+- [2026-02-05] MVP-9D Step-2: 表单列表 Tab（加载/回填）。
+  - **Backend**: 新增 `/form/schema/listLatest` 返回表单列表（解析 schemaJson 得到表单名称，回退为 formKey）。
+  - **Frontend**: `/form/designer` 新增“表单列表”Tab + 列表加载/编辑回填；新增 data-testid（`tab-form-list`、`btn-form-list-edit-*`）。
+  - **Ops**: 新增 `ops/repro_form_designer_list.mjs` 覆盖“表单列表→编辑→回填”，接入 `oa_verify`（证据 `.artifacts/mvp-9d/<run_id>/repro-form-designer-list`）。
+  - **Verification**: `./ops/oa_verify.sh` 通过；若环境无列表数据记录 SKIP + 截图说明。
