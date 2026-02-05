@@ -203,8 +203,8 @@ git diff --stat（含未暂存/新文件）：
 
 ## F. Git
 - ai_guard：pre/post 均通过（前置超时后已复跑成功）。
-- commit：待本轮提交后填写。
-- push：待本轮提交后填写。
+- commit：6f4a5a0
+- push：origin/main
 
 ## G. 结果概括
 - 表单设计器新增“表单列表”Tab，支持加载与编辑回填。
