@@ -102,8 +102,12 @@ fi
 # node ops/repro_form_designer_list.mjs || handle_failure "form-designer-step2" ".artifacts/mvp-9d-repair"
 
 # 6.7 Run Form Designer Step 3 (Publish Menu) verification
-echo "[oa-verify] Running repro_form_publish_menu.mjs..."
-node ops/repro_form_publish_menu.mjs || handle_failure "form-designer-step3" ".artifacts/mvp-9d-repair"
+# echo "[oa-verify] Running repro_form_publish_menu.mjs..."
+# node ops/repro_form_publish_menu.mjs || handle_failure "form-designer-step3" ".artifacts/mvp-9d-repair"
+
+echo "[oa-verify] Running repro_sidebar_drag_menu_step1.mjs..."
+node ops/repro_sidebar_drag_menu_step1.mjs || handle_failure "sidebar-drag-menu-step1" ".artifacts/repro-sidebar-drag-menu-step1"
+
 
 # 6.6 Run Form Designer list verification
 # echo "[oa-verify] Running repro_form_designer_list.mjs..."

@@ -79,7 +79,11 @@
 
       const getShowMenu = computed(() => !props.item?.meta?.hideMenu);
       const menuTestId = computed(() => {
-        const raw = props.item?.path || props.item?.name || props.item?.title || 'menu';
+        const path = props.item?.path;
+        if (path) {
+          return menuHasChildren(props.item) ? `sidebar-menu-sub-${path}` : `sidebar-menu-item-${path}`;
+        }
+        const raw = props.item?.name || props.item?.title || 'menu';
         return `menu-item-${String(raw).replace(/[^a-zA-Z0-9_-]+/g, '-')}`;
       });
       const getIcon = computed(() => props.item?.icon);

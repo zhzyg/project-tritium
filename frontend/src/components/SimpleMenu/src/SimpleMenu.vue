@@ -1,16 +1,36 @@
 <template>
-  <Menu
-    v-bind="getBindValues"
-    :activeName="activeName"
-    :openNames="getOpenKeys"
-    :class="prefixCls"
-    :activeSubMenuNames="activeSubMenuNames"
-    @select="handleSelect"
-  >
-    <template v-for="item in items" :key="item.path">
-      <SimpleSubMenu :item="item" :parent="true" :collapsedShowTitle="collapsedShowTitle" :collapse="collapse" />
-    </template>
-  </Menu>
+  <div :class="prefixCls" data-testid="sidebar-menu-root">
+    <div style="text-align: right; padding: 4px;">
+      <a-button type="link" size="small" @click="toggleEditing" data-testid="btn-sidebar-menu-edit">
+        {{ isEditing ? '完成' : '编辑菜单' }}
+      </a-button>
+    </div>
+    <Menu
+      v-bind="getBindValues"
+      :activeName="activeName"
+      :openNames="getOpenKeys"
+      :class="{ 'is-editing': isEditing }"
+      :activeSubMenuNames="activeSubMenuNames"
+      @select="handleSelect"
+    >
+      <draggable
+        v-model="draggableItems"
+        item-key="path"
+        :component-data="{ 'data-testid': isEditing ? 'marker-sidebar-editing' : '' }"
+        :disabled="!isEditing"
+        @end="onDragEnd"
+      >
+        <template #item="{ element }">
+          <SimpleSubMenu
+            :item="element"
+            :parent="true"
+            :collapsedShowTitle="collapsedShowTitle"
+            :collapse="collapse"
+          />
+        </template>
+      </draggable>
+    </Menu>
+  </div>
 </template>
 <script lang="ts">
   import type { MenuState } from './types';
@@ -26,15 +46,18 @@
   import { useRouter } from 'vue-router';
   import { isFunction, isUrl } from '/@/utils/is';
   import { openWindow } from '/@/utils';
-
+  import draggable from 'vuedraggable';
   import { useOpenKeys } from './useOpenKeys';
   import { URL_HASH_TAB } from '/@/utils';
+  import { Button as AButton } from 'ant-design-vue';
 
   export default defineComponent({
     name: 'SimpleMenu',
     components: {
       Menu,
       SimpleSubMenu,
+      draggable,
+      AButton,
     },
     inheritAttrs: false,
     props: {
@@ -54,6 +77,26 @@
     },
     emits: ['menuClick'],
     setup(props, { attrs, emit }) {
+      const isEditing = ref(false);
+      const draggableItems = ref<MenuType[]>([]);
+
+      watch(
+        () => props.items,
+        (newItems) => {
+          draggableItems.value = [...newItems];
+        },
+        { immediate: true }
+      );
+
+      function toggleEditing() {
+        isEditing.value = !isEditing.value;
+      }
+
+      function onDragEnd() {
+        console.log('New menu order:', draggableItems.value.map(item => item.path));
+        // TODO: Call backend API in Step 2
+      }
+
       const currentActiveMenu = ref('');
       const isClickGo = ref(false);
 
@@ -119,12 +162,12 @@
       }
 
       async function handleSelect(key: string) {
+        if (isEditing.value) {
+          return;
+        }
         if (isUrl(key)) {
-          // update-begin--author:sunjianlei---date:20220408---for: 【VUEN-656】配置外部网址打不开，原因是带了#号，需要替换一下
           let url = key.replace(URL_HASH_TAB, '#');
-          window.open(url)
-          //openWindow(url);
-          // update-begin--author:sunjianlei---date:20220408---for: 【VUEN-656】配置外部网址打不开，原因是带了#号，需要替换一下
+          window.open(url);
           return;
         }
         const { beforeClickFn } = props;
@@ -146,10 +189,20 @@
         handleSelect,
         getOpenKeys,
         ...toRefs(menuState),
+        isEditing,
+        toggleEditing,
+        draggableItems,
+        onDragEnd,
       };
     },
   });
 </script>
 <style lang="less">
   @import './index.less';
+  .is-editing {
+    .ant-menu-item,
+    .ant-menu-submenu-title {
+      cursor: move !important;
+    }
+  }
 </style>
