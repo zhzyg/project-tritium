@@ -1,6 +1,7 @@
-- **MVP-10A Step 1: Frontend Drag-and-Drop**
-  - Implemented a drag-and-drop feature for the sidebar menu.
-  - Added an "Edit Menu" button to toggle the drag-and-drop functionality.
-  - Integrated `vuedraggable` to handle the menu item reordering.
-  - Added `data-testid` attributes for automation.
-  - Created a verification script to test the new feature.
+- 2026-02-09: feat(mvp-10a): sidebar drag edit mode (top-level only)
+  - Goal: Enable in-place menu sorting in the sidebar.
+  - Changes:
+    - Frontend: Added `vuedraggable` to `LayoutMenu`, implemented `isEditMode`, edit toggle button, and drag list.
+    - Ops: Added `repro_sidebar_drag_menu_step1.mjs` and updated `oa_verify.sh`.
+  - Verification: `oa_verify.sh` passed (with minor sort verification warning).
+  - Next: Step-2 (Backend persistence).

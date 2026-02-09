@@ -36,7 +36,7 @@
   import type { MenuState } from './types';
   import type { Menu as MenuType } from '/@/router/types';
   import type { RouteLocationNormalizedLoaded } from 'vue-router';
-  import { defineComponent, computed, ref, unref, reactive, toRefs, watch } from 'vue';
+  import { defineComponent, computed, ref, unref, reactive, toRefs, watch, provide } from 'vue';
   import { useDesign } from '/@/hooks/web/useDesign';
   import Menu from './components/Menu.vue';
   import SimpleSubMenu from './SimpleSubMenu.vue';
@@ -80,22 +80,46 @@
       const isEditing = ref(false);
       const draggableItems = ref<MenuType[]>([]);
 
+      provide('isMenuEditing', isEditing);
+
       watch(
         () => props.items,
         (newItems) => {
-          draggableItems.value = [...newItems];
+          draggableItems.value = JSON.parse(JSON.stringify(newItems));
         },
         { immediate: true }
       );
 
       function toggleEditing() {
+        if (isEditing.value) {
+          onSaveLayout();
+        }
         isEditing.value = !isEditing.value;
       }
 
-      function onDragEnd() {
-        console.log('New menu order:', draggableItems.value.map(item => item.path));
-        // TODO: Call backend API in Step 2
+      function onSaveLayout() {
+        const layout = {
+          top: draggableItems.value.map((item) => item.meta?.permissionId).filter(Boolean),
+          children: {},
+        };
+
+        draggableItems.value.forEach((item) => {
+          if (item.children && item.children.length > 0) {
+            const pid = item.meta?.permissionId;
+            if (pid) {
+              layout.children[pid] = item.children.map((c) => c.meta?.permissionId).filter(Boolean);
+            }
+          }
+        });
+
+        // @ts-ignore
+        if (window.axios) {
+          // @ts-ignore
+          window.axios.post('/sys/menuLayout/saveMine', layout);
+        }
       }
+
+      function onDragEnd() {}
 
       const currentActiveMenu = ref('');
       const isClickGo = ref(false);

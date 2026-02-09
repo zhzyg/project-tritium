@@ -1,10 +1,12 @@
 <script lang="tsx">
   import type { PropType, CSSProperties } from 'vue';
 
-  import { computed, defineComponent, unref, toRef } from 'vue';
+  import { computed, defineComponent, unref, toRef, ref, watch } from 'vue';
   import { BasicMenu } from '/@/components/Menu';
   import { SimpleMenu } from '/@/components/SimpleMenu';
   import { AppLogo } from '/@/components/Application';
+  import { Button } from 'ant-design-vue';
+  import draggable from 'vuedraggable';
 
   import { MenuModeEnum, MenuSplitTyeEnum } from '/@/enums/menuEnum';
 
@@ -23,6 +25,7 @@
 
   export default defineComponent({
     name: 'LayoutMenu',
+    components: { draggable },
     props: {
       theme: propTypes.oneOf(['light', 'dark']),
 
@@ -59,6 +62,10 @@
       const { menusRef } = useSplitMenu(toRef(props, 'splitType'));
 
       const { getIsMobile } = useAppInject();
+
+      // -- MVP-10A Edit Mode State --
+      const isEditMode = ref(false);
+      const localMenus = ref<any[]>([]);
 
       const getComputedMenuMode = computed(() => (unref(getIsMobile) ? MenuModeEnum.INLINE : props.menuMode || unref(getMenuMode)));
 
@@ -134,6 +141,64 @@
         return <AppLogo showTitle={!unref(getCollapsed)} class={unref(getLogoClass)} theme={unref(getComputedMenuTheme)} />;
       }
 
+      // -- MVP-10A Actions --
+      function toggleEditMode() {
+        isEditMode.value = !isEditMode.value;
+        if (isEditMode.value) {
+          localMenus.value = [...unref(menusRef)];
+        }
+      }
+
+      function handleReset() {
+        localMenus.value = [...unref(menusRef)];
+      }
+
+      function renderActions() {
+        if (unref(getIsHorizontal) || unref(getCollapsed)) return null; // Hide in horizontal or collapsed
+        
+        const isDark = unref(getComputedMenuTheme) === 'dark';
+        const textColor = isDark ? 'text-white' : 'text-black';
+        
+        return (
+          <div class="px-2 py-1 text-center border-b border-gray-600 border-opacity-20" style="min-height: 40px; display: flex; align-items: center; justify-content: center;">
+             {!isEditMode.value ? (
+                <Button size="small" type={isDark ? 'ghost' : 'dashed'} class={isDark ? '!text-white !border-white !border-opacity-50' : ''} onClick={toggleEditMode} data-testid="btn-menu-edit-toggle">调整菜单</Button>
+             ) : (
+                <div class="space-x-2">
+                   <Button size="small" type="primary" onClick={toggleEditMode}>完成</Button>
+                   <Button size="small" onClick={handleReset} data-testid="btn-menu-reset">恢复默认</Button>
+                </div>
+             )}
+          </div>
+        );
+      }
+
+      function renderDraggableMenu() {
+        const isDark = unref(getComputedMenuTheme) === 'dark';
+        const itemClass = `p-3 border-b flex items-center ${isDark ? 'bg-[#001529] text-white border-gray-700' : 'bg-white text-black border-gray-100'}`;
+        const handleClass = `drag-handle cursor-move mr-2 text-lg ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
+
+        return (
+          <draggable
+            list={localMenus.value}
+            itemKey="path"
+            handle=".drag-handle"
+            animation={300}
+            class="flex flex-col w-full"
+            data-testid="sidebar-edit-list"
+          >
+            {{
+              item: ({ element }) => (
+                <div class={itemClass} data-testid={`sidebar-edit-item-${element.path}`}>
+                  <span class={handleClass} data-testid={`sidebar-edit-handle-${element.path}`}>≡</span>
+                  <span class="flex-1 truncate select-none">{element.meta?.title || element.name}</span>
+                </div>
+              )
+            }}
+          </draggable>
+        );
+      }
+
       function renderMenu() {
         const { menus, ...menuProps } = unref(getCommonProps);
         // console.log(menus);
@@ -154,10 +219,17 @@
 
       return () => {
         return (
-          <>
+          <div data-testid="sidebar" class="h-full flex flex-col w-full">
             {renderHeader()}
-            {unref(getUseScroll) ? <ScrollContainer style={unref(getWrapperStyle)}>{() => renderMenu()}</ScrollContainer> : renderMenu()}
-          </>
+            {renderActions()}
+            {unref(getUseScroll) ? 
+              <ScrollContainer style={unref(getWrapperStyle)}>
+                {() => (isEditMode.value ? renderDraggableMenu() : renderMenu())}
+              </ScrollContainer> 
+              : 
+              (isEditMode.value ? renderDraggableMenu() : renderMenu())
+            }
+          </div>
         );
       };
     },

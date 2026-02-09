@@ -36,16 +36,24 @@
       </span>
       <SimpleMenuTag :item="item" :collapseParent="!!collapse && !!parent" />
     </template>
-    <template v-for="childrenItem in item.children || []" :key="childrenItem.path">
-      <SimpleSubMenu v-bind="$props" :item="childrenItem" :parent="false" />
-    </template>
+    <draggable
+      v-if="item.children && item.children.length > 0"
+      v-model="item.children"
+      item-key="path"
+      :disabled="!isEditing"
+      tag="div"
+    >
+      <template #item="{ element }">
+        <SimpleSubMenu v-bind="$props" :item="element" :parent="false" />
+      </template>
+    </draggable>
   </SubMenu>
 </template>
 <script lang="ts">
   import type { PropType } from 'vue';
   import type { Menu } from '/@/router/types';
 
-  import { defineComponent, computed } from 'vue';
+  import { defineComponent, computed, inject } from 'vue';
   import { useDesign } from '/@/hooks/web/useDesign';
   import Icon from '/@/components/Icon/index';
   import { checkChildrenHidden } from '/@/utils/common/compUtils';
@@ -54,6 +62,7 @@
   import { propTypes } from '/@/utils/propTypes';
   import { useI18n } from '/@/hooks/web/useI18n';
   import { createAsyncComponent } from '/@/utils/factory/createAsyncComponent';
+  import draggable from 'vuedraggable';
 
   export default defineComponent({
     name: 'SimpleSubMenu',
@@ -62,6 +71,7 @@
       MenuItem,
       SimpleMenuTag: createAsyncComponent(() => import('./SimpleMenuTag.vue')),
       Icon,
+      draggable,
     },
     props: {
       item: {
@@ -76,6 +86,8 @@
     setup(props) {
       const { t } = useI18n();
       const { prefixCls } = useDesign('simple-menu');
+
+      const isEditing = inject('isMenuEditing', false);
 
       const getShowMenu = computed(() => !props.item?.meta?.hideMenu);
       const menuTestId = computed(() => {
@@ -120,6 +132,7 @@
         getShowSubTitle,
         getLevelClass,
         getIsCollapseParent,
+        isEditing,
       };
     },
   });

@@ -18,6 +18,17 @@ import org.jeecg.modules.system.mapper.SysRolePermissionMapper;
 import org.jeecg.modules.system.model.TreeModel;
 import org.jeecg.modules.system.service.ISysPermissionDataRuleService;
 import org.jeecg.modules.system.service.ISysPermissionService;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import org.apache.shiro.SecurityUtils;
+import org.jeecg.common.system.vo.LoginUser;
+import org.jeecg.modules.system.entity.TrMenuLayout;
+import org.jeecg.modules.system.service.IMenuLayoutService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import java.util.stream.Collectors;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -52,6 +63,11 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
 
 	@Resource
 	private SysDepartRolePermissionMapper sysDepartRolePermissionMapper;
+
+	@Autowired
+	@Lazy
+	private IMenuLayoutService menuLayoutService;
+
 
 	@Override
 	public void switchVue3Menu() {
@@ -240,7 +256,113 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
 			//update-end-author:liusq date:20230427 for: [QQYUN-5168]【vue3】为什么出现两个菜单 菜单根据id去重
 		}
 		//================= end 开启租户的时候 如果没有test角色，默认加入test角色================
+		
+		// --- MVP-10A Apply Layout Order ---
+		try {
+			LoginUser loginUser = (LoginUser) SecurityUtils.getSubject().getPrincipal();
+			if (loginUser != null) {
+				TrMenuLayout layout = menuLayoutService.getByUserId(loginUser.getId());
+				if (layout != null && oConvertUtils.isNotEmpty(layout.getLayoutJson())) {
+					Object json = JSON.parse(layout.getLayoutJson());
+					permissionList = applyLayoutToPermissionList(permissionList, json);
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		// ----------------------------------
+
 		return permissionList;
+	}
+
+	/**
+	 * 将布局应用到权限列表
+	 */
+	private List<SysPermission> applyLayoutToPermissionList(List<SysPermission> list, Object layout) {
+		if (list == null || list.isEmpty() || layout == null) return list;
+
+		JSONArray topOrder = null;
+		JSONObject childrenOrder = null;
+
+		if (layout instanceof JSONArray) {
+			// 旧格式：直接是数组
+			topOrder = (JSONArray) layout;
+		} else if (layout instanceof JSONObject) {
+			// 新格式：对象包含 top 和 children
+			JSONObject obj = (JSONObject) layout;
+			topOrder = obj.getJSONArray("top");
+			childrenOrder = obj.getJSONObject("children");
+		}
+
+		// 1. 按 parentId 分组
+		Map<String, List<SysPermission>> grouped = new HashMap<>();
+		for (SysPermission p : list) {
+			String pid = oConvertUtils.getString(p.getParentId(), "");
+			grouped.computeIfAbsent(pid, k -> new ArrayList<>()).add(p);
+		}
+
+		// 2. 排序 top level
+		List<SysPermission> topItems = grouped.get("");
+		if (topItems != null && topOrder != null) {
+			sortItemsByOrder(topItems, topOrder);
+		}
+
+		// 3. 排序各级子菜单
+		if (childrenOrder != null) {
+			for (String pid : childrenOrder.keySet()) {
+				List<SysPermission> children = grouped.get(pid);
+				if (children != null) {
+					sortItemsByOrder(children, childrenOrder.getJSONArray(pid));
+				}
+			}
+		}
+
+		// 4. 重新组合成平铺列表
+		List<SysPermission> result = new ArrayList<>();
+		if (topItems != null) {
+			for (SysPermission top : topItems) {
+				collectDfs(top, grouped, result);
+			}
+		}
+		
+		// 补漏
+		Set<String> resultIds = result.stream().map(SysPermission::getId).collect(Collectors.toSet());
+		for (SysPermission p : list) {
+			if (!resultIds.contains(p.getId())) {
+				result.add(p);
+			}
+		}
+
+		return result;
+	}
+
+	private void sortItemsByOrder(List<SysPermission> items, JSONArray order) {
+		if (items == null || order == null || order.isEmpty()) return;
+		Map<String, Integer> orderMap = new HashMap<>();
+		for (int i = 0; i < order.size(); i++) {
+			orderMap.put(order.getString(i), i);
+		}
+		items.sort((a, b) -> {
+			Integer oa = orderMap.get(a.getId());
+			Integer ob = orderMap.get(b.getId());
+			if (oa != null && ob != null) return oa.compareTo(ob);
+			if (oa != null) return -1;
+			if (ob != null) return 1;
+			// 保持原有 sortNo 排序
+			double s1 = a.getSortNo() == null ? 0 : a.getSortNo();
+			double s2 = b.getSortNo() == null ? 0 : b.getSortNo();
+			return Double.compare(s1, s2);
+		});
+	}
+
+	private void collectDfs(SysPermission current, Map<String, List<SysPermission>> grouped, List<SysPermission> result) {
+		result.add(current);
+		List<SysPermission> children = grouped.get(current.getId());
+		if (children != null) {
+			for (SysPermission child : children) {
+				collectDfs(child, grouped, result);
+			}
+		}
 	}
 
 	/**
