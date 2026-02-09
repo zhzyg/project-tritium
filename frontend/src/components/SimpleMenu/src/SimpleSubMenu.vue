@@ -36,17 +36,9 @@
       </span>
       <SimpleMenuTag :item="item" :collapseParent="!!collapse && !!parent" />
     </template>
-    <draggable
-      v-if="item.children && item.children.length > 0"
-      v-model="item.children"
-      item-key="path"
-      :disabled="!isEditing"
-      tag="div"
-    >
-      <template #item="{ element }">
-        <SimpleSubMenu v-bind="$props" :item="element" :parent="false" />
-      </template>
-    </draggable>
+    <template v-for="childrenItem in item.children || []" :key="childrenItem.path">
+      <SimpleSubMenu v-bind="$props" :item="childrenItem" :parent="false" />
+    </template>
   </SubMenu>
 </template>
 <script lang="ts">
@@ -62,7 +54,6 @@
   import { propTypes } from '/@/utils/propTypes';
   import { useI18n } from '/@/hooks/web/useI18n';
   import { createAsyncComponent } from '/@/utils/factory/createAsyncComponent';
-  import draggable from 'vuedraggable';
 
   export default defineComponent({
     name: 'SimpleSubMenu',
@@ -71,7 +62,6 @@
       MenuItem,
       SimpleMenuTag: createAsyncComponent(() => import('./SimpleMenuTag.vue')),
       Icon,
-      draggable,
     },
     props: {
       item: {

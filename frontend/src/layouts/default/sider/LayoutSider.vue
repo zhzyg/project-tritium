@@ -13,6 +13,7 @@
     @breakpoint="onBreakpointChange"
     :trigger="getTrigger"
     v-bind="getTriggerAttr"
+    data-testid="sidebar"
   >
     <template #trigger v-if="getShowTrigger">
       <LayoutTrigger />

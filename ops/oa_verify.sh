@@ -53,7 +53,15 @@ fi
 echo "[oa-verify] Running repro_sidebar_drag_menu_step1.mjs..."
 node ops/repro_sidebar_drag_menu_step1.mjs || handle_failure "sidebar-drag-menu-step1" ".artifacts/repro-sidebar-drag-menu-step1"
 
+echo "[oa-verify] Running repro_sidebar_drag_menu_step2_persist.mjs..."
+node ops/repro_sidebar_drag_menu_step2_persist.mjs || handle_failure "sidebar-drag-menu-step2" ".artifacts/repro-sidebar-drag-menu-step2"
+
+echo "[oa-verify] Running repro_sidebar_drag_menu_step3_children.mjs..."
+node ops/repro_sidebar_drag_menu_step3_children.mjs || handle_failure "sidebar-drag-menu-step3" ".artifacts/repro-sidebar-drag-menu-step3"
+
 echo "[oa-verify] Evidence:"
 echo "  - .artifacts/repro-sidebar-drag-menu-step1"
+echo "  - .artifacts/repro-sidebar-drag-menu-step2"
+echo "  - .artifacts/repro-sidebar-drag-menu-step3"
 
 echo "✅ [oa-verify] ALL ROUTES PASSED."

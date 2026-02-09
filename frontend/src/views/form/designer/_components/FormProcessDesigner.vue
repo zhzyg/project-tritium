@@ -30,8 +30,8 @@
 
     <div class="process-body">
       <div ref="canvasRef" class="process-canvas" data-testid="form-bpmn-canvas"></div>
-      <div class="process-side-panel" data-testid="task-rule-panel">
-        <div class="task-rule-title">节点字段权限</div>
+      <div class="process-side-panel" data-testid="node-prop-panel">
+        <div class="task-rule-title">节点属性配置</div>
         <a-alert v-if="!userTasks.length" type="info" show-icon message="未发现用户任务节点" class="mb-3" />
         <a-button
           v-if="draftMissing || !userTasks.length"
@@ -58,6 +58,22 @@
               >
                 {{ task.name || task.id }}
               </a-button>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="selectedTaskId" class="task-rule-section">
+          <div class="task-rule-section-title">审批人配置</div>
+          <div class="task-rule-row-block">
+            <span class="task-rule-label">审批人 (Candidate Users)</span>
+            <div data-testid="node-approver-users">
+               <JSelectUser v-model:value="candidateUsers" :multi="true" @change="updateNodeUser" />
+            </div>
+          </div>
+          <div class="task-rule-row-block">
+            <span class="task-rule-label">审批岗位 (Candidate Groups)</span>
+            <div data-testid="node-approver-posts">
+               <JSelectPosition v-model:value="candidateGroups" :multi="true" @change="updateNodeGroup" />
             </div>
           </div>
         </div>
@@ -120,7 +136,7 @@
           v-else
           type="warning"
           show-icon
-          message="请选择一个用户任务节点以配置字段权限"
+          message="请选择一个用户任务节点以配置属性"
           class="mb-3"
         />
       </div>
@@ -135,6 +151,7 @@
   import { getFormBpmn, publishFormBpmn, saveFormBpmn } from '/@/api/form/bpmn';
   import { listTaskFieldRuleByProc, upsertTaskFieldRule } from '/@/api/bpm/flowable';
   import { getLatestSchema } from '/@/views/form/designer/designer.api';
+  import { JSelectUser, JSelectPosition } from '/@/components/Form';
   import 'bpmn-js/dist/assets/diagram-js.css';
   import 'bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css';
 
@@ -154,6 +171,7 @@
   const processKey = ref('');
   const selectedTaskId = ref('');
   const selectedTaskName = ref('');
+  const selectedTaskElement = ref<any>(null);
   const userTasks = ref<{ id: string; name: string; element: any }[]>([]);
   const fieldOptions = ref<{ label: string; value: string }[]>([]);
   const visibleFields = ref<string[]>([]);
@@ -162,6 +180,10 @@
   const savingRule = ref(false);
   const ruleMap = ref<Record<string, any>>({});
 
+  // Approver selection refs
+  const candidateUsers = ref<string>('');
+  const candidateGroups = ref<string>('');
+
   const visibleFieldSet = computed(() => new Set(visibleFields.value || []));
   const editableFieldSet = computed(() => new Set(editableFields.value || []));
   const requiredFieldSet = computed(() => new Set(requiredFields.value || []));
@@ -169,6 +191,7 @@
   const canSaveRule = computed(() => !!selectedTaskId.value && !!processKey.value && !!props.formKey && !savingRule.value);
 
   const buildDefaultXml = (key: string) => {
+
     const processId = `FORM_PROCESS_${key || 'DEFAULT'}`;
     return `<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -318,9 +341,52 @@
   const clearSelectedTask = () => {
     selectedTaskId.value = '';
     selectedTaskName.value = '';
+    selectedTaskElement.value = null;
     visibleFields.value = [];
     editableFields.value = [];
     requiredFields.value = [];
+    candidateUsers.value = '';
+    candidateGroups.value = '';
+  };
+
+  const loadNodeProperties = (element: any) => {
+    if (!element || !element.businessObject) return;
+    const bo = element.businessObject;
+    let users: string[] = [];
+    if (bo.assignee) users.push(bo.assignee);
+    if (bo.candidateUsers) {
+      users.push(...bo.candidateUsers.split(',').filter(Boolean));
+    }
+    candidateUsers.value = Array.from(new Set(users)).join(',');
+    candidateGroups.value = bo.candidateGroups || '';
+  };
+
+  const updateNodeUser = (val: string) => {
+    candidateUsers.value = val;
+    if (!modelerRef.value || !selectedTaskElement.value) return;
+    const modeling = modelerRef.value.get('modeling');
+    const users = val ? val.split(',').filter(Boolean) : [];
+    const props: any = {};
+    if (users.length === 1) {
+        props.assignee = users[0];
+        props.candidateUsers = undefined;
+    } else if (users.length > 1) {
+        props.assignee = undefined;
+        props.candidateUsers = users.join(',');
+    } else {
+        props.assignee = undefined;
+        props.candidateUsers = undefined;
+    }
+    modeling.updateProperties(selectedTaskElement.value, props);
+  };
+
+  const updateNodeGroup = (val: string) => {
+    candidateGroups.value = val;
+    if (!modelerRef.value || !selectedTaskElement.value) return;
+    const modeling = modelerRef.value.get('modeling');
+    modeling.updateProperties(selectedTaskElement.value, {
+        candidateGroups: val || undefined
+    });
   };
 
   const applyRuleForTask = (taskId: string) => {
@@ -338,7 +404,9 @@
   const selectTask = (task: { id: string; name: string; element: any }) => {
     selectedTaskId.value = task.id;
     selectedTaskName.value = task.name;
+    selectedTaskElement.value = task.element;
     applyRuleForTask(task.id);
+    loadNodeProperties(task.element);
     if (modelerRef.value) {
       const selection = modelerRef.value.get('selection');
       if (selection?.select && task.element) {
@@ -355,13 +423,19 @@
       const selection = event?.newSelection || [];
       const element = selection[0];
       if (!element || !isUserTask(element)) {
+        // Only clear if we deselected everything or selected something else
+        if (selection.length === 0 || !isUserTask(selection[0])) {
+             // Optional: clear selection if strictly enforced, but usually we just don't show the panel
+        }
         return;
       }
       const id = element.businessObject?.id || element.id || '';
       const name = element.businessObject?.name || id;
       selectedTaskId.value = id;
       selectedTaskName.value = name;
+      selectedTaskElement.value = element;
       applyRuleForTask(id);
+      loadNodeProperties(element);
     });
   };
 
@@ -897,5 +971,17 @@
     font-size: 12px;
     color: rgba(0, 0, 0, 0.85);
     word-break: break-all;
+  }
+
+  .task-rule-row-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .task-rule-label {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.45);
   }
 </style>

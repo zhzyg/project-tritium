@@ -1,34 +1,20 @@
 <template>
   <div :class="prefixCls" data-testid="sidebar-menu-root">
-    <div style="text-align: right; padding: 4px;">
-      <a-button type="link" size="small" @click="toggleEditing" data-testid="btn-sidebar-menu-edit">
-        {{ isEditing ? '完成' : '编辑菜单' }}
-      </a-button>
-    </div>
     <Menu
       v-bind="getBindValues"
       :activeName="activeName"
       :openNames="getOpenKeys"
-      :class="{ 'is-editing': isEditing }"
       :activeSubMenuNames="activeSubMenuNames"
       @select="handleSelect"
     >
-      <draggable
-        v-model="draggableItems"
-        item-key="path"
-        :component-data="{ 'data-testid': isEditing ? 'marker-sidebar-editing' : '' }"
-        :disabled="!isEditing"
-        @end="onDragEnd"
-      >
-        <template #item="{ element }">
-          <SimpleSubMenu
-            :item="element"
-            :parent="true"
-            :collapsedShowTitle="collapsedShowTitle"
-            :collapse="collapse"
-          />
-        </template>
-      </draggable>
+      <template v-for="item in items" :key="item.path">
+        <SimpleSubMenu
+          :item="item"
+          :parent="true"
+          :collapsedShowTitle="collapsedShowTitle"
+          :collapse="collapse"
+        />
+      </template>
     </Menu>
   </div>
 </template>
@@ -46,18 +32,14 @@
   import { useRouter } from 'vue-router';
   import { isFunction, isUrl } from '/@/utils/is';
   import { openWindow } from '/@/utils';
-  import draggable from 'vuedraggable';
   import { useOpenKeys } from './useOpenKeys';
   import { URL_HASH_TAB } from '/@/utils';
-  import { Button as AButton } from 'ant-design-vue';
 
   export default defineComponent({
     name: 'SimpleMenu',
     components: {
       Menu,
       SimpleSubMenu,
-      draggable,
-      AButton,
     },
     inheritAttrs: false,
     props: {
@@ -77,49 +59,9 @@
     },
     emits: ['menuClick'],
     setup(props, { attrs, emit }) {
-      const isEditing = ref(false);
-      const draggableItems = ref<MenuType[]>([]);
-
+      const isEditing = ref(false); 
+      // We still provide isMenuEditing as false, just in case SimpleSubMenu relies on it being present
       provide('isMenuEditing', isEditing);
-
-      watch(
-        () => props.items,
-        (newItems) => {
-          draggableItems.value = JSON.parse(JSON.stringify(newItems));
-        },
-        { immediate: true }
-      );
-
-      function toggleEditing() {
-        if (isEditing.value) {
-          onSaveLayout();
-        }
-        isEditing.value = !isEditing.value;
-      }
-
-      function onSaveLayout() {
-        const layout = {
-          top: draggableItems.value.map((item) => item.meta?.permissionId).filter(Boolean),
-          children: {},
-        };
-
-        draggableItems.value.forEach((item) => {
-          if (item.children && item.children.length > 0) {
-            const pid = item.meta?.permissionId;
-            if (pid) {
-              layout.children[pid] = item.children.map((c) => c.meta?.permissionId).filter(Boolean);
-            }
-          }
-        });
-
-        // @ts-ignore
-        if (window.axios) {
-          // @ts-ignore
-          window.axios.post('/sys/menuLayout/saveMine', layout);
-        }
-      }
-
-      function onDragEnd() {}
 
       const currentActiveMenu = ref('');
       const isClickGo = ref(false);
@@ -186,9 +128,6 @@
       }
 
       async function handleSelect(key: string) {
-        if (isEditing.value) {
-          return;
-        }
         if (isUrl(key)) {
           let url = key.replace(URL_HASH_TAB, '#');
           window.open(url);
@@ -213,20 +152,7 @@
         handleSelect,
         getOpenKeys,
         ...toRefs(menuState),
-        isEditing,
-        toggleEditing,
-        draggableItems,
-        onDragEnd,
       };
     },
   });
 </script>
-<style lang="less">
-  @import './index.less';
-  .is-editing {
-    .ant-menu-item,
-    .ant-menu-submenu-title {
-      cursor: move !important;
-    }
-  }
-</style>

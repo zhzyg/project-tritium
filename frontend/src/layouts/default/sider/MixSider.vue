@@ -12,6 +12,7 @@
       },
     ]"
     v-bind="getMenuEvents"
+    data-testid="sidebar"
   >
     <AppLogo :showTitle="false" :class="`${prefixCls}-logo`" />
 

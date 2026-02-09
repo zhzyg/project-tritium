@@ -2,8 +2,8 @@
   <Layout :class="prefixCls" v-bind="lockEvents">
     <LayoutFeatures />
     <LayoutHeader fixed v-if="getShowFullHeaderRef" />
-    <Layout :class="[layoutClass]">
-      <LayoutSideBar v-if="getShowSidebar || getIsMobile" />
+    <Layout :class="[layoutClass]" data-testid="sidebar-layout">
+      <LayoutSideBar v-if="getShowSidebar || getIsMobile" data-testid="sidebar" />
       <Layout :class="`${prefixCls}-main`">
         <LayoutMultipleHeader />
         <LayoutContent />

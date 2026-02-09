@@ -7,11 +7,12 @@
     :getContainer="null"
     :visible="!getCollapsed"
     @close="handleClose"
+    data-testid="sidebar"
   >
     <Sider />
   </Drawer>
-  <MixSider v-else-if="getIsMixSidebar" />
-  <Sider v-else />
+  <MixSider v-else-if="getIsMixSidebar" data-testid="sidebar" />
+  <Sider v-else data-testid="sidebar" />
 </template>
 <script lang="ts">
   import { defineComponent } from 'vue';
