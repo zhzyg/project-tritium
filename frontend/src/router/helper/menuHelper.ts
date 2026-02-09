@@ -94,6 +94,7 @@ export function transformRouteToMenu(routeModList: AppRouteModule[], routerMappi
       return {
         ...(node.meta || {}),
         meta: node.meta,
+        id: (node as any).id,
         name: title,
         hideMenu,
         alwaysShow:node.alwaysShow||false,
